@@ -62,20 +62,21 @@ function checkedGrant<T extends { expires_at_epoch: number; provider_terms_refer
   if (value.expires_at_epoch <= input.now) throw new Error("website_atlas_consent_expired");
   if (!input.termsDigest || input.termsDigest !== value.provider_terms_reference)
     throw new Error("provider_terms_not_configured_or_changed");
-  // No planner terms configured, or a grant Blueprint wrote without a planner: Blueprint's own setup.
-  if (input.planning && (!value.planner || !input.plannerTermsDigest)) throw new Error(WEBSITE_ATLAS_CONSENT_UNCONFIGURED);
-  if (input.planning && value.planner!.provider_terms_reference !== input.plannerTermsDigest)
+  // No planner terms configured: Blueprint's own setup. A grant with no planner disclosure, or one given under planner
+  // terms that have changed since, does not cover planning: a rights refusal.
+  if (input.planning && !input.plannerTermsDigest) throw new Error(WEBSITE_ATLAS_CONSENT_UNCONFIGURED);
+  if (input.planning && (!value.planner || value.planner.provider_terms_reference !== input.plannerTermsDigest))
     throw new Error("website_atlas_planner_consent_required");
   return { ...value, authorization_digest: digest(value) };
 }
 
 /**
  * A state of the Atlas grant that is Blueprint's own setup, never the site's to fix (round 2, 2026-11-24): no grant
- * policy or planner terms configured, duplicate operator rows, a grant Blueprint wrote without a planner, a reservation
- * asked before any grant exists, or an upload record or job missing what a grant is made from. The site has no control
- * that gives permission, so none of these is said to the site as waiting for it. The rights refusals keep their codes:
- * a recording whose consent does not allow scene building or was withdrawn, a video that is not the one the grant
- * covers, and planner terms changed since the grant (`website_atlas_source_consent_required`,
+ * policy or planner terms configured, duplicate operator rows, a reservation asked before any grant exists, or an
+ * upload record or job missing what a grant is made from. The site has no control that gives permission, so none of
+ * these is said to the site as waiting for it. The rights refusals keep their codes: a recording whose consent does not
+ * allow scene building or was withdrawn, a video or task context the grant does not cover, a grant with no planner
+ * disclosure or under planner terms changed since, and a grant past its expiry (`website_atlas_source_consent_required`,
  * `website_atlas_planner_consent_required`, `website_atlas_consent_expired`).
  */
 export const WEBSITE_ATLAS_CONSENT_UNCONFIGURED = "website_atlas_consent_unconfigured";
