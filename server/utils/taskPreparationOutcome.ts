@@ -681,8 +681,15 @@ const STEP_ON_OUR_SIDE = { title: "Building the simulation of your site is pause
 const PLANNER_REVIEW_CODES = ["atlas_scene_planner_unsafe_frames_invalid", "atlas_scene_planner_required_views_outside_selection",
   "atlas_scene_planner_required_view_unsafe", "atlas_scene_planner_anchor_not_required",
   "atlas_scene_planner_task_or_room_coverage_missing", "atlas_scene_planner_coverage_or_privacy_invalid"] as const;
+/**
+ * The review of the views generated for parts of the room no frame saw did not pass, or the record that the job goes
+ * on without them did not read back (stress round 4, 2026-11-24). The Pipeline now goes on without those views, so
+ * these reach a job only from a step that still rechecks them. Ours: the site's video is not at fault.
+ */
+const COMPLETION_REVIEW_CODES = ["atlas_completion_visual_review_required", "atlas_completion_floor_record_invalid"] as const;
 const ATLAS_PAUSES: Readonly<Record<string, typeof PERMISSION_NOT_COVERED | typeof SETUP_ON_OUR_SIDE>> = {
   ...Object.fromEntries(PLANNER_REVIEW_CODES.map(code => [code, STEP_ON_OUR_SIDE])),
+  ...Object.fromEntries(COMPLETION_REVIEW_CODES.map(code => [code, STEP_ON_OUR_SIDE])),
   website_atlas_reservation_summary_too_large: STEP_ON_OUR_SIDE,
   website_atlas_accounting_response_too_large: STEP_ON_OUR_SIDE,
   website_atlas_source_consent_required: PERMISSION_NOT_COVERED,
