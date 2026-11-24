@@ -30,7 +30,29 @@ import { APPLICATION_NAME_HOLDS_CONTACT, APPLICATION_WEBSITE_NOT_OWN, applicantN
 
 const router = Router();
 
-const applyLimiter = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: true, legacyHeaders: false });
+/** Seconds until a limiter's window lets this caller in again, from the limiter's own reset time. */
+function limiterWaitSeconds(req: Request, windowMs: number): number {
+  const reset = (req as Request & { rateLimit?: { resetTime?: Date } }).rateLimit?.resetTime;
+  return Math.max(1, Math.ceil((reset instanceof Date ? reset.getTime() - Date.now() : windowMs) / 1000));
+}
+
+/** A 429 that says how long to wait (stress test round 2, 2026-11-24: "Too many requests" said nothing of when). */
+const tooManyTries = (windowMs: number) => (req: Request, res: Response) => {
+  const seconds = limiterWaitSeconds(req, windowMs);
+  res.set("Retry-After", String(seconds));
+  return res.status(429).json({ code: "rate_limited", retryAfterSeconds: seconds,
+    error: `Too many tries in a short time. Wait ${waitInWords(seconds)} and try again.` });
+};
+
+/** Applications, sign-in links and invitations from one address: five a minute. */
+const applyLimiter = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: true, legacyHeaders: false, handler: tooManyTries(60_000) });
+/**
+ * Pressing "I agree" has its own limit, by the signed-in account, never by address (stress test round 2: an office that
+ * asked for its sign-in link a few times then could not accept the Terms, as both shared one bucket per address).
+ */
+const acceptTermsLimiter = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (_req: Request, res: Response) => `account:${String(res.locals.firebaseUser?.uid ?? "unknown")}`,
+  handler: tooManyTries(60_000) });
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 
@@ -179,7 +201,7 @@ router.post("/sign-in-link/redeem", applyLimiter, async (req: Request, res: Resp
 const TERMS_ACCEPTANCE_INVALID = { error: "Agree to the current Terms and Privacy Policy.", code: "terms_acceptance_invalid" };
 const acceptTermsSchema = z.object({ acceptedTerms: z.literal(true), termsVersion: z.string().max(40),
   privacyVersion: z.string().max(40) }).strict();
-router.post("/accept-terms", applyLimiter, verifyFirebaseToken, async (req: Request, res: Response) => {
+router.post("/accept-terms", verifyFirebaseToken, acceptTermsLimiter, async (req: Request, res: Response) => {
   const user = res.locals.firebaseUser;
   const body = acceptTermsSchema.safeParse(req.body);
   // The versions the prompt showed, recorded exactly when they still count as current; refused otherwise.

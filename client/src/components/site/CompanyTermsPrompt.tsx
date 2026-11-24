@@ -20,6 +20,12 @@ export function CompanyTermsPrompt({ user, onAccepted }: { user: User; onAccepte
       const response = await fetch("/api/robot-team-access/accept-terms", { method: "POST", credentials: "include",
         headers: await withFirebaseAuthHeaders(user, await withCsrfHeader({ "Content-Type": "application/json" })),
         body: JSON.stringify({ acceptedTerms: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION }) });
+      // Too many presses in a short time: the server says how long to wait.
+      if (response.status === 429) {
+        const body = await response.json().catch(() => null) as { error?: unknown } | null;
+        setMessage(typeof body?.error === "string" ? body.error : "Too many tries in a short time. Wait a minute and try again.");
+        return;
+      }
       if (!response.ok) throw new Error("not saved");
       onAccepted();
     } catch { setMessage("Your agreement was not saved. Try again."); }
