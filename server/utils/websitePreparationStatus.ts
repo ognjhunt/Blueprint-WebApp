@@ -154,7 +154,9 @@ export const ROBOT_FIT_V2_CHECKS = ["stance", "reach", "payload", "cycle_time", 
 export const ROBOT_FIT_V2_QUANTITIES = ["item_mass_kg", "reach_m", "hand_height_m", "cycle_time_s", "route_clear", "floor_width_m"] as const;
 export const ROBOT_FIT_V2_CAUSES = ["estimate_straddles_limit", "item_mass_missing", "catalog_figure_missing",
   "tool_figure_missing", "no_clear_station", "footprint_not_searched", "arm_pose_search_inconclusive",
-  "carry_check_undecided", "not_modelled", "not_checked"] as const;
+  "carry_check_undecided", "not_modelled", "not_checked",
+  // Pipeline `website_robot_fit_projection.MISSING_CAUSES` (round 2, 2026-11-24), each with words in `firstLookWords`.
+  "own_stance_reach_unproven", "base_stance_not_found", "job_geometry_not_finite", "point_below_floor", "floor_height_not_found"] as const;
 const figure = z.number().nonnegative().max(1e9);
 const signedFigure = z.number().min(-1e9).max(1e9);
 export const robotFitConditionSchema = z.object({

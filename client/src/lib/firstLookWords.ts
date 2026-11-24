@@ -89,6 +89,12 @@ export function missingCauseWords(check: unknown, cause: unknown): string | null
     case "tool_figure_missing": return "the size of its standard gripper is not known";
     case "item_mass_missing": return "the item's weight is not known, and its standard gripper alone is over its rating";
     case "estimate_straddles_limit": return "the item's estimated weight is too close to its rating to tell";
+    // Round 2 (2026-11-24), the Pipeline's `website_robot_fit` causes that read as "Not rated yet." with no reason.
+    case "own_stance_reach_unproven": return "we have not measured its reach from a place where its base can stand";
+    case "base_stance_not_found": return "we found no place near the job for its base to stand, though that may be a gap in the scan";
+    case "job_geometry_not_finite": return "we could not read the job's positions in the simulation";
+    case "point_below_floor": return "a spot of the job lies below the floor we found under it, so we cannot tell its height";
+    case "floor_height_not_found": return "we could not find the height of the floor under the job";
     default: return null;
   }
 }
