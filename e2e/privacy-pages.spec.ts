@@ -84,7 +84,7 @@ test("the Terms and the previous Terms say a company's estimate is its own, befo
   await expect(article).toContainText("Effective November 23, 2026");
   await expect(article).toContainText(SITE);
   await expect(article).toContainText(COMPANY);
-  await expect(article).toContainText("This version replaced the previous version (effective November 23, 2026).");
+  await expect(article).toContainText("This version replaced the previous version (version 2026-11-23.3, effective November 23, 2026).");
   await page.getByRole("link", { name: "previous version", exact: true }).click();
   await expect(page).toHaveURL(/\/terms\/previous$/);
   await expect(article).toContainText("Previous version, effective November 23, 2026");
@@ -105,7 +105,7 @@ test("the Terms say a library model in a simulation stays under its own license;
   await expect(article).toContainText("Effective November 23, 2026");
   await expect(article.locator("section", { has: page.getByRole("heading", { name: "6. Ownership" }) }))
     .toContainText(`subject to the rights these Terms give you, including a site's right to withdraw its job. ${LIBRARY} If you send us feedback`);
-  await expect(article).toContainText("This version replaced the previous version (effective November 23, 2026).");
+  await expect(article).toContainText("This version replaced the previous version (version 2026-11-23.3, effective November 23, 2026).");
   await page.getByRole("link", { name: "previous version", exact: true }).click();
   await expect(page).toHaveURL(/\/terms\/previous$/);
   await expect(article).toContainText("Previous version, effective November 23, 2026");
@@ -113,4 +113,26 @@ test("the Terms say a library model in a simulation stays under its own license;
   await page.goto("/privacy");
   await expect(article).toContainText("Effective November 23, 2026");
   await expect(article).not.toContainText("public library");
+});
+
+// Stress test, 2026-11-24: several versions took effect on November 23, 2026, and /terms read "Effective November 23,
+// 2026… replaced the previous version (effective November 23, 2026)". Each legal page and its past-versions list now
+// say the version id, in the shared notes under the page's own (pinned) effective date.
+test("each legal page and its past versions say their version id, so same-day versions can be told apart", async ({ page }) => {
+  const article = page.locator("article");
+  await page.goto("/terms");
+  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).toContainText("Version 2026-11-23.4.");
+  await article.getByText("Past versions", { exact: true }).click();
+  await expect(article.locator(".ms-legal-versions li").first()).toHaveText("Version 2026-11-23.3, effective November 23, 2026, replaced the same day");
+  await expect(article.locator(".ms-legal-versions li").nth(1)).toHaveText("Version 2026-11-23.2, effective November 23, 2026, replaced the same day");
+  await page.goto("/terms/previous");
+  await expect(article).toContainText("Previous version, effective November 23, 2026");
+  await expect(article).toContainText("Version 2026-11-23.3.");
+  await expect(article).toContainText("when the current Terms (version 2026-11-23.4) took effect.");
+  await page.goto("/privacy");
+  await expect(article).toContainText("Version 2026-11-23.2.");
+  await expect(article).toContainText("This version replaced the previous version (version 2026-11-23.1, effective November 23, 2026).");
+  await page.goto("/privacy/previous");
+  await expect(article).toContainText("Version 2026-11-23.1.");
 });

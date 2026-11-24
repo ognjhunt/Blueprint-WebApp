@@ -87,6 +87,13 @@ const pastVersions: Record<LegalDocument, ReadonlyArray<{ version: string; url?:
   ],
 };
 
+/**
+ * The version id beside each date (stress test, 2026-11-24): several versions took effect on November 23, 2026, so a
+ * date alone cannot tell them apart. The id is said here, in the shared notes under each page's effective date, so no
+ * pinned page changes (`legalPages.pinned.test.ts` digests each page's own source file, not this one).
+ */
+export const versionLine = (version: string) => `Version ${version}`;
+
 function PastLegalVersions({ document }: { document: LegalDocument }) {
   const doc = documents[document];
   return (
@@ -94,7 +101,7 @@ function PastLegalVersions({ document }: { document: LegalDocument }) {
       <summary>Past versions</summary>
       <ul>
         {pastVersions[document].map(({ version, url, replacedSameDay }) => {
-          const label = `Effective ${legalEffectiveDate(version)}${replacedSameDay ? ", replaced the same day" : ""}`;
+          const label = `${versionLine(version)}, effective ${legalEffectiveDate(version)}${replacedSameDay ? ", replaced the same day" : ""}`;
           return <li key={version}>{url ? <a href={url}>{label}</a> : label}</li>;
         })}
       </ul>
@@ -111,14 +118,15 @@ export function CurrentLegalVersionNote({ document }: { document: LegalDocument 
   const doc = documents[document];
   const previous = <a href={doc.previous.url}>previous version</a>;
   return <>
+    <p className="ms-legal-version">{versionLine(doc.current.version)}.</p>
     {legalUpdatePending() ? (
       <p className="ms-legal-version">
-        This version takes effect on {legalEffectiveDate(doc.current.version)}. Until then, the {previous} (effective{" "}
-        {legalEffectiveDate(doc.previous.version)}) applies.
+        This version takes effect on {legalEffectiveDate(doc.current.version)}. Until then, the {previous} (version{" "}
+        {doc.previous.version}, effective {legalEffectiveDate(doc.previous.version)}) applies.
       </p>
     ) : (
       <p className="ms-legal-version">
-        This version replaced the {previous} (effective {legalEffectiveDate(doc.previous.version)}).
+        This version replaced the {previous} (version {doc.previous.version}, effective {legalEffectiveDate(doc.previous.version)}).
       </p>
     )}
     <PastLegalVersions document={document} />
@@ -129,15 +137,20 @@ export function CurrentLegalVersionNote({ document }: { document: LegalDocument 
 export function PreviousLegalVersionNote({ document }: { document: LegalDocument }) {
   const doc = documents[document];
   const date = legalEffectiveDate(doc.current.version);
-  return legalUpdatePending() ? (
-    <p className="ms-legal-version">
-      This version applies until {date}, when the <a href={doc.current.url}>updated {doc.name}</a> {doc.verb.future} effect.
-    </p>
-  ) : (
-    <p className="ms-legal-version">
-      This version applied until {date}, when the <a href={doc.current.url}>current {doc.name}</a> {doc.verb.past} effect.
-    </p>
-  );
+  return <>
+    <p className="ms-legal-version">{versionLine(doc.previous.version)}.</p>
+    {legalUpdatePending() ? (
+      <p className="ms-legal-version">
+        This version applies until {date}, when the <a href={doc.current.url}>updated {doc.name}</a> (version{" "}
+        {doc.current.version}) {doc.verb.future} effect.
+      </p>
+    ) : (
+      <p className="ms-legal-version">
+        This version applied until {date}, when the <a href={doc.current.url}>current {doc.name}</a> (version{" "}
+        {doc.current.version}) {doc.verb.past} effect.
+      </p>
+    )}
+  </>;
 }
 
 const DISMISS_KEY = "blueprint.legalUpdateNotice.dismissed";
