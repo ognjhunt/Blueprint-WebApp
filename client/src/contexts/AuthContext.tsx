@@ -339,7 +339,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           );
         }
       } else {
-        setLocation(destination);
+        // The sign-in page is replaced, not stacked under the destination: Back from the page signed in to goes to the
+        // page before sign-in, never to a sign-in form for an account already signed in (stress test, 2026-11-24).
+        setLocation(destination, { replace: true });
       }
       return destination;
     },

@@ -62,6 +62,8 @@ describe("public task disclosure", () => {
   it.each([
     ["Stack cartons onto the pallet", "Palletizing"],
     ["Depalletize boxes and place them on the conveyor", "Depalletizing"],
+    // Stress test, 2026-11-24: depalletizing read by its words, not only its name.
+    ["Take each carton off the incoming pallet and put it on the conveyor", "Depalletizing"],
     ["Move empty pallets between stations", "Pallet handling"],
     ["Pack the finished parts into shipping cases", "Case packing"],
     ["Load parts into the CNC machine", "Machine tending"],

@@ -57,10 +57,13 @@ describe("legal update notice", () => {
   it("links each version to the other and says which one applies", () => {
     at(new Date(legalEffectiveAtMs(LIBRARY_MODEL_TERMS_VERSION) + 4 * 3_600_000));
     render(<><CurrentLegalVersionNote document="terms" /><PreviousLegalVersionNote document="privacy" /></>);
-    expect(screen.getByText(/This version replaced the/)).toHaveTextContent("(effective November 23, 2026).");
+    // Stress test, 2026-11-24: same-day versions are told apart by their ids, said in these shared notes only.
+    expect(screen.getByText("Version 2026-11-23.4.")).toBeVisible();
+    expect(screen.getByText(/This version replaced the/)).toHaveTextContent("(version 2026-11-23.3, effective November 23, 2026).");
     expect(screen.getByRole("link", { name: "previous version" })).toHaveAttribute("href", "/terms/previous");
+    expect(screen.getByText("Version 2026-11-23.1.")).toBeVisible();
     expect(screen.getByText(`This version applied until ${legalEffectiveDate(COMPANY_APPLICATION_VERSION)}, when the`, { exact: false }))
-      .toHaveTextContent("current Privacy Policy took effect.");
+      .toHaveTextContent("current Privacy Policy (version 2026-11-23.2) took effect.");
     expect(screen.getByRole("link", { name: "current Privacy Policy" })).toHaveAttribute("href", "/privacy");
   });
 
@@ -74,9 +77,11 @@ describe("legal update notice", () => {
     // Terms 2026-11-23.3 was replaced by 2026-11-23.4, and 2026-11-23.2 by 2026-11-23.3, on the day each took effect, as
     // 2026-11-12.1 was by 2026-11-12.2.
     expect([...details.querySelectorAll("li")].map(item => item.textContent)).toEqual([
-      "Effective November 23, 2026, replaced the same day", "Effective November 23, 2026, replaced the same day",
-      "Effective November 21, 2026", "Effective November 19, 2026", "Effective November 17, 2026", "Effective November 12, 2026",
-      "Effective November 12, 2026, replaced the same day", "Effective November 2, 2026",
+      "Version 2026-11-23.3, effective November 23, 2026, replaced the same day",
+      "Version 2026-11-23.2, effective November 23, 2026, replaced the same day",
+      "Version 2026-11-21.1, effective November 21, 2026", "Version 2026-11-19.1, effective November 19, 2026",
+      "Version 2026-11-17.1, effective November 17, 2026", "Version 2026-11-12.2, effective November 12, 2026",
+      "Version 2026-11-12.1, effective November 12, 2026, replaced the same day", "Version 2026-11-02.1, effective November 2, 2026",
     ]);
     expect([...details.querySelectorAll("li a")].map(link => link.getAttribute("href"))).toEqual(["/terms/previous"]);
     expect(details.querySelector('a[href^="mailto:"]')).toHaveAttribute("href", "mailto:legal@tryblueprint.io");
@@ -85,8 +90,10 @@ describe("legal update notice", () => {
     const privacy = render(<CurrentLegalVersionNote document="privacy" />).container.querySelector("details")!;
     // Privacy 2026-11-23.1 was replaced by 2026-11-23.2 on the day it took effect.
     expect([...privacy.querySelectorAll("li")].map(item => item.textContent)).toEqual([
-      "Effective November 23, 2026, replaced the same day", "Effective November 21, 2026", "Effective November 19, 2026",
-      "Effective November 17, 2026", "Effective November 13, 2026", "Effective November 12, 2026", "Effective November 2, 2026",
+      "Version 2026-11-23.1, effective November 23, 2026, replaced the same day", "Version 2026-11-21.1, effective November 21, 2026",
+      "Version 2026-11-19.1, effective November 19, 2026", "Version 2026-11-17.1, effective November 17, 2026",
+      "Version 2026-11-13.1, effective November 13, 2026", "Version 2026-11-12.2, effective November 12, 2026",
+      "Version 2026-11-02.1, effective November 2, 2026",
     ]);
     expect([...privacy.querySelectorAll("li a")].map(link => link.getAttribute("href"))).toEqual(["/privacy/previous"]);
     expect(privacy.querySelector('a[href^="mailto:"]')).toHaveAttribute("href", "mailto:privacy@tryblueprint.io");

@@ -311,7 +311,8 @@ test.describe("desktop", () => {
     // The site's answers as fields at a glance (owner, 2026-11-23), each beside its label.
     const glance = companyPage.getByLabel("The site's answers");
     await expect(glance.locator("div").filter({ hasText: /^Pickup/ }).getByRole("definition")).toHaveText("Moving conveyor");
-    await expect(glance.locator("div").filter({ hasText: /^Heaviest loaded item/ }).getByRole("definition")).toHaveText("9.072 kg");
+    // 20 typed in pounds (the box's default unit) reads as typed, with a rounded conversion (stress test, 2026-11-24).
+    await expect(glance.locator("div").filter({ hasText: /^Heaviest loaded item/ }).getByRole("definition")).toHaveText("20 lb (about 9.1 kg)");
     // The approved browser receives a ticket for the published clip. A request without a ticket is refused.
     await expect(companyPage.getByLabel("The site's video, without sound")).toHaveAttribute("src",
       new RegExp(`/api/company-media/jobs/${requestId}/video\\.mp4\\?`));

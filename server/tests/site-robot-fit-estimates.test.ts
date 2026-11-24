@@ -116,6 +116,11 @@ describe("estimates from the video", () => {
     expect(jobFactsOf(answered({ weight: "over_30kg" })).mass).toMatchObject({ display: "over 30 kg", min: 30, max: Number.POSITIVE_INFINITY });
     // The heaviest loaded item the site typed is more exact than its range.
     expect(jobFactsOf(answered({ weight: "15_30kg", maxLoadedWeightKg: "22.5" })).mass).toMatchObject({ display: "22.5 kg", min: 22.5, max: 22.5 });
+    // Typed in pounds (stress test, 2026-11-24): said as typed, with a rounded conversion; checked in exact kilograms.
+    const pounds = jobFactsOf(answered({ maxLoadedWeightKg: "44lb" })).mass!;
+    expect(pounds.display).toBe("44 lb, about 20 kg");
+    expect(pounds.min).toBeCloseTo(19.958, 3);
+    expect(pounds.max).toBeCloseTo(19.958, 3);
     // "Not sure" is no answer: the earlier band stands.
     expect(jobFactsOf(answered({ weight: "unsure" })).mass).toMatchObject({ display: "2–10 kg", source: "site_stated" });
     // Without any word from the site, the video's estimate.

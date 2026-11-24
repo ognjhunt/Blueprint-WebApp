@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { COMPANY_APPLICATION_VERSION, LIBRARY_MODEL_TERMS_VERSION } from "@/lib/legalAcceptance";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompanyJobPage } from "@/types/taskBrowse";
-import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "@/lib/companyResponses";
+import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, estimateInWords } from "@/lib/companyResponses";
 
 /**
  * The company's page for one job (package E, E3 and E5): the site's sentence, its answers, the country, the video
@@ -17,7 +17,7 @@ const linkSignIn = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/companySignInLink", async (actual) => ({ ...(await actual<typeof import("@/lib/companySignInLink")>()),
   signInWithCompanyLink: linkSignIn }));
 
-const { default: CompanyJob, SITE_ANSWERS_HINT, NO_FIRST_LOOK, typedEstimate } = await import("@/pages/CompanyJob");
+const { default: CompanyJob, SITE_ANSWERS_HINT, NO_FIRST_LOOK, typedEstimate, ESTIMATE_INVALID, DECLINED_COMPANY_LINE } = await import("@/pages/CompanyJob");
 
 const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   schemaVersion: "company_job_page.v1", id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
@@ -145,14 +145,30 @@ describe("the company's page for one job", () => {
     expect(JSON.parse(String((fetchMock.mock.calls[1] as [string, RequestInit])[1].body)).details).toEqual({ chargeModel: "undecided" });
   });
 
-  it("reads an estimate as whole dollars, low to high, and refuses one it cannot read", () => {
+  // Stress test, 2026-11-24: an estimate under a dollar, or written with cents, could not be entered.
+  it("reads an estimate in dollars and cents, low to high, and refuses one it cannot read", () => {
     expect(typedEstimate("per_hour", "", "")).toBeNull();
     expect(typedEstimate("per_hour", "30", "")).toEqual({ lowUsd: 30, highUsd: 30 });
     expect(typedEstimate("purchase", "$120,000", "150000")).toEqual({ lowUsd: 120000, highUsd: 150000 });
+    expect(typedEstimate("per_hour", "12.5", "20")).toEqual({ lowUsd: 12.5, highUsd: 20 });
+    expect(typedEstimate("per_hour", "$45.00", "$60.00")).toEqual({ lowUsd: 45, highUsd: 60 });
+    expect(typedEstimate("per_task", "0.35", ".50")).toEqual({ lowUsd: 0.35, highUsd: 0.5 });
+    expect(typedEstimate("purchase", "１２００", "")).toEqual({ lowUsd: 1200, highUsd: 1200 });
     expect(typedEstimate("purchase", "150000", "120000")).toBe("invalid");
-    expect(typedEstimate("per_hour", "12.5", "20")).toBe("invalid");
+    // More than two decimals, a comma that does not group thousands, a range in one box, a shorthand: never guessed.
+    for (const [low, high] of [["0.355", ""], ["0,35", ""], ["1,2", ""], ["45-60", ""], ["12k", "18k"], ["0", ""], ["0.001", ""], ["100,000,001", ""]])
+      expect(typedEstimate("per_task", low, high), `${low}..${high}`).toBe("invalid");
     expect(typedEstimate("undecided", "10", "20")).toBe("invalid");
     expect(typedEstimate(undefined, "10", "20")).toBe("invalid");
+    expect(ESTIMATE_INVALID).not.toMatch(/whole dollars/);
+  });
+
+  it("says an estimate with cents as dollars and cents, at both ends, in the unit of how the company charges", () => {
+    expect(estimateInWords("per_task", { lowUsd: 0.35, highUsd: 0.5 })).toBe("$0.35 to $0.50 per task or item");
+    expect(estimateInWords("per_hour", { lowUsd: 45.5, highUsd: 60 })).toBe("$45.50 to $60.00 an hour");
+    expect(estimateInWords("subscription", { lowUsd: 12000, highUsd: 18000 })).toBe("$12,000 to $18,000 a month");
+    expect(estimateInWords("per_hour", { lowUsd: 15, highUsd: 15 })).toBe("$15 an hour");
+    expect(estimateInWords("per_task", { lowUsd: 0.001, highUsd: 1 })).toBeNull();
   });
 
   it("names the answer just saved, never the one it replaced", async () => {
@@ -239,6 +255,17 @@ describe("the company's page for one job", () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) });
     render(<CompanyJob />);
     expect(await screen.findByRole("heading", { name: "This job is not available" })).toBeInTheDocument();
+  });
+
+  // Stress test, 2026-11-24: a declined company read only "It may no longer be shared, or your account may not be approved".
+  it("tells a declined company it is not approved to see jobs, and where to write", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ access: { status: "declined", signedIn: true,
+      emailVerified: true, allowed: false, staff: false } }) });
+    render(<CompanyJob />);
+    expect(await screen.findByRole("heading", { name: "This job is not available" })).toBeInTheDocument();
+    expect(screen.getByText(DECLINED_COMPANY_LINE, { exact: false })).toBeVisible();
+    expect(screen.getByRole("link", { name: "hello@tryblueprint.io" })).toHaveAttribute("href", "mailto:hello@tryblueprint.io");
+    expect(screen.queryByText(/may no longer be shared/)).toBeNull();
   });
 
   // The page knows the account's access, so it says which case a refusal is.

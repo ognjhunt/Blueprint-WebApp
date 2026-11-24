@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  JOB_FACT_CHOICES, JOB_FACT_KEYS, NOT_SURE_LABEL, isJobFactCode, jobFactKeysForType, jobFactQuestion, jobFactQuestionHint, jobFactsInWords,
-  jobFactKeysFor, looksPlural, sanitizeJobFacts, sanitizeJobReading, weightLowerBoundKg, weightUpperBoundKg,
+  JOB_FACT_CHOICES, JOB_FACT_KEYS, NOT_SURE_LABEL, isJobFactCode, jobFactKeysForType, jobFactLabel, jobFactNumber, jobFactQuestion, jobFactQuestionHint,
+  jobFactsInWords, jobFactKeysFor, looksPlural, sanitizeJobFacts, sanitizeJobReading, typedJobFactNumber, weightLowerBoundKg, weightUpperBoundKg,
 } from "@/lib/jobFacts";
+import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { outcomeThanksSentence } from "@/pages/JobOutcomeThanks";
 
 describe("job facts code lists (PACKAGE_E E1)", () => {
@@ -35,6 +36,26 @@ describe("job facts code lists (PACKAGE_E E1)", () => {
     expect(isJobFactCode("itemsPerCase", "1.5")).toBe(false);
     expect(isJobFactCode("machineCycleSeconds", "15 kg")).toBe(false);
     expect(weightUpperBoundKg({ weight: "5_15kg", maxLoadedWeightKg: "11.25" })).toBe(11.25);
+  });
+
+  // Stress test, 2026-11-24: "44 lb" was shown as "19.958 kg". A weight typed in pounds is kept as typed and converted,
+  // rounded, only where it is shown; the checks use the exact kilograms.
+  it("keeps a weight typed in pounds as typed, says it with a rounded conversion, and checks it in kilograms", () => {
+    expect(isJobFactCode("maxLoadedWeightKg", "44lb")).toBe(true);
+    expect(isJobFactCode("maxLoadedWeightKg", "0.5lb")).toBe(true);
+    expect(isJobFactCode("maxLoadedWeightKg", "44 lb")).toBe(false);
+    expect(isJobFactCode("maxLoadedWeightKg", "250000lb")).toBe(false);
+    expect(isJobFactCode("peakPerMinute", "12lb")).toBe(false);
+    expect(jobFactLabel("maxLoadedWeightKg", "44lb")).toBe("44 lb (about 20 kg)");
+    expect(jobFactLabel("maxLoadedWeightKg", "5lb")).toBe("5 lb (about 2.3 kg)");
+    expect(jobFactLabel("maxLoadedWeightKg", "0.5lb")).toBe("0.5 lb (about 0.23 kg)");
+    expect(jobFactLabel("maxLoadedWeightKg", "20")).toBe("20 kg");
+    expect(jobFactNumber("maxLoadedWeightKg", "44lb")).toBeCloseTo(19.958, 3);
+    expect(jobFactNumber("maxLoadedWeightKg", "unsure")).toBeNull();
+    expect(weightUpperBoundKg({ maxLoadedWeightKg: "44lb" })).toBeCloseTo(19.958, 3);
+    expect(typedJobFactNumber("maxLoadedWeightKg", "44lb")).toEqual({ value: "44", unit: "lb" });
+    expect(typedJobFactNumber("maxLoadedWeightKg", "20")).toEqual({ value: "20", unit: "kg" });
+    expect(jobFactsInWords({ maxLoadedWeightKg: "44lb" }, "Palletizing")).toEqual(["Heaviest loaded item: 44 lb (about 20 kg)"]);
   });
 
   // Owner, 2026-11-23: more descriptive than "the item".
@@ -84,6 +105,26 @@ describe("job facts code lists (PACKAGE_E E1)", () => {
     expect(jobFactKeysFor("Case packing", reading("palletizing"))).toEqual(jobFactKeysForType("Palletizing"));
     expect(jobFactKeysFor("Quality inspection", reading("other"))).toEqual(jobFactKeysForType("Quality inspection"));
     expect(jobFactKeysFor("Other", reading("machine_tending"))).toEqual(jobFactKeysForType("Machine tending"));
+  });
+
+  // Stress test, 2026-11-24: "Take each carton off the incoming pallet…" was read as pallet handling, so the incoming
+  // loads were never asked. Depalletizing is read by its words; the reading's kind still wins where it disagrees.
+  it("reads a depalletizing job by its words and asks about the incoming loads, unless the reading's kind disagrees", () => {
+    const family = (sentence: string) => anonymizedOpportunityDraft(sentence).taskFamily;
+    for (const sentence of ["Take each carton off the incoming pallet and put it on the conveyor.",
+      "Pick cases from the pallet and put them on the conveyor.", "Unload the pallets of bottles onto the line.",
+      "Unstack the trays out of each pallet.", "Depalletize boxes and place them on the conveyor.", "De-palletize the sacks."])
+      expect(family(sentence), sentence).toBe("Depalletizing");
+    for (const [sentence, kind] of [["Stack each sealed carton on the pallet in layers.", "Palletizing"],
+      ["Take cartons off the conveyor and stack them on the pallet.", "Palletizing"],
+      ["Move empty pallets between stations.", "Pallet handling"], ["Wrap each pallet in film.", "Pallet handling"],
+      ["Move pallets off the truck to the dock.", "Pallet handling"]] as const)
+      expect(family(sentence), sentence).toBe(kind);
+    const depalletizing = family("Take each carton off the incoming pallet and put it on the conveyor.");
+    expect(jobFactKeysFor(depalletizing, null)[0]).toBe("incomingLoads");
+    // The reading agrees (a pallet job): the narrower depalletizing questions stay. It disagrees: the reading's own.
+    expect(jobFactKeysFor(depalletizing, { kind: "palletizing", object: "carton" })[0]).toBe("incomingLoads");
+    expect(jobFactKeysFor(depalletizing, { kind: "pick_and_place", object: "carton" })).toEqual(["weight", "size", "perHour", "hours", "timing"]);
   });
 
   it("names the object in the same-every-time question, and says a company only the job's own answers", () => {

@@ -83,7 +83,8 @@ export default function Login() {
         // A job the company was opening in this tab comes first; the emailed link's own destination otherwise.
         let saved: string | null = null;
         try { saved = sessionStorage.getItem("redirectAfterAuth"); sessionStorage.removeItem("redirectAfterAuth"); } catch { saved = null; }
-        window.location.assign(authReturnPath(saved) ?? authReturnPath(returnTo) ?? "/contact/robot-team");
+        // Replaced, as every sign-in is (`navigateAfterAuth`): Back never returns to this sign-in page once signed in.
+        window.location.replace(authReturnPath(saved) ?? authReturnPath(returnTo) ?? "/contact/robot-team");
       } catch (error) {
         setAuthError(error instanceof Error ? error.message : SIGN_IN_LINK_ENDED);
         setIsLoading(false);

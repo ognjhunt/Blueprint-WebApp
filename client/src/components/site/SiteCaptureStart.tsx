@@ -25,6 +25,7 @@ import { AGREEING_ALSO_LINE, SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_WIT
 import { BareBack, BareButton, BareGroup, BareLabel, BareLinks, BareNotice, BareScreen, BareTicks } from "@/components/bare/Bare";
 import { BareCheck, BareField, BareFile, BareInput, BareProgress, BareSelect, BareSubmit, BareTextarea, describedBy } from "@/components/bare/BareForm";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import { JOB_DESCRIPTION_MAX_LENGTH, jobDescriptionTooLong } from "@/lib/jobDescriptionLimit";
 import {
   CAPTURE_VIDEO_ACCEPT,
   captureTokenFromUrl,
@@ -438,14 +439,17 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
     // The form does every check itself (`noValidate`: no browser bubble), each said under its own field, and focus
     // goes to the first field to fix, in page order: the video, the sentence, the country, the email.
     const videoMissing = !retained && footageWanted && !footage;
-    const taskMissing = !retained && !String(new FormData(formRef.current!).get("startTask") ?? "").trim();
-    if (!retained && (!region || emailRefusal || videoMissing || taskMissing)) {
+    const typedTask = String(new FormData(formRef.current!).get("startTask") ?? "").trim();
+    const taskMissing = !retained && !typedTask;
+    // Over the one limit (`JOB_DESCRIPTION_MAX_LENGTH`): said under the box, never cut off.
+    const taskTooLong = !retained && typedTask.length > JOB_DESCRIPTION_MAX_LENGTH;
+    if (!retained && (!region || emailRefusal || videoMissing || taskMissing || taskTooLong)) {
       if (!region) { setCountryMissing(true); setCountryAsked(true); }
       setEmailError(emailRefusal ? EMAIL_REFUSAL_SENTENCES[emailRefusal] : null);
-      setTaskError(taskMissing ? TASK_MISSING : null);
+      setTaskError(taskMissing ? TASK_MISSING : taskTooLong ? jobDescriptionTooLong(typedTask.length) : null);
       if (videoMissing) setFootageError(VIDEO_MISSING);
       if (state.status === "failed") setState({ status: "idle" });
-      window.setTimeout(() => document.querySelector<HTMLElement>(videoMissing ? "#start-footage" : taskMissing ? "#start-task"
+      window.setTimeout(() => document.querySelector<HTMLElement>(videoMissing ? "#start-footage" : taskMissing || taskTooLong ? "#start-task"
         : !region ? "#start-region" : "#start-email")?.focus(), 0);
       return;
     }
@@ -900,9 +904,13 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
         {/* Asked on this screen (owner, 2026-11-20): a job reaches deployment companies only with its sentence. */}
         <BareField label="The job in one sentence" htmlFor="start-task" error={taskError}
           helper={<>What should the robot do? Typing it confirms: “{TASK_CONFIRMATION_STATEMENT}”</>}>
-          <BareTextarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={2} required
+          <BareTextarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} rows={2} required
             aria-describedby={describedBy("start-task", { helper: true, error: taskError })} aria-invalid={taskError ? true : undefined}
-            onChange={() => { if (taskError) setTaskError(null); }}
+            onChange={event => {
+              const length = event.currentTarget.value.trim().length;
+              if (length > JOB_DESCRIPTION_MAX_LENGTH) setTaskError(jobDescriptionTooLong(length));
+              else if (taskError) setTaskError(null);
+            }}
             placeholder="For example, put each packed carton at the end of the table" />
         </BareField>
 

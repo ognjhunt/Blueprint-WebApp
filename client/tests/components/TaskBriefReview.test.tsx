@@ -330,6 +330,36 @@ describe("the job in the site's own sentence", () => {
     expect(lastConfirmBody().summary).toBe("Pick each carton off the conveyor and set it on the table");
   });
 
+  // Stress test, 2026-11-24: the start form takes 2,000 characters, the editor took 300, so a longer description could
+  // not be corrected (typing was blocked, a paste was cut, and the confirmation was refused as unreadable).
+  it("lets a site correct a description as long as the start form takes, and says plainly when it is too long", async () => {
+    fetchMock.mockResolvedValue(confirmed);
+    const long = "Pick up each sealed carton from the end of the conveyor and place it on the cart beside the line. ".repeat(4)
+      + "The cartons come in three sizes.";
+    expect(long.length).toBeGreaterThan(300);
+    render(<TaskBriefReview token="tok" brief={brief({ summary: long })} />);
+    const summary = screen.getByLabelText(/what is the job, in one sentence/i);
+    expect(summary.tagName).toBe("TEXTAREA");
+    expect(summary).toHaveValue(long);
+    expect(summary).not.toHaveAttribute("maxlength");
+    fireEvent.change(summary, { target: { value: long.replace("three sizes", "four sizes") } });
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    await waitFor(() => expect(screen.getByText(/that is confirmed/i)).toBeInTheDocument());
+    expect(lastConfirmBody().summary).toBe(long.replace("three sizes", "four sizes"));
+  });
+
+  it("refuses a description over 2,000 characters in a plain sentence, and sends nothing", () => {
+    render(<TaskBriefReview token="tok" brief={brief()} />);
+    const summary = screen.getByLabelText(/what is the job, in one sentence/i);
+    fireEvent.change(summary, { target: { value: "x".repeat(2001) } });
+    expect(screen.getByText("Your description is 2,001 characters. Shorten it to 2,000 characters or fewer.")).toBeVisible();
+    expect(summary).toHaveAttribute("aria-invalid", "true");
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/confirm"))).toBe(false);
+  });
+
   it("shows the server's field error when the sentence is still missing", async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ code: "task_brief_summary_required",
       error: "Describe the job in one sentence, for example “Pick up each carton and place it at the end of the table.”" }) });

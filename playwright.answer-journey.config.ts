@@ -3,7 +3,9 @@ import base from "./playwright.config";
 /** The site's answer, end to end: real handlers, Firebase emulators, a scripted video model. */
 export default defineConfig({
   ...base,
-  testMatch: "site-answer-journey.spec.ts",
+  // The core journey, then the flows the stress test of 2026-11-24 found broken, on the same harness. Files run in name
+  // order: the flows sort after the journey, which needs a run with no approved company yet, and they approve several.
+  testMatch: ["site-answer-journey.spec.ts", "site-answer-stress-flows.spec.ts"],
   testIgnore: [],
   // One server, one emulator project: the journeys share it in turn.
   workers: 1,

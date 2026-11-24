@@ -147,6 +147,14 @@ export function storedAnonymizedOpportunityDraft(title: unknown): TaskListingDet
   return categoryDraft(Object.values(opportunityCategories).find(category => category[0] === title) ?? opportunityCategories.other);
 }
 
+/**
+ * Words that take things off a pallet: "off the incoming pallet", "from each pallet", "out of the pallet", "unload the
+ * pallets", "unstack pallets", "break down pallets". Only a few words may stand between, so "from the conveyor and
+ * place them on the pallet" (palletizing) does not match.
+ */
+const PALLET_WORDS = String.raw`(?:(?:the|a|an|each|every|its|their|our|incoming|inbound|arriving|delivered|full|loaded|mixed|stacked|supplier|received|wooden|plastic)\s+){0,3}pallets?\b`;
+const DEPALLETIZING_WORDS = new RegExp(String.raw`\b(?:off|out of|from)\s+${PALLET_WORDS}|\b(?:unload|unstack|destack|break(?:ing)? down)\w*\s+${PALLET_WORDS}`);
+
 /** Use the site's description to select a fixed category. No description text crosses into the listing. */
 export function anonymizedOpportunityDraft(description: string): TaskListingDetails {
   const text = description.toLowerCase();
@@ -154,7 +162,9 @@ export function anonymizedOpportunityDraft(description: string): TaskListingDeta
   if (/\b(?:machine|cnc)[ -]tend(?:ing)?\b|\b(?:un)?load\w*\b.{0,55}\b(?:into|from|out of|in) (?:(?:a|an|the) )?(?:cnc|lathe|injection mold(?:ing)? machine)\b/.test(text)) {
     return categoryDraft(categories.machineTending);
   }
-  if (/\bdepalleti[sz]\w*\b/.test(text)) return categoryDraft(categories.depalletizing);
+  // Depalletizing by its words, not only by its name (stress test, 2026-11-24: "Take each carton off the incoming
+  // pallet" was read as pallet handling): taking things off or out of a pallet, or unloading or unstacking pallets.
+  if (/\bde-?palleti[sz]\w*\b/.test(text) || DEPALLETIZING_WORDS.test(text)) return categoryDraft(categories.depalletizing);
   if (/\bpalleti[sz]\w*\b|\bstack\w*\b.{0,70}\b(?:on|onto) (?:\w+ ){0,3}pallets?\b/.test(text)) {
     return categoryDraft(/\b(?:cartons?|box(?:es)?)\b/.test(text) ? categories.cartonPalletizing : categories.palletizing);
   }

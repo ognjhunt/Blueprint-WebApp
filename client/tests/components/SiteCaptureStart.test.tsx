@@ -588,6 +588,28 @@ it("asks for the sentence under its field and sends nothing until it is given", 
   expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body).taskStatement).toBe("Move sealed cartons to the dock");
 });
 
+// Stress test, 2026-11-24: one limit everywhere (`JOB_DESCRIPTION_MAX_LENGTH`), said under the box, never a silent cut.
+it("says a description over 2,000 characters is too long, keeps it whole and sends nothing until it is shorter", async () => {
+  fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({ ok: true, status: 201,
+    json: async () => init?.method === "POST" ? { captureUrl: "/capture-upload/phone.signed" } : { features: [] } }));
+  await renderReady(<SiteCaptureStart />);
+  const task = document.querySelector<HTMLTextAreaElement>("#start-task")!;
+  expect(task).not.toHaveAttribute("maxlength");
+  describeTask("x".repeat(2001));
+  expect(screen.getByText("Your description is 2,001 characters. Shorten it to 2,000 characters or fewer.")).toHaveAttribute("id", "start-task-error");
+  expect(task.value).toHaveLength(2001);
+  fireEvent.change(askCountry(), { target: { value: "us" } });
+  fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
+  fireEvent.submit(screen.getByRole("form"));
+  await waitFor(() => expect(document.activeElement).toBe(task));
+  expect(postsTo("/api/inbound-request")).toHaveLength(0);
+  describeTask("Move sealed cartons to the dock. ".repeat(40).trim());
+  expect(screen.queryByText(/^Your description is/)).toBeNull();
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByRole("heading", { name: "Now film the job." });
+  expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body).taskStatement).toHaveLength("Move sealed cartons to the dock. ".repeat(40).trim().length);
+});
+
 it("asks no street address, and says it will reply when no job link comes back", async () => {
   fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({ ok: true, status: 201,
     json: async () => init?.method === "POST" ? { captureUrl: null } : { features: [] } }));

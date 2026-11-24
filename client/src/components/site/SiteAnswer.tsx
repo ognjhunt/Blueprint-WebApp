@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { RECORDING_RIGHTS_STATEMENT_V6, RECORDING_RIGHTS_STATEMENT_V6_VERSION } from "@/lib/recordingRightsStatement";
 import { READING_LINE, SIMULATION_BUILDING, SIMULATION_READY, type JobOutlook, type JobPhase } from "@/lib/jobOutlook";
@@ -149,44 +149,128 @@ type AnsweredEntry = Extract<SiteCompanyEntry, { kind: "answered" }>;
  * site visit (labelled, never a quote), how many similar jobs it has done and what a visit must confirm, each only when
  * the company gave it. [label, value, label beside the value].
  */
-function applicationGlance(entry: AnsweredEntry): Array<[string, string, string | null]> {
+function applicationGlance(entry: AnsweredEntry, estimateNote?: string | null): Array<[string, string, string | null]> {
   const details = entry.details ?? {};
-  const estimate = details.chargeModel && details.estimate ? estimateInWords(details.chargeModel, details.estimate) : null;
+  const estimate = estimateOf(entry);
   return [
     ...(details.chargeModel ? [["Charges", CHARGE_MODEL_LABELS[details.chargeModel], null] as [string, string, null]] : []),
     ...(estimate ? [["Estimate", estimate, ESTIMATE_LABEL] as [string, string, string]] : []),
+    // An estimate taken out after the site saw one: the row stays, saying so.
+    ...(!estimate && estimateNote ? [["Estimate", NOT_GIVEN, null] as [string, string, null]] : []),
     ...(details.similarJobs ? [["Similar jobs done", SIMILAR_JOBS_LABELS[details.similarJobs], null] as [string, string, null]] : []),
     ...(details.visitMustConfirm ? [["A visit must confirm", details.visitMustConfirm, null] as [string, string, null]] : []),
   ];
 }
 
+const NOT_GIVEN = "Not given";
+/** The estimate in words ("$4,000 to $6,000 a month"), or null when the answer gives none. */
+const estimateOf = (entry: AnsweredEntry) => {
+  const details = entry.details ?? {};
+  return details.chargeModel && details.estimate ? estimateInWords(details.chargeModel, details.estimate) : null;
+};
+
+/** The site accepted this company: the introduction is made or on its way. */
+const accepted = (entry: AnsweredEntry) => Boolean(entry.company || entry.introducedAtIso || entry.introductionPending);
+/** The site can still accept this company, or already did (stress test, 2026-11-24: a company whose introduction was
+ * cancelled and can no longer be accepted stayed in the table as if it could). */
+const comparable = (entry: AnsweredEntry) => INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && (entry.canIntroduce === true || accepted(entry));
+
+/** Beside an estimate that changed: the one before, and whether the site had accepted the company by then. */
+export const estimateChangedSinceLooked = (before: string) => `Changed since you last looked. It was ${before}.`;
+export const estimateChangedAfterAccept = (before: string) => `Changed after you accepted. It was ${before}.`;
+export const ESTIMATE_ADDED_AFTER_ACCEPT = "Given after you accepted.";
+export const answerUpdatedAfterAccept = (date: string) => `They updated their answer on ${date}, after you accepted.`;
+
 /**
- * The applicants side by side, when two or more have applied (owner, 2026-11-23: "how simple will it be to decide?"):
- * one row each, the same columns, "Not given" where a company left a field out. Accepting several is fine: the choice
- * that matters comes after the visits.
+ * The applicants side by side, when two or more can be accepted or were (owner, 2026-11-23: "how simple will it be to
+ * decide?"): one row each, the same columns, "Not given" where a company left a field out, "Accepted" beside a company
+ * already accepted. A company that can no longer be accepted is left out; it stays in the list below with its answer.
+ * Accepting several is fine: the choice that matters comes after the visits. Below the phone breakpoint each row is a
+ * card (`marketplace-jobs.css`); the explicit roles keep it a table for screen readers when the CSS stacks it.
  */
-function CompareApplicants({ entries }: { entries: AnsweredEntry[] }) {
-  const applied = entries.filter(entry => INTRODUCIBLE_RESPONSE_STATES.includes(entry.state));
+function CompareApplicants({ entries, estimateNotes }: { entries: AnsweredEntry[]; estimateNotes: Readonly<Record<string, string>> }) {
+  const applied = entries.filter(comparable);
   if (applied.length < 2) return null;
-  const NOT_GIVEN = "Not given";
+  const columns = ["Charges", "Estimate", "Similar jobs done", "Earliest start"] as const;
   return <div className="site-compare">
-    <table aria-label="Compare applicants">
-      <thead><tr><th scope="col">Applicant</th><th scope="col">Charges</th><th scope="col">Estimate</th>
-        <th scope="col">Similar jobs done</th><th scope="col">Earliest start</th></tr></thead>
-      <tbody>{applied.map(entry => {
+    <table aria-label="Compare applicants" role="table">
+      <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Applicant</th>
+        {columns.map(column => <th key={column} scope="col" role="columnheader">{column}</th>)}</tr></thead>
+      <tbody role="rowgroup">{applied.map(entry => {
         const details = entry.details ?? {};
-        const estimate = details.chargeModel && details.estimate ? estimateInWords(details.chargeModel, details.estimate) : null;
-        return <tr key={entry.alias}>
-          <th scope="row">{shownName(entry)}</th>
-          <td>{details.chargeModel ? CHARGE_MODEL_LABELS[details.chargeModel] : NOT_GIVEN}</td>
-          <td>{estimate ?? NOT_GIVEN}</td>
-          <td>{details.similarJobs ? SIMILAR_JOBS_LABELS[details.similarJobs] : NOT_GIVEN}</td>
-          <td>{details.startWindow ? COMPANY_START_LABELS[details.startWindow] : NOT_GIVEN}</td>
+        const note = estimateNotes[entry.alias];
+        const cells: Record<(typeof columns)[number], ReactNode> = {
+          Charges: details.chargeModel ? CHARGE_MODEL_LABELS[details.chargeModel] : NOT_GIVEN,
+          Estimate: <>{estimateOf(entry) ?? NOT_GIVEN}{note && <span className="site-estimate-changed">{note}</span>}</>,
+          "Similar jobs done": details.similarJobs ? SIMILAR_JOBS_LABELS[details.similarJobs] : NOT_GIVEN,
+          "Earliest start": details.startWindow ? COMPANY_START_LABELS[details.startWindow] : NOT_GIVEN,
+        };
+        return <tr key={entry.alias} role="row">
+          <th scope="row" role="rowheader">{shownName(entry)}{accepted(entry) && <span className="site-compare-accepted">Accepted</span>}</th>
+          {columns.map(column => <td key={column} role="cell" data-label={column}><span>{cells[column]}</span></td>)}
         </tr>;
       })}</tbody>
     </table>
     <p className="bare-helper">{ESTIMATES_NOT_CHECKED} You can accept as many as you like and choose after meeting them.</p>
   </div>;
+}
+
+/**
+ * The estimates this browser last showed the site, and the ones it showed when the site pressed Accept, so a change is
+ * said beside the estimate (stress test, 2026-11-24: an estimate raised after the introduction updated silently).
+ * Per viewer and per job (localStorage, keyed by a short hash of the link, never the link): the estimate in words and
+ * the alias letter, nothing else of the company. Storage that throws or is empty only means no change can be said.
+ */
+const estimateStoreKey = (token: string) => {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < token.length; index += 1) hash = Math.imul(hash ^ token.charCodeAt(index), 0x01000193);
+  return `blueprint.siteEstimates.${(hash >>> 0).toString(36)}`;
+};
+type EstimateMemory = Record<string, { seen?: string; accepted?: string }>;
+function readEstimateMemory(token: string): EstimateMemory {
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(estimateStoreKey(token)) ?? "{}");
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw as EstimateMemory : {};
+  } catch { return {}; }
+}
+function writeEstimateMemory(token: string, memory: EstimateMemory) {
+  try { window.localStorage.setItem(estimateStoreKey(token), JSON.stringify(memory)); } catch { /* nothing to say next time */ }
+}
+
+/**
+ * One line per alias whose estimate changed: after Accept first (what this browser showed when Accept was pressed), else
+ * since the site last looked (the earlier visit's estimate, or the first one this visit showed). A first estimate where
+ * there was none is not a change, unless the site had already accepted the company.
+ */
+function useEstimateNotes(token: string, entries: AnsweredEntry[]) {
+  const memory = useRef<EstimateMemory | null>(null);
+  memory.current ??= readEstimateMemory(token);
+  // What the site saw before this visit, fixed for the visit, so a change stays said while the page polls.
+  const baseline = useRef<Record<string, string> | null>(null);
+  baseline.current ??= Object.fromEntries(Object.entries(memory.current)
+    .filter(([, value]) => typeof value?.seen === "string").map(([alias, value]) => [alias, value.seen!]));
+  const notes: Record<string, string> = {};
+  for (const entry of entries) {
+    const now = estimateOf(entry) ?? NOT_GIVEN;
+    const before = baseline.current[entry.alias] ??= now;
+    // Only while the company is accepted: an introduction cancelled since is not "after you accepted" any more.
+    const atAccept = accepted(entry) ? memory.current[entry.alias]?.accepted : undefined;
+    if (atAccept && atAccept !== now) notes[entry.alias] = atAccept === NOT_GIVEN ? ESTIMATE_ADDED_AFTER_ACCEPT : estimateChangedAfterAccept(atAccept);
+    else if (!atAccept && before !== now && before !== NOT_GIVEN) notes[entry.alias] = estimateChangedSinceLooked(before);
+  }
+  const shown = entries.map(entry => `${entry.alias}=${estimateOf(entry) ?? NOT_GIVEN}`).join("|");
+  useEffect(() => {
+    const stored = memory.current!;
+    for (const entry of entries) stored[entry.alias] = { ...stored[entry.alias], seen: estimateOf(entry) ?? NOT_GIVEN };
+    if (entries.length) writeEstimateMemory(token, stored);
+  }, [token, shown]);
+  const rememberAccept = (alias: string) => {
+    const entry = entries.find(item => item.alias === alias);
+    if (!entry || !memory.current) return;
+    memory.current[alias] = { ...memory.current[alias], accepted: estimateOf(entry) ?? NOT_GIVEN };
+    writeEstimateMemory(token, memory.current);
+  };
+  return { notes, rememberAccept };
 }
 
 /** The applicant as the site reads it: the company's name when its answer shows it (`applicant`), else its alias. */
@@ -266,15 +350,16 @@ function IntroductionProgress({ token, entry, onChanged }: { token: string; entr
  * sentence saying what it shares; beside one that would need something, that an introduction follows a change of its
  * answer. After an introduction, that company's name and contact details, and only that company's.
  */
-function AnswerReason({ entry }: { entry: AnsweredEntry }) {
+function AnswerReason({ entry, estimateNote }: { entry: AnsweredEntry; estimateNote?: string | null }) {
   const reason = typeof entry.reason === "string" && entry.reason.trim() ? entry.reason.trim() : null;
   const verified = entry.details?.verified ?? (entry.state.startsWith("tested_") ? reason : null);
   const start = entry.details?.startWindow && COMPANY_START_LABELS[entry.details.startWindow];
-  const glance = applicationGlance(entry);
+  const glance = applicationGlance(entry, estimateNote);
   return <>
     {(verified || start || glance.length > 0) && <dl className="company-response-facts">
       {glance.map(([label, value, hint]) => <div key={label}><dt>{label}</dt><dd>{value}
-        {hint && <span className="bare-helper site-estimate-label"> {hint}</span>}</dd></div>)}
+        {hint && <span className="bare-helper site-estimate-label"> {hint}</span>}
+        {label === "Estimate" && estimateNote && <span className="site-estimate-changed">{estimateNote}</span>}</dd></div>)}
       {verified && <div><dt>What they checked</dt><dd>{verified}</dd></div>}
       {start && <div><dt>Earliest start</dt><dd>{start}</dd></div>}
     </dl>}
@@ -286,7 +371,8 @@ function AnswerReason({ entry }: { entry: AnsweredEntry }) {
   </>;
 }
 
-function ReplyQuestion({ token, alias, question, onChanged }: { token: string; alias: string;
+/** `alias` is the company's letter on this job, which the route takes; `name` is the company as the site reads it. */
+function ReplyQuestion({ token, alias, name, question, onChanged }: { token: string; alias: string; name: string;
   question: NonNullable<AnsweredEntry["question"]>; onChanged?: () => void }) {
   const [answer, setAnswer] = useState("");
   const [saved, setSaved] = useState(question.answer);
@@ -325,7 +411,7 @@ function ReplyQuestion({ token, alias, question, onChanged }: { token: string; a
       <form className="ms-form" onSubmit={submit}>
         <label>Your reply<textarea rows={2} minLength={2} maxLength={SITE_CLARIFICATION_LIMIT} required value={answer}
           onChange={event => setAnswer(event.target.value)} /></label>
-        <p className="bare-helper">Blueprint shares this reply with {alias} and keeps your contact details private.</p>
+        <p className="bare-helper">Blueprint shares this reply with {name} and keeps your contact details private.</p>
         <button type="submit" className="ms-button" disabled={busy}>{busy ? "Saving…" : "Send reply"}</button>
         {error && <p role="alert">{error}</p>}
       </form>
@@ -339,8 +425,13 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
   posted: boolean;
   onIntroduced?: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // A refusal or failure of Accept, with the answer it was pressed beside (`atIso`): it stays said while that answer is
+  // shown, or while the company cannot be accepted, and goes once the company can be accepted on a newer answer.
+  const [errors, setErrors] = useState<Record<string, { message: string; atIso: string }>>({});
   const [requested, setRequested] = useState<string[]>([]);
+  const answered = isSiteCompanyActivity(activity)
+    ? activity.entries.filter((entry): entry is AnsweredEntry => entry.kind === "answered") : [];
+  const { notes: estimateNotes, rememberAccept } = useEstimateNotes(token, answered);
   // The "we are emailing you" line holds only until the server reads the introduction back. Once it no longer offers the
   // button, the request is on record, so a later cancellation that may be asked again shows the button again.
   useEffect(() => {
@@ -349,9 +440,13 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
       entry.kind === "answered" && entry.alias === alias && entry.canIntroduce === true)));
   }, [activity]);
   if (!isSiteCompanyActivity(activity)) return null;
-  async function introduce(alias: string) {
+  const errorFor = (entry: AnsweredEntry) => {
+    const error = errors[entry.alias];
+    return error?.message && (error.atIso === entry.atIso || entry.canIntroduce !== true) ? error.message : null;
+  };
+  async function introduce(alias: string, atIso: string) {
     if (busy) return;
-    setBusy(alias); setErrors(current => ({ ...current, [alias]: "" }));
+    setBusy(alias); setErrors(current => ({ ...current, [alias]: { message: "", atIso } }));
     try {
       const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/introductions`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
@@ -360,15 +455,19 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
       });
       const result = await response.json().catch(() => null);
       if (response.status === 409 || response.status === 400) {
-        setErrors(current => ({ ...current, [alias]: isIntroductionRefusalReason(result?.reason)
+        setErrors(current => ({ ...current, [alias]: { atIso, message: isIntroductionRefusalReason(result?.reason)
           ? INTRODUCTION_REFUSAL_SENTENCES[result.reason as keyof typeof INTRODUCTION_REFUSAL_SENTENCES]
-          : result?.code === "introduction_statement_changed" ? INTRODUCTION_STATEMENT_CHANGED : INTRODUCTION_FAILED }));
+          : result?.code === "introduction_statement_changed" ? INTRODUCTION_STATEMENT_CHANGED : INTRODUCTION_FAILED } }));
+        // A refusal means this page is out of date (stress test, 2026-11-24: a company changed to "Not a fit" while the
+        // page still offered Accept): read the job again, so the entry shows the company's answer as it is now.
+        onIntroduced?.();
         return;
       }
       if (!response.ok || result?.ok !== true) throw new Error(INTRODUCTION_FAILED);
+      rememberAccept(alias);
       setRequested(current => [...current, alias]);
       onIntroduced?.();
-    } catch { setErrors(current => ({ ...current, [alias]: INTRODUCTION_FAILED })); }
+    } catch { setErrors(current => ({ ...current, [alias]: { message: INTRODUCTION_FAILED, atIso } })); }
     finally { setBusy(null); }
   }
   // "Introduce us" is offered beside each answer the server says can be introduced (`interested`, or `tested_can_do`,
@@ -385,7 +484,7 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
       </p>
       {timeToAnswer && <p className="bare-helper">Time to first response: {timeToAnswer}.</p>}
     </div>}
-    <CompareApplicants entries={activity.entries.filter((entry): entry is AnsweredEntry => entry.kind === "answered")} />
+    <CompareApplicants entries={answered} estimateNotes={estimateNotes} />
     {activity.entries.length > 0 && <ul className="site-job-company-entries" aria-label="Company responses">
       {activity.entries.map((entry, index) => <li key={`${entry.kind}-${entry.alias}-${entry.atIso}-${index}`}>
         {entry.kind === "sent" ? <p className="bare-helper">{sentToCompany(entry.alias, dateInWords(entry.atIso))}</p> : <>
@@ -398,10 +497,14 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
           {entry.applicant?.website && !entry.company && <p className="site-company-website">
             <a className="ms-text-link" href={entry.applicant.website} target="_blank" rel="noreferrer noopener">{entry.applicant.website}</a></p>}
           <p className="site-company-reply-date">Answered <time dateTime={entry.atIso}>{dateInWords(entry.atIso)}</time></p>
+          {/* Changed after the introduction was made (the server's own times): said even when this browser holds no
+              earlier estimate to compare. */}
+          {!estimateNotes[entry.alias] && entry.introducedAtIso && entry.atIso > entry.introducedAtIso
+            && <p className="bare-helper site-estimate-changed">{answerUpdatedAfterAccept(dateInWords(entry.atIso))}</p>}
         </>}
-        {entry.kind === "answered" && <AnswerReason entry={entry} />}
+        {entry.kind === "answered" && <AnswerReason entry={entry} estimateNote={estimateNotes[entry.alias]} />}
         {entry.kind === "answered" && entry.question && <ReplyQuestion key={entry.question.id} token={token}
-          alias={entry.alias} question={entry.question} onChanged={onIntroduced} />}
+          alias={entry.alias} name={shownName(entry)} question={entry.question} onChanged={onIntroduced} />}
         {entry.kind === "answered" && entry.company && typeof entry.company.name === "string" && typeof entry.company.email === "string"
           && <><IntroducedDetails entry={entry} /><IntroductionProgress token={token} entry={entry} onChanged={onIntroduced} /></>}
         {/* Asked, not made yet: the company's email has not been sent, so the site is told it is in progress (H2). */}
@@ -409,14 +512,13 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
           && <p className="bare-helper" role="status">{introductionRequested(shownName(entry))}</p>}
         {entry.kind === "answered" && !entry.company && entry.introductionCancelled === true
           && <p className="bare-helper">{INTRODUCTION_CANCELLED}</p>}
-        {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && <>
-          {requested.includes(entry.alias)
-            ? <p className="bare-helper" role="status">{introductionRequested(shownName(entry))}</p>
-            : <BareButton onClick={() => void introduce(entry.alias)} disabled={busy !== null} helper={introduceSentence(shownName(entry))}>
-              {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}
-            </BareButton>}
-          {errors[entry.alias] && <p role="alert">{errors[entry.alias]}</p>}
-        </>}
+        {entry.kind === "answered" && !entry.company && entry.canIntroduce === true && (requested.includes(entry.alias)
+          ? <p className="bare-helper" role="status">{introductionRequested(shownName(entry))}</p>
+          : <BareButton onClick={() => void introduce(entry.alias, entry.atIso)} disabled={busy !== null} helper={introduceSentence(shownName(entry))}>
+            {busy === entry.alias ? "Asking…" : INTRODUCE_LABEL}
+          </BareButton>)}
+        {/* Kept after the page reads the job again, beside the company's answer as it is now. */}
+        {entry.kind === "answered" && errorFor(entry) && <p role="alert">{errorFor(entry)}</p>}
       </li>)}
     </ul>}
   </>;

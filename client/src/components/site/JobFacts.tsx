@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
-  JOB_FACT_CHOICES, JOB_FACT_KEYS, JOB_FACT_NUMBERS, JOB_FACTS_HEADING,
-  isJobFactCode, jobFactKeysFor, jobFactQuestion, jobFactQuestionHint, sanitizeJobFacts,
+  JOB_FACT_CHOICES, JOB_FACT_KEYS, JOB_FACT_NUMBERS, JOB_FACTS_HEADING, KG_PER_LB,
+  isJobFactCode, jobFactKeysFor, jobFactQuestion, jobFactQuestionHint, sanitizeJobFacts, typedJobFactNumber,
   type JobFactKey, type JobFacts as JobFactsValue, type JobReading,
 } from "@/lib/jobFacts";
 
@@ -130,8 +130,9 @@ export function JobFacts({ token, facts, onSaved, taskFamily, reading }: {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const value = Number(form.get("value"));
+    // A weight in pounds is saved as typed ("44lb"), and read in kilograms where a number is needed (`jobFactNumber`).
     const fromPounds = form.get("unit") === "lb";
-    const code = String(fromPounds ? Math.round(value * 0.45359237 * 1000) / 1000 : value);
+    const code = `${value}${fromPounds ? "lb" : ""}`;
     if (!isJobFactCode(key, code)) {
       setStatus("error"); setError("Enter a positive number with up to three decimal places, or choose Not sure.");
       return;
@@ -150,10 +151,11 @@ export function JobFacts({ token, facts, onSaved, taskFamily, reading }: {
       {hint && <p id={`${groupId}-hint`} className="ms-field-hint site-job-fact-hint">{hint}</p>}
       {numeric && <form className="ms-form ms-job-number" onSubmit={event => submitNumber(event, current)}>
         <label>{current === "maxLoadedWeightKg" ? "Weight" : numeric.unit}
-          <input name="value" type="number" required min={numeric.min} step={numeric.whole ? 1 : "any"} max={numeric.max * (current === "maxLoadedWeightKg" ? 2.21 : 1)}
-            inputMode={numeric.whole ? "numeric" : "decimal"} defaultValue={answers[current] !== "unsure" ? answers[current] : undefined} />
+          <input name="value" type="number" required min={numeric.min} step={numeric.whole ? 1 : "any"}
+            max={current === "maxLoadedWeightKg" ? Math.floor(numeric.max / KG_PER_LB) : numeric.max}
+            inputMode={numeric.whole ? "numeric" : "decimal"} defaultValue={typedJobFactNumber(current, answers[current])?.value} />
         </label>
-        {current === "maxLoadedWeightKg" && <label>Unit<select name="unit" defaultValue={answers[current] && answers[current] !== "unsure" ? "kg" : "lb"}>
+        {current === "maxLoadedWeightKg" && <label>Unit<select name="unit" defaultValue={typedJobFactNumber(current, answers[current])?.unit ?? "lb"}>
           <option value="lb">lb</option><option value="kg">kg</option>
         </select></label>}
         <button type="submit" className="ms-button" disabled={status === "saving"}>Save</button>

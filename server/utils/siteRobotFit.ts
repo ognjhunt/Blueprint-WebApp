@@ -57,7 +57,7 @@ import {
   type RobotFormRating,
 } from "../../client/src/data/robotFit";
 import { UNIT_LABELS, type EntryUnit } from "../../client/src/data/siteMeasurements";
-import { WEIGHT_RANGE_KG, jobFactLabel, type JobReading } from "../../client/src/lib/jobFacts";
+import { WEIGHT_RANGE_KG, jobFactLabel, jobFactNumber, type JobReading } from "../../client/src/lib/jobFacts";
 import { readJobFacts } from "./jobFacts";
 import { robotFitRankingOutputSchema, type RobotFitRankingInput } from "../agents/tasks/robot-fit-ranking";
 import { otherActionsOf, type OtherAction } from "../agents/tasks/site-video-evidence";
@@ -223,10 +223,11 @@ export function parseStatedWeight(text: unknown): { kg: number; display: string 
 function answeredMass(inputs: RobotFitInputs): Pick<Quantity, "display" | "min" | "max"> | null {
   const facts = readJobFacts(inputs.request);
   const heaviest = facts?.maxLoadedWeightKg;
-  if (heaviest && heaviest !== "unsure") {
-    const kg = Number(heaviest);
-    return { display: jobFactLabel("maxLoadedWeightKg", heaviest) ?? `${kg} kg`, min: kg, max: kg };
-  }
+  const kg = jobFactNumber("maxLoadedWeightKg", heaviest);
+  // Typed in pounds, it reads as typed with its conversion, "44 lb, about 20 kg", since the sentence it goes in ends in
+  // its own brackets; the checks use the kilograms.
+  if (heaviest && kg !== null) return { display: (jobFactLabel("maxLoadedWeightKg", heaviest) ?? `${kg} kg`)
+    .replace(/ \(about ([^)]*)\)$/, (_label, rounded: string) => `, about ${rounded}`), min: kg, max: kg };
   const band = facts?.weight;
   const range = band ? WEIGHT_RANGE_KG[band] : null;
   if (!band || !range) return null;
