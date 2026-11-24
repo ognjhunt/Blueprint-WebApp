@@ -67,14 +67,15 @@ const SYNTHETIC_TASK = 'Pick up the sealed carton from the end of the conveyor a
 
 /**
  * SYNTHETIC. The names the specs plant in a site's or a company's words that no pattern can know (a person's first name,
- * a business written in lower case). The scripted pass points at each one found, case aside, and at nothing else.
+ * a business written in lower case). The scripted pass points at each one found as whole words, case aside, and at
+ * nothing else (a piece the text does not hold fails the pass closed).
  */
 const PLANTED_NAMES = ['Maria', 'Joe', 'harbor fresh foods', 'harbor fresh', 'dave', 'costco', 'walmart', 'IBM', 'Dana Whitfield'];
 async function scriptedRedactor(input: { text: string }): Promise<string[] | null> {
   if (harness.redactor.refuseNext > 0) { harness.redactor.refuseNext--; harness.redactor.refused++; return null; }
   harness.redactor.calls++;
-  const lower = input.text.toLowerCase();
-  return PLANTED_NAMES.filter(name => lower.includes(name.toLowerCase()));
+  const { removalsOf } = await import('../../server/utils/freeTextScreening');
+  return PLANTED_NAMES.filter(name => removalsOf(input.text, [name]).unmatched.length === 0);
 }
 
 const harness = {

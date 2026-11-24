@@ -415,6 +415,28 @@ describe("the estimate the site read when it pressed Accept", () => {
   });
 });
 
+// A review of PR #1437: the site's page shows what companies read of its words only while companies can see the job,
+// so no paid pass runs over the site's words that no company reads.
+describe("what companies read of the site's words, on the site's page", () => {
+  afterEach(async () => (await import("../utils/freeTextScreening")).resetFreeTextScreeningForTests());
+
+  it("makes no model pass over the site's words while no company can see the job, and shows them once one can", async () => {
+    const { resetFreeTextScreeningForTests, useFreeTextRedactor } = await import("../utils/freeTextScreening");
+    resetFreeTextScreeningForTests();
+    let siteCalls = 0;
+    useFreeTextRedactor(async ({ writer }) => { if (writer === "site") siteCalls++; return []; });
+    const job = state.docs.get(`inboundRequests/${ID}`) as Record<string, unknown>;
+    state.docs.set(`inboundRequests/${ID}`, { ...job, operator_listing_hold: { held: true, atIso: "2026-11-24T00:00:00.000Z", by: "ops" } });
+    const held = (await siteStatus()).body as { companyStatus?: Record<string, unknown> };
+    expect(held.companyStatus ?? {}).not.toHaveProperty("companiesRead");
+    expect(siteCalls).toBe(0);
+    state.docs.set(`inboundRequests/${ID}`, job);
+    const listed = (await siteStatus()).body as { companyStatus: { companiesRead?: Record<string, unknown> } };
+    expect(listed.companyStatus.companiesRead).toMatchObject({ sentence: { text: "Stack cartons onto the pallet" } });
+    expect(siteCalls).toBeGreaterThan(0);
+  });
+});
+
 describe("the site is never charged", () => {
   it("writes only the job, its introduction, the event and the two emails: no payment record of any kind", async () => {
     const before = new Map(state.docs);

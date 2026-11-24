@@ -1,7 +1,7 @@
 import { INTRODUCTION_CANCELLED } from "@/lib/siteIntroductions";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NOTHING_IS_SHARED, NOT_SHARED_YET, NO_COMPANY_CAN_SEE_LINE, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, PREPARING_TO_SHARE_LINE, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
+import { CompaniesReadYourWords, NOTHING_IS_SHARED, NOT_SHARED_YET, NO_COMPANY_CAN_SEE_LINE, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, PREPARING_TO_SHARE_LINE, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
 import { projectSimulationProof, type SimulationProof } from "@/lib/simulationProof";
 import { REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, type AnswerRobot } from "@/lib/siteAnswer";
 import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, preparingEvaluation, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
@@ -818,6 +818,32 @@ describe("the deployment companies section, with sends, answers and introduction
     fireEvent.click(within(companies()).getByRole("button", { name: "Send reply" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/clarifications", expect.objectContaining({
       body: JSON.stringify({ alias: "C", questionId: "q".repeat(64), answer: "About 12 a minute." }) })));
+  });
+
+  // A review of PR #1437: words held at a limit are said to be held, never "being prepared".
+  it("says plainly when a company's words or the site's reply are held at a limit", () => {
+    const held = { ...activity, entries: [{ kind: "answered" as const, alias: "Company C", atIso: "2026-11-14T09:00:00.000Z",
+      state: "declined" as const, canIntroduce: false, wordsLimit: true as const },
+    { kind: "answered" as const, alias: "Company D", atIso: "2026-11-14T10:00:00.000Z", state: "needs_something" as const, canIntroduce: false,
+      question: { id: "q".repeat(64), text: "How many cartons arrive per minute?", answerPending: true as const, answerLimit: true as const } }] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: held }} />);
+    expect(within(companies()).getByText("Their words are not shown: we reached a limit on checking words for names and contact details.")).toBeVisible();
+    expect(within(companies()).queryByText("Their words show here once we have taken names and contact details out of them.")).toBeNull();
+    expect(within(companies()).queryByText("No reason shared.")).toBeNull();
+    expect(within(companies()).getByText("Company D does not see your reply: we reached a limit on checking words for names and contact details."))
+      .toBeInTheDocument();
+    expect(within(companies()).queryByText(/sees your reply once/)).toBeNull();
+  });
+
+  it("shows the site what companies read of its words: the words, being prepared, or held at a limit", () => {
+    render(<CompaniesReadYourWords view={{ sentence: { text: "Stack cartons on cart 2." }, successRule: { limit: true } }} />);
+    const read = screen.getByRole("region", { name: "What companies read" });
+    expect(within(read).getByText("“Stack cartons on cart 2.”")).toBeVisible();
+    expect(within(read).getByText("Companies do not see these words: we reached a limit on checking words for names and contact details."))
+      .toBeVisible();
+    cleanup();
+    render(<CompaniesReadYourWords view={{ sentence: { pending: true } }} />);
+    expect(screen.getByText(/^Companies do not see these words yet\./)).toBeVisible();
   });
 
   it("shows no comparison for a single applicant", () => {

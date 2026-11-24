@@ -203,6 +203,8 @@ export interface CompanyJobPage {
   sentence: string;
   /** The site's stated success criteria with identifying details removed. */
   successRule?: string;
+  /** The site gave a success rule that cannot be shown yet (names and contact details are being taken out of it). */
+  successRulePending?: true;
   /** The site's quick answers in words, one line each (`jobFactsInWords`). */
   jobFacts: string[];
   /** The same answers as fixed fields, "Not stated" where the site skipped one (`fitSummary`). */
@@ -247,7 +249,9 @@ export interface CompanyJobPage {
     statementVersion: string | null; details?: import("../lib/companyResponses").CompanyReplyDetails } | null;
   /** The site's reply to this company's question; `answer` is null while names and contact details are being taken out
    * of it (`server/utils/freeTextScreening.ts`). */
-  clarification?: { question: string; answer: string | null };
+  clarification?: { question: string; answer: string | null;
+    /** The reply is not shown because the job reached its limit on preparing words (`server/utils/freeTextScreening.ts`). */
+    limitReached?: true };
   /** This company's question while the site has not replied: when it asked, the reply date, and whether we reminded. */
   pendingQuestion?: { askedAtIso: string; replyByIso: string; reminded: boolean };
   /** The line under the form, and the version recorded with an answer. */

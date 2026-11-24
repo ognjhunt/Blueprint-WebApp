@@ -260,6 +260,16 @@ describe("GET /api/admin/jobs/:requestId", () => {
     expect(body.standing.phrase).toBe("Building the simulation; waiting on Blueprint: withdrawal cleanup, budget");
   });
 
+  // A review of PR #1437: words held at a limit on checking them are said on the admin page, naming which limit.
+  it("names a limit on checking words for names and contact details as a money stop", async () => {
+    siteJob("job-l", "2026-10-02T00:00:00.000Z", { request: { buyerType: "site_operator" } });
+    table("inboundRequests/job-l/freeTextScreenings").set("a".repeat(64), { status: "limit", limit: "writer_passes",
+      limitAtIso: "2026-11-24T10:00:00.000Z", budget: "company:co-a" });
+    const body = await (await fetch(`${baseUrl}/job-l`, admin)).json();
+    expect(body.stops).toContainEqual({ key: "money-words_limit", whose: "blueprint", atIso: "2026-11-24T10:00:00.000Z",
+      text: "Some words were not shown to the other side: one writer reached its limit on checking words for names and contact details." });
+  });
+
   it("never rounds a withdrawal up: deletion confirmed still names the cleanup nobody has verified", async () => {
     siteJob("job-d", "2026-10-02T00:00:00.000Z", { request: { buyerType: "site_operator",
       consent_attestation: { granted: true, revoked_at_iso: "2026-10-06T00:00:00.000Z" } },

@@ -35,7 +35,7 @@ import { companyMaySeeJobs } from "./companyTerms";
 import { storedPacketFacts, type PacketFacts, type PACKET_FACT_QUESTIONS } from "./websitePreparationStatus";
 import type { JobFactKey, JobFacts } from "../../client/src/lib/jobFacts";
 import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
-import { loadScreenings, screenAndWait, siteReplyForCompany, siteWordsDeterministic, siteWordsForCompany,
+import { loadScreenings, screenAndWait, siteReplyStateForCompany, siteWordsDeterministic, siteWordsForCompany, siteWordsStateForCompany,
   type Screenings } from "./freeTextScreening";
 export { siteWordsDeterministic, siteWordsForCompany };
 import type { CompaniesReadSiteWords } from "../../client/src/lib/companiesRead";
@@ -242,8 +242,9 @@ export async function companiesReadSiteWords(requestId: string, record: Record<s
     const view: CompaniesReadSiteWords = {};
     for (const [field, source] of [["sentence", siteSentenceSource(brief)], ["successRule", siteSuccessRuleSource(brief)]] as const) {
       if (!siteWordsDeterministic(source, known).trim()) continue;
-      const text = siteWordsForCompany(source, known, screenings);
-      view[field] = text ? { text } : { pending: true };
+      const read = siteWordsStateForCompany(source, known, screenings);
+      // Shown, being prepared, or held at a limit: each said plainly on the site's page.
+      view[field] = read.state === "shown" && read.text ? { text: read.text } : read.state === "limit" ? { limit: true } : { pending: true };
     }
     return view;
   };
@@ -292,13 +293,17 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
   // a few seconds for them; a pass still running then goes on, and a later visit shows its result.
   const siteWords = (results: Screenings) => ({
     sentence: siteSentenceForCompany(brief, known, results),
-    successRule: siteWordsForCompany(siteSuccessRuleSource(brief), known, results),
-    clarification: clarification === undefined ? undefined : siteReplyForCompany(clarification, known, results),
+    successRule: siteWordsStateForCompany(siteSuccessRuleSource(brief), known, results),
+    clarification: clarification === undefined ? undefined : siteReplyStateForCompany(clarification, known, results),
   });
   let words = siteWords(screenings);
   if (screenings.missing.length && await screenAndWait(requestId, screenings.missing, 4_000))
     words = siteWords(await loadScreenings(requestId));
-  const { sentence, successRule, clarification: clarificationShown } = words;
+  const { sentence, successRule: successRead, clarification: clarificationRead } = words;
+  const successRule = successRead.state === "shown" ? successRead.text : "";
+  // A rule the site gave that is not shown yet is said so, never as "The site has not said what counts as done yet"
+  // (a review of PR #1437).
+  const successRulePending = successRead.state !== "shown" && Boolean(siteSuccessRuleSource(brief));
   const reading = jobReadingOf(record);
   const taskFamily = access.details.taskFamily;
   // The first look and the simulation each say where they stand instead of showing an empty box.
@@ -320,6 +325,7 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     // a company gets the site's name only through an introduction the site asks for. Empty until the model pass is done.
     sentence,
     ...(successRule ? { successRule } : {}),
+    ...(successRulePending ? { successRulePending: true as const } : {}),
     // The questions the site's page asked, chosen the same way: the reading's kind of job, else the keyword match.
     jobFacts: jobFactsInWords(facts, taskFamily, reading),
     // The same answers as a fixed set of fields, "Not stated" where the site skipped one; the object's name only when
@@ -348,7 +354,9 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
       statementVersion: typeof answerRow.statementVersion === "string" ? answerRow.statementVersion : null,
       ...(answerRow.details ? { details: answerRow.details } : {}) } : null,
     // The site's reply: null while the model pass over it has not succeeded (the page says it is being prepared).
-    ...(question && clarification ? { clarification: { question: question.text, answer: clarificationShown || null } } : {}),
+    ...(question && clarification ? { clarification: { question: question.text,
+      answer: clarificationRead?.state === "shown" ? clarificationRead.text : null,
+      ...(clarificationRead?.state === "limit" ? { limitReached: true as const } : {}) } } : {}),
     // The company's own question while the site has not replied, with its reply date (`REPLY_WINDOW_MS`).
     ...(question && !clarification && replyByIso(answerRow?.questionAskedAtIso) ? { pendingQuestion: {
       askedAtIso: String(answerRow!.questionAskedAtIso), replyByIso: replyByIso(answerRow!.questionAskedAtIso)!,

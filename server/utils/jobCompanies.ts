@@ -52,7 +52,8 @@ import { operatorListingHold } from "./operatorListing";
 import { REMOVED, removeIdentifyingDetails, removeNamesNotHeld, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { COMPANY_JOB_VIEWS_COLLECTION } from "./companyJobViews";
 import { clarificationOnReply, questionOnReply } from "./jobClarifications";
-import { NOTHING_SCREENED, loadScreenings, screenAndWait, screenInBackground, siteReplyForCompany, type Screenings } from "./freeTextScreening";
+import { NOTHING_SCREENED, budgetFor, loadScreenings, screenAndWait, screenInBackground, siteReplyStateForCompany,
+  type Screenings } from "./freeTextScreening";
 
 export const COMPANY_SENDS_COLLECTION = "companySends";
 export const INTRODUCTIONS_COLLECTION = "introductions";
@@ -377,32 +378,37 @@ export function siteReasonOf(answer: Data | null | undefined, identity: KnownSit
 
 /** Words a company gave that exist but the site does not read yet: the model pass over them has not succeeded. */
 export const WORDS_PENDING = "pending" as const;
+/** Words a company gave that the site does not read because the job reached its limit on preparing words. */
+export const WORDS_LIMIT = "limit" as const;
 
 /**
  * A company's words as the site reads them (2026-11-24): the deterministic pass (`siteReasonOf`), the model pass over
  * what it leaves (`freeTextScreening.ts`) and the deterministic pass again. Null when there are none the site may read;
- * `WORDS_PENDING` while the model pass has not succeeded for this exact text (the site then reads none of them, and the
- * text is recorded in `screenings.missing`, for the caller to screen).
+ * `WORDS_PENDING` while the model pass has not succeeded for this exact text, `WORDS_LIMIT` when a limit holds it (the
+ * site then reads none of them, and the text is recorded in `screenings.missing`, with the company's own budget, for the
+ * caller to screen).
  */
-export function companyWordsForSite(answer: Data | null | undefined, identity: KnownSiteIdentity, screenings: Screenings):
-  string | null | typeof WORDS_PENDING {
+export function companyWordsForSite(answer: Data | null | undefined, identity: KnownSiteIdentity, screenings: Screenings,
+  companyId?: string | null): string | null | typeof WORDS_PENDING | typeof WORDS_LIMIT {
   const input = siteReasonOf(answer, identity);
   if (!input) return null;
-  const screened = screenings.shown("company", input);
-  return screened === null ? WORDS_PENDING : siteReasonOf({ ...answer, inputs: screened }, identity);
+  const screened = screenings.stateOf("company", input, budgetFor("company", companyId));
+  if (screened.state === "limit") return WORDS_LIMIT;
+  return screened.state === "pending" ? WORDS_PENDING : siteReasonOf({ ...answer, inputs: screened.text }, identity);
 }
 
 /**
  * Start the model pass over the words of an answer just given (its reason, its question, what it verified and what a
- * visit must confirm), so the site reads them soon. Without waiting; the site's page screens any still missing itself.
- * `records`: the company's access record and the answer, as `projectSiteCompanyActivity` reads its identity.
+ * visit must confirm), so the site reads them soon, each counted against this company's own budget. Without waiting;
+ * the site's page screens any still missing itself. `records`: the company's access record and the answer, as
+ * `projectSiteCompanyActivity` reads its identity.
  */
-export function screenCompanyWordsInBackground(jobId: string, answer: Data, ...records: Array<Data | null | undefined>) {
+export function screenCompanyWordsInBackground(jobId: string, companyId: string, answer: Data, ...records: Array<Data | null | undefined>) {
   const identity = knownCompanyIdentity(...records);
   const details = isRecord(answer.details) ? answer.details : {};
   const texts = [answer.inputs, questionOnReply(answer)?.text, details.verified, details.visitMustConfirm]
     .map(inputs => siteReasonOf({ ...answer, inputs }, identity)).filter((value): value is string => Boolean(value));
-  screenInBackground(jobId, [...new Set(texts)].map(text => ({ writer: "company" as const, text })));
+  screenInBackground(jobId, [...new Set(texts)].map(text => ({ writer: "company" as const, text, budget: budgetFor("company", companyId) })));
 }
 
 /**
@@ -528,11 +534,12 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
       && answerConsentsToIntroduction(response.data) && Boolean(input.approvedDeploymentCompanies?.has(response.id));
     const identity = knownCompanyIdentity(input.companies?.get(response.id), response.data);
     // Each piece of the company's words as the site reads it (`companyWordsForSite`); one still being prepared shows as
-    // none, and the entry says its words are on their way (`wordsPending`).
-    let wordsPending = false;
+    // none, and the entry says its words are on their way (`wordsPending`), or held at a limit (`wordsLimit`).
+    let wordsPending = false, wordsLimit = false;
     const words = (inputs: unknown) => {
-      const shown = companyWordsForSite({ ...response.data, inputs }, identity, screenings);
+      const shown = companyWordsForSite({ ...response.data, inputs }, identity, screenings, response.id);
       if (shown === WORDS_PENDING) { wordsPending = true; return null; }
+      if (shown === WORDS_LIMIT) { wordsLimit = true; return null; }
       return shown;
     };
     const reason = words(response.data.inputs);
@@ -541,7 +548,8 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     const canAnswer = question && questionText && input.listed && input.approvedDeploymentCompanies?.has(response.id);
     // The site's own reply, exactly as the company reads it (2026-11-24), or pending while the model pass has not read it.
     const stored = question ? clarificationOnReply(response.data, question.id) : undefined;
-    const answer = stored === undefined ? undefined : siteReplyForCompany(stored, input.siteIdentity ?? null, screenings);
+    const replyRead = stored === undefined ? undefined : siteReplyStateForCompany(stored, input.siteIdentity ?? null, screenings);
+    const answer = replyRead?.state === "shown" ? replyRead.text : undefined;
     const startWindow = response.data.details?.startWindow;
     const verified = words(response.data.details?.verified);
     const details = answerWordsMayReachSite(response.data) ? {
@@ -553,10 +561,11 @@ export function projectSiteCompanyActivity(input: { aliases: Record<string, stri
     entries.push({ kind: "answered", alias: companyAliasName(letter), atIso, state, canIntroduce,
       ...(applicant ? { applicant } : {}),
       ...(reason ? { reason } : {}),
-      ...(wordsPending ? { wordsPending: true as const } : {}),
+      ...(wordsLimit ? { wordsLimit: true as const } : wordsPending ? { wordsPending: true as const } : {}),
       ...(Object.keys(details).length ? { details } : {}),
       ...(canAnswer ? { question: { id: question.id, text: questionText, ...(answer ? { answer } : {}),
         ...(stored !== undefined && !answer ? { answerPending: true as const } : {}),
+        ...(replyRead?.state === "limit" ? { answerLimit: true as const } : {}),
         ...(stored === undefined && replyByIso(response.data.questionAskedAtIso) ? { replyByIso: replyByIso(response.data.questionAskedAtIso)! } : {}) } } : {}),
       ...(introducedAtIso ? { introducedAtIso } : {}), ...(company ? { company } : {}),
       // The estimate as the site read it when it pressed Accept, for an answer under a line that shows estimates.

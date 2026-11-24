@@ -94,6 +94,26 @@ describe("what a site reads of a company's own words before Accept", () => {
     expect(shown).not.toHaveProperty("wordsPending");
   });
 
+  // A review of PR #1437: words held at a limit are said to be held, never "being prepared", and one company's edits
+  // never use up another's passes.
+  it("a company at its own limit has its words held and said so; another company's words are still read", async () => {
+    const { budgetFor, SCREENING_PASSES_PER_COMPANY } = await import("../utils/freeTextScreening");
+    modelPassFindsNothing();
+    state.docs.set(`inboundRequests/${JOB}/freeTextScreenings/budget-company-c`, { passes: SCREENING_PASSES_PER_COMPANY });
+    for (const [id, words] of [["c", "We do this daily, edit 101."], ["d", "We do this weekly."]]) {
+      const input = siteReasonOf(answer(words), identity);
+      expect(await screenText(JOB, "company", input!, { budget: budgetFor("company", id) })).toBe(id === "c" ? null : words);
+    }
+    const entries = projectSiteCompanyActivity({ aliases: { c: "A", d: "B" }, sends: [], listed: true,
+      approvedDeploymentCompanies: new Set(["c", "d"]), companies: new Map([["c", company], ["d", company]]), screenings: await loadScreenings(JOB),
+      responses: [{ id: "c", data: answer("We do this daily, edit 101.", "declined") }, { id: "d", data: answer("We do this weekly.", "declined") }],
+    }).entries as Array<Record<string, unknown>>;
+    const held = entries.find(entry => entry.reason === undefined)!;
+    expect(held).toMatchObject({ wordsLimit: true });
+    expect(held).not.toHaveProperty("wordsPending");
+    expect(entries.find(entry => entry !== held)).toMatchObject({ reason: "We do this weekly." });
+  });
+
   it("the question, what it verified and what a visit must confirm go the same way", async () => {
     modelPassRemoves(["dana"]);
     const data = { ...answer("Ask dana about the cell.", "interested"), details: { question: "Can dana visit Tuesday?",

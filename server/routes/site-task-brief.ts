@@ -1183,10 +1183,12 @@ async function siteCompanyStatus(params: StatusAnswerParams | null) {
     const [companies, companiesRead] = await Promise.all([sharing.state === "not_shared" ? undefined
       : import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))
         .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's company activity"); return undefined; }),
-      // Exactly what companies read of the site's own words (2026-11-24), shown on the site's page.
-      import("../utils/companyJobPage").then(({ companiesReadSiteWords }) => companiesReadSiteWords(params.requestId,
+      // Exactly what companies read of the site's own words (2026-11-24), shown on the site's page, only while companies
+      // can see the job (a review of PR #1437: no paid pass for words no company reads).
+      access.listed ? import("../utils/companyJobPage").then(({ companiesReadSiteWords }) => companiesReadSiteWords(params.requestId,
         params.request as Record<string, any>, params.brief as never))
-        .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read what companies read of the site's words"); return null; })]);
+        .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read what companies read of the site's words"); return null; })
+        : null]);
     // Keep withdrawal available for old description-only listings, even though companies no longer see them.
     const descriptionOnly = isJobSharedListing(params.request) && descriptionStatementShares(params.request);
     return { sharing, companies, descriptionOnly, ...(companiesRead ? { companiesRead } : {}),

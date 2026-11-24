@@ -141,7 +141,7 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
     // The site reads the answer's words only once names and contact details are out of them (`companyWordsForSite`):
     // their model pass starts now, without waiting.
     void import("../utils/jobCompanies").then(({ screenCompanyWordsInBackground }) =>
-      screenCompanyWordsInBackground(taskId, row, access as unknown as Record<string, unknown>, row)).catch(() => undefined);
+      screenCompanyWordsInBackground(taskId, companyId, row, access as unknown as Record<string, unknown>, row)).catch(() => undefined);
     return res.json({ ok: true, state: input.data.state, nextAction: answerNextStep(input.data.state) });
   } catch { return res.status(409).json({ error: "The job changed or the answer could not be saved. Reopen the job before trying again." }); }
 });

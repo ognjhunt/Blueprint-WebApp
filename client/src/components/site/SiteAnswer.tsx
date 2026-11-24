@@ -24,8 +24,8 @@ import { PROGRESS_FAILED, PROGRESS_MARK, PROGRESS_UNDO, jobTrackerSteps } from "
 import { CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATES_NOT_CHECKED, SIMILAR_JOBS_LABELS, estimateInWords } from "@/lib/companyResponses";
 import { COMPANY_START_LABELS, REPLY_DATE_PASSED, replyByLine, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_REASON_SHOWN, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
-import { COMPANIES_READ_LINE, COMPANIES_READ_PENDING, COMPANIES_READ_SENTENCE_LABEL, COMPANIES_READ_SUCCESS_LABEL, COMPANIES_READ_TITLE,
-  COMPANY_WORDS_BEING_PREPARED, replyAsReadLine, replyPendingLine, type CompaniesReadSiteWords, type CompaniesReadText } from "@/lib/companiesRead";
+import { COMPANIES_READ_LIMIT, COMPANIES_READ_LINE, COMPANIES_READ_PENDING, COMPANIES_READ_SENTENCE_LABEL, COMPANIES_READ_SUCCESS_LABEL, COMPANIES_READ_TITLE,
+  COMPANY_WORDS_BEING_PREPARED, COMPANY_WORDS_LIMIT, replyAsReadLine, replyLimitLine, replyPendingLine, type CompaniesReadSiteWords, type CompaniesReadText } from "@/lib/companiesRead";
 
 /**
  * Exactly what deployment companies read of the site's own sentence and success rule (2026-11-24), on the site's own
@@ -41,7 +41,7 @@ export function CompaniesReadYourWords({ view }: { view: CompaniesReadSiteWords 
     <h2 className="bare-label">{COMPANIES_READ_TITLE}</h2>
     <dl className="company-response-facts">
       {rows.map(([label, item]) => <div key={label}><dt>{label}</dt>
-        <dd>{"text" in item ? `“${item.text}”` : COMPANIES_READ_PENDING}</dd></div>)}
+        <dd>{"text" in item ? `“${item.text}”` : "limit" in item ? COMPANIES_READ_LIMIT : COMPANIES_READ_PENDING}</dd></div>)}
     </dl>
     <p className="bare-helper">{COMPANIES_READ_LINE}</p>
   </section>;
@@ -390,9 +390,11 @@ function AnswerReason({ entry, estimateNote }: { entry: AnsweredEntry; estimateN
     </dl>}
     {/* Their words are being prepared: said plainly, never "No reason shared." while they exist. */}
     {entry.wordsPending === true && <p className="bare-helper site-job-company-reason" role="status">{COMPANY_WORDS_BEING_PREPARED}</p>}
+    {/* Held at a limit: said as it is, never "being prepared" (a review of PR #1437). */}
+    {entry.wordsLimit === true && <p className="bare-helper site-job-company-reason">{COMPANY_WORDS_LIMIT}</p>}
     {!(entry.state.startsWith("tested_") && verified) && !(entry.state === "needs_something" && entry.question) &&
       (reason ? <p className="bare-helper site-job-company-reason">{companyReason(reason)}</p>
-        : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && entry.wordsPending !== true
+        : !INTRODUCIBLE_RESPONSE_STATES.includes(entry.state) && entry.wordsPending !== true && entry.wordsLimit !== true
           && <p className="bare-helper site-job-company-reason">{NO_REASON_SHOWN}</p>)}
     {MAY_CHANGE_RESPONSE_STATES.includes(entry.state) && !entry.question && !entry.company && !entry.introducedAtIso
       && !entry.introductionPending && <p className="bare-helper">{introductionIfChanged(shownName(entry))}</p>}
@@ -439,7 +441,8 @@ function ReplyQuestion({ token, alias, name, question, onChanged }: { token: str
     </dl>
     {/* Exactly what the company reads of the reply (2026-11-24), or that it does not read it yet. */}
     {shownAnswer && <p className="bare-helper">{replyAsReadLine(name)}</p>}
-    {!shownAnswer && replied && <p className="bare-helper" role="status">{replyPendingLine(name)}</p>}
+    {!shownAnswer && replied && (question.answerLimit === true ? <p className="bare-helper">{replyLimitLine(name)}</p>
+      : <p className="bare-helper" role="status">{replyPendingLine(name)}</p>)}
     {by && <p className={passed ? "bare-helper site-reply-date-passed" : "bare-helper"}>
       {passed ? REPLY_DATE_PASSED(dateInWords(by)) : replyByLine(dateInWords(by))}</p>}
     {!replied && <details>

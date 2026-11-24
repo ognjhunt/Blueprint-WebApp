@@ -206,11 +206,15 @@ export type SiteCompanyEntry =
         answer?: string;
         /** The site replied, and the company does not read it yet: its names and contact details are being taken out. */
         answerPending?: true;
+        /** The site replied, and the company does not read it: the job reached its limit on checking words. */
+        answerLimit?: true;
         /** When the site is asked to reply by (`replyByIso`); absent for a question asked before the window existed. */
         replyByIso?: string };
       /** Some of the company's words exist but the site does not read them yet: names and contact details are being
        * taken out of them (`server/utils/freeTextScreening.ts`). */
       wordsPending?: true;
+      /** Some of the company's words are not shown: the job reached its limit on checking words for names. */
+      wordsLimit?: true;
       /**
        * The company's name and website, only for an answer given under a line that says the site sees them
        * (`COMPANY_NAME_STATEMENT_VERSIONS`); otherwise the site reads the alias.

@@ -27,7 +27,7 @@
  * small tier at low effort with an 800-token output ceiling, and a job has at most `SCREENING_PASSES_PER_JOB` passes
  * ever. With no provider the policy permits configured, no pass starts and nothing is held or counted.
  */
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { REMOVED, removeIdentifyingDetails, removeNamesNotHeld, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { logger } from "../logger";
@@ -38,11 +38,16 @@ export const FREE_TEXT_SCREENING_SCHEMA = "free-text-screening.v1";
 export type ScreeningWriter = "site" | "company";
 
 /**
- * At most this many passes per job, ever, over every piece of text and every retry. One pass on the lane's default
- * (gpt-6-luna at $0.10 per million input tokens and $0.50 per million output tokens, `server/utils/openaiPromptCache.ts`)
- * reads about two thousand tokens and writes at most 800, so the cap bounds a job's passes far below a dollar there.
+ * How many passes may run (a review of PR #1437, 2026-11-24: one shared, never-reset count of 200 let about fifty edits
+ * by one company use up a whole job, after which nobody's new words reached the other side). Each writer has a budget
+ * of its own (the site, and each company by its id), under a job total; one pass on the lane's default (gpt-6-luna at
+ * $0.10 per million input tokens and $0.50 per million output tokens, `server/utils/openaiPromptCache.ts`) is held at
+ * about $0.0014 at most, so the job total bounds a job's passes near a dollar and a half. The job's $40 ledger
+ * (`jobLaneSpend.ts`) is the money stop; these counts only keep one writer from crowding out the others.
  */
-export const SCREENING_PASSES_PER_JOB = 200;
+export const SCREENING_PASSES_PER_JOB = 1_000;
+export const SCREENING_PASSES_PER_SITE = 300;
+export const SCREENING_PASSES_PER_COMPANY = 100;
 /** How long a page waits for a pass before it shows the words as not ready yet. */
 export const SCREENING_WAIT_MS = 8_000;
 /** A claimed pass that has not ended in this long is taken as lost (the process stopped) and may be claimed again. */
@@ -53,6 +58,14 @@ const BUDGET_DOC = "budget";
 /** The longest piece the model may point at, and the most pieces it may name. */
 const PIECE_MAX = 300;
 
+/** Whose budget a pass counts against: the site's, or one company's (by its id). */
+export type ScreeningBudget = "site" | `company:${string}`;
+const budgetDocOf = (budget: ScreeningBudget) => budget === "site" ? "budget-site" : `budget-company-${budget.slice(8)}`;
+const budgetCapOf = (budget: ScreeningBudget) => budget === "site" ? SCREENING_PASSES_PER_SITE : SCREENING_PASSES_PER_COMPANY;
+/** The site's budget for its own words; a company's by its id; a company's words with no id known count as one. */
+export const budgetFor = (writer: ScreeningWriter, companyId?: string | null): ScreeningBudget =>
+  writer === "site" ? "site" : `company:${companyId && /^[A-Za-z0-9_-]{1,100}$/.test(companyId) ? companyId : "unknown"}`;
+
 export function screeningKey(writer: ScreeningWriter, text: string): string {
   return createHash("sha256").update(`${FREE_TEXT_SCREENING_SCHEMA}\n${writer}\n${text}`).digest("hex");
 }
@@ -62,29 +75,100 @@ export function needsScreening(text: string): boolean {
   return /\p{L}/u.test(text.split(REMOVED).join(" ").replace(/\bthe (?:site|company)\b/gi, " "));
 }
 
-const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const ZERO_WIDTH = /[​-‍⁠﻿­]/;
+/**
+ * One character as matching reads it: look-alikes plain (NFKC) and accents dropped, as `contactRedaction`'s `fold`
+ * does, then every quote mark one, every dash one, and lower case (a review of PR #1437: a model that wrote "dana o'neil"
+ * for "dana o’neil", "smith-jones" for "smith–jones" or "and" for "&" left the name in).
+ */
+function foldChar(char: string): string {
+  if (ZERO_WIDTH.test(char)) return "";
+  if (/\s/u.test(char)) return " ";
+  if (char === "&") return "and";
+  return char.normalize("NFKC").normalize("NFKD").replace(/\p{M}+/gu, "")
+    .replace(/[‘’‚‛′`´ʼ]/g, "'").replace(/[“”„‟″]/g, "\"")
+    .replace(/[‐-―−﹘﹣－]/g, "-").toLowerCase();
+}
+
+/** The text folded for matching, each folded character with the index and length of the original one it came from;
+ * whitespace runs read as one space. */
+function foldWithMap(text: string): { folded: string; from: number[]; width: number[] } {
+  let folded = "";
+  const from: number[] = [], width: number[] = [];
+  let index = 0;
+  for (const char of text) {
+    const out = foldChar(char);
+    for (const piece of out) {
+      if (piece === " " && folded.endsWith(" ")) continue;
+      folded += piece; from.push(index); width.push(char.length);
+    }
+    index += char.length;
+  }
+  return { folded, from, width };
+}
+
+/** A model's piece as matching reads it: folded the same way, without the punctuation around it ("dave." is "dave"). */
+function foldPiece(piece: string): string {
+  return foldWithMap(piece.normalize("NFKC")).folded.trim().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+}
 
 /**
- * The model's answer applied: each piece it named that is found in the text (letter case and the spacing between its
- * words aside) becomes "[removed]", wherever it occurs; a piece not in the text is ignored. Nothing else changes, so
- * the result never holds a word the text did not.
+ * The model's answer applied: each piece it named becomes "[removed]" wherever it occurs in the text, matched on both
+ * sides folded (`foldChar`: case, accents, quote marks, dashes, "&" and "and", spacing) and mapped back to the text's
+ * own characters; whole words only at a piece's ends ("Joe" is not taken out of "Joey"). Nothing else changes, so the
+ * result never holds a word the text did not. `unmatched` lists the usable pieces found nowhere: the caller then fails
+ * the pass closed, as a name the model saw may still be in the text.
  */
-export function applyRemovals(text: string, pieces: readonly unknown[]): string {
+export function removalsOf(text: string, pieces: readonly unknown[]): { text: string; unmatched: string[] } {
   const usable = [...new Set(pieces.filter((piece): piece is string => typeof piece === "string")
     .map(piece => piece.normalize("NFKC").trim()).filter(piece => piece.length >= 2 && piece.length <= PIECE_MAX)
-    .filter(piece => piece !== REMOVED && !/^the (?:site|company)$/i.test(piece)))]
-    // Longest first, so a whole name goes before a part of it.
-    .sort((a, b) => b.length - a.length);
-  let out = text;
+    .filter(piece => piece !== REMOVED && !/^the (?:site|company)$/i.test(piece)))];
+  const { folded, from, width } = foldWithMap(text);
+  const isWord = (char: string | undefined) => char !== undefined && /[\p{L}\p{N}]/u.test(char);
+  const ranges: Array<[number, number]> = [];
+  const unmatched: string[] = [];
   for (const piece of usable) {
-    const words = piece.split(/\s+/).map(escapeRegExp);
-    // Whole words only at the piece's ends ("Joe" is not taken out of "Joey"), unless the piece starts or ends with
-    // something other than a letter or digit.
-    const lead = /^[\p{L}\p{N}]/u.test(piece) ? "(?<![\\p{L}\\p{N}])" : "";
-    const tail = /[\p{L}\p{N}]$/u.test(piece) ? "(?![\\p{L}\\p{N}])" : "";
-    out = out.replace(new RegExp(`${lead}${words.join("\\s+")}${tail}`, "giu"), REMOVED);
+    const needle = foldPiece(piece);
+    if (needle.length < 2) continue;
+    let found = false;
+    for (let at = folded.indexOf(needle); at >= 0; at = folded.indexOf(needle, at + 1)) {
+      const end = at + needle.length;
+      if (isWord(needle[0]) && isWord(folded[at - 1])) continue;
+      if (isWord(needle[needle.length - 1]) && isWord(folded[end])) continue;
+      ranges.push([from[at], from[end - 1] + width[end - 1]]);
+      found = true;
+    }
+    if (!found) unmatched.push(piece);
   }
-  return out.replace(/\[removed\](?:[^\S\n]+\[removed\])+/g, REMOVED);
+  // Merged, then replaced from the end, so earlier offsets hold.
+  const merged = ranges.sort((a, b) => a[0] - b[0]).reduce<Array<[number, number]>>((list, range) => {
+    const last = list[list.length - 1];
+    if (last && range[0] <= last[1]) last[1] = Math.max(last[1], range[1]); else list.push([...range]);
+    return list;
+  }, []);
+  let out = text;
+  for (const [start, end] of merged.reverse()) out = `${out.slice(0, start)}${REMOVED}${out.slice(end)}`;
+  return { text: out.replace(/\[removed\](?:[^\S\n]+\[removed\])+/g, REMOVED), unmatched };
+}
+
+/** `removalsOf`'s text alone. */
+export function applyRemovals(text: string, pieces: readonly unknown[]): string {
+  return removalsOf(text, pieces).text;
+}
+
+/**
+ * Words an empty answer is not trusted for (a review of PR #1437: words written to talk the model into answering
+ * nothing could carry a contact through): an instruction aimed at a model, or what is left of an address or a handle
+ * spelled out. The pass then fails closed rather than pass the words as clean.
+ */
+export function emptyAnswerDistrusted(text: string): boolean {
+  const plain = text.split(REMOVED).join(" ");
+  return /\b(?:ignore|disregard|forget|override)\b[^.!?\n]{0,40}\b(?:instructions?|rules?|prompt|above|previous)\b/i.test(plain)
+    || /\b(?:return|answer|reply|output|respond)\b[^.!?\n]{0,20}(?:\[\s*\]|\bnothing\b|\bempty\b)/i.test(plain)
+    || /\b(?:system|developer)\s+(?:prompt|message|instructions?)\b/i.test(plain)
+    || /\byou are (?:an?|the) (?:ai|assistant|model|language model)\b/i.test(plain)
+    || /@/.test(plain)
+    || /\b(?:at|@)\s+[\p{L}\p{N}-]+(?:\s+[\p{L}\p{N}-]+){0,3}\s+(?:dot|\.)\s+[\p{L}]{2,}\b/iu.test(plain);
 }
 
 /**
@@ -151,36 +235,64 @@ async function passMaximumUsd(writer: ScreeningWriter, text: string): Promise<nu
     outputTokenCeiling: freeTextRedactionTask.max_output_tokens_ceiling ?? 800, models });
 }
 
-type Claim = { state: "done"; text: string } | { state: "claimed"; attempts: number; reservationId: string } | { state: "busy" }
-  | { state: "cap" } | { state: "job_cap" };
+/** Why words cannot be read now and will not be by waiting: a pass count, or the job's spending cap. */
+export type ScreeningLimit = "writer_passes" | "job_passes" | "job_spending_cap";
+
+type Claim = { state: "done"; text: string } | { state: "claimed"; attempts: number; reservationId: string; token: string }
+  | { state: "busy" } | { state: "limit"; limit: ScreeningLimit };
 
 /**
- * In one transaction: the stored result, or a new pass claimed, counted against the job's pass cap and held against the
- * job's one spending cap (`planJobLaneReservation`: every ledger of the job counted, this pass's most possible cost
- * added). Refused by either cap, nothing is written: no call starts, nothing is counted.
+ * In one transaction: the stored result, or a new pass claimed, counted against its writer's budget and the job's total
+ * and held against the job's one spending cap (`planJobLaneReservation`: every ledger of the job counted, this pass's
+ * most possible cost added). Refused by any of them, no pass is counted or held and no call starts; the text's row says
+ * which limit it met, so both pages can say so.
  */
-async function claimPass(jobId: string, key: string, writer: ScreeningWriter, nowMs: number, maximumUsd: number): Promise<Claim> {
+async function claimPass(jobId: string, key: string, writer: ScreeningWriter, budget: ScreeningBudget, nowMs: number,
+  maximumUsd: number): Promise<Claim> {
   const store = db!;
   const { planJobLaneReservation } = await import("./jobLaneSpend");
   const collection = store.collection("inboundRequests").doc(jobId).collection(FREE_TEXT_SCREENING_COLLECTION);
-  const ref = collection.doc(key), budgetRef = collection.doc(BUDGET_DOC);
+  const ref = collection.doc(key), jobBudgetRef = collection.doc(BUDGET_DOC), writerBudgetRef = collection.doc(budgetDocOf(budget));
   return store.runTransaction(async (tx): Promise<Claim> => {
-    const [row, budget] = [(await tx.get(ref)).data(), (await tx.get(budgetRef)).data()];
+    const [row, jobBudget, writerBudget] = [(await tx.get(ref)).data(), (await tx.get(jobBudgetRef)).data(),
+      (await tx.get(writerBudgetRef)).data()];
     if (row?.status === "done" && typeof row.text === "string") return { state: "done", text: row.text };
     const attempts = Number.isInteger(row?.attempts) ? row!.attempts as number : 0;
     if (row?.status === "running" && nowMs - Number(row.claimedAtMs ?? 0) < CLAIM_LOST_AFTER_MS) return { state: "busy" };
     if (row?.status === "failed" && nowMs - Number(row.endedAtMs ?? 0) < retryAfterMs(attempts)) return { state: "busy" };
-    const passes = Number.isInteger(budget?.passes) ? budget!.passes as number : 0;
-    if (passes >= SCREENING_PASSES_PER_JOB) return { state: "cap" };
+    const count = (value: unknown) => Number.isInteger(value) ? value as number : 0;
+    const atIso = new Date(nowMs).toISOString();
+    const limited = (limit: ScreeningLimit): Claim => {
+      // Said on the text's row (no pass is counted, nothing held), once per limit.
+      if (row?.status !== "limit" || row.limit !== limit)
+        tx.set(ref, { schemaVersion: FREE_TEXT_SCREENING_SCHEMA, writer, budget, status: "limit", limit, limitAtIso: atIso }, { merge: true });
+      return { state: "limit", limit };
+    };
     const reservationId = `free_text_redaction-${key}-${attempts + 1}`;
     const hold = await planJobLaneReservation(tx, jobId, { lane: "free_text_redaction", reservationId, maximumUsd });
-    if (hold.state !== "fits") return { state: "job_cap" };
-    const atIso = new Date(nowMs).toISOString();
+    if (count(writerBudget?.passes) >= budgetCapOf(budget)) return limited("writer_passes");
+    if (count(jobBudget?.passes) >= SCREENING_PASSES_PER_JOB) return limited("job_passes");
+    if (hold.state !== "fits") return limited("job_spending_cap");
+    const token = randomUUID();
     hold.write(tx);
-    tx.set(ref, { schemaVersion: FREE_TEXT_SCREENING_SCHEMA, writer, status: "running", attempts: attempts + 1,
-      claimedAtIso: atIso, claimedAtMs: nowMs, reservationId }, { merge: true });
-    tx.set(budgetRef, { passes: passes + 1, updatedAtIso: atIso }, { merge: true });
-    return { state: "claimed", attempts: attempts + 1, reservationId };
+    tx.set(ref, { schemaVersion: FREE_TEXT_SCREENING_SCHEMA, writer, budget, status: "running", attempts: attempts + 1,
+      claimedAtIso: atIso, claimedAtMs: nowMs, reservationId, claimToken: token, limit: null }, { merge: true });
+    tx.set(jobBudgetRef, { passes: count(jobBudget?.passes) + 1, updatedAtIso: atIso }, { merge: true });
+    tx.set(writerBudgetRef, { budget, passes: count(writerBudget?.passes) + 1, updatedAtIso: atIso }, { merge: true });
+    return { state: "claimed", attempts: attempts + 1, reservationId, token };
+  });
+}
+
+/**
+ * The pass's end, written only while the row is still this claim's (a review of PR #1437: a pass taken over after its
+ * claim was taken as lost could otherwise overwrite the newer pass's result).
+ */
+async function endPass(ref: FirebaseFirestore.DocumentReference, token: string, end: Record<string, unknown>): Promise<boolean> {
+  return db!.runTransaction(async tx => {
+    const row = (await tx.get(ref)).data();
+    if (row?.claimToken !== token || row.status !== "running") return false;
+    tx.set(ref, end, { merge: true });
+    return true;
   });
 }
 
@@ -189,18 +301,20 @@ let capLogged = new Set<string>();
 
 /**
  * The words as the other side may read them before the last deterministic pass, or null while that is not known:
- * the stored result for this exact text, else a new pass (claimed, counted, run and stored). With `waitMs`, null after
- * that long; the pass goes on and stores its result for the next read. Never throws.
+ * the stored result for this exact text, else a new pass (claimed, counted, held, run and stored). With `waitMs`, null
+ * after that long; the pass goes on and stores its result for the next read. `budget` says whose passes it counts
+ * against (the site's own words count against the site's). Never throws.
  */
-export async function screenText(jobId: string, writer: ScreeningWriter, text: string, options: { waitMs?: number } = {}):
-  Promise<string | null> {
+export async function screenText(jobId: string, writer: ScreeningWriter, text: string,
+  options: { waitMs?: number; budget?: ScreeningBudget } = {}): Promise<string | null> {
   if (!needsScreening(text)) return text;
   if (!db || !/^[A-Za-z0-9_-]{1,200}$/.test(jobId)) return null;
   const key = screeningKey(writer, text);
   const flightKey = `${jobId}:${key}`;
+  const budget = options.budget ?? budgetFor(writer);
   let work = inFlight.get(flightKey);
   if (!work) {
-    work = runOnce(jobId, key, writer, text).catch(error => {
+    work = runOnce(jobId, key, writer, text, budget).catch(error => {
       logger.warn({ err: error, requestId: jobId }, "The model pass over free text could not run; the words stay unread");
       return null;
     }).finally(() => inFlight.delete(flightKey));
@@ -212,7 +326,7 @@ export async function screenText(jobId: string, writer: ScreeningWriter, text: s
   return Promise.race([work, late]).finally(() => clearTimeout(timer));
 }
 
-async function runOnce(jobId: string, key: string, writer: ScreeningWriter, text: string): Promise<string | null> {
+async function runOnce(jobId: string, key: string, writer: ScreeningWriter, text: string, budget: ScreeningBudget): Promise<string | null> {
   const store = db!;
   const ref = store.collection("inboundRequests").doc(jobId).collection(FREE_TEXT_SCREENING_COLLECTION).doc(key);
   const stored = (await ref.get()).data();
@@ -221,14 +335,13 @@ async function runOnce(jobId: string, key: string, writer: ScreeningWriter, text
   if (!(await redactorAvailable())) return null;
   const maximumUsd = await passMaximumUsd(writer, text);
   if (maximumUsd === null) return null;
-  const claim = await claimPass(jobId, key, writer, Date.now(), maximumUsd);
+  const claim = await claimPass(jobId, key, writer, budget, Date.now(), maximumUsd);
   if (claim.state === "done") return claim.text;
-  if (claim.state === "cap" || claim.state === "job_cap") {
-    if (!capLogged.has(`${jobId}:${claim.state}`)) {
-      capLogged.add(`${jobId}:${claim.state}`);
-      logger.warn({ requestId: jobId, cap: claim.state === "cap" ? SCREENING_PASSES_PER_JOB : "job_spending_cap" },
-        claim.state === "cap" ? "The job reached its cap on model passes over free text; new words stay unread by the other side"
-          : "The job's spending cap leaves no room for a model pass over free text; new words stay unread by the other side");
+  if (claim.state === "limit") {
+    if (!capLogged.has(`${jobId}:${budget}:${claim.limit}`)) {
+      capLogged.add(`${jobId}:${budget}:${claim.limit}`);
+      logger.warn({ requestId: jobId, budget, limit: claim.limit },
+        "A model pass over free text met a limit; these words stay unread by the other side, and both pages say so");
     }
     return null;
   }
@@ -241,33 +354,48 @@ async function runOnce(jobId: string, key: string, writer: ScreeningWriter, text
   await settleJobLaneSpend(jobId, claim.reservationId, pass.costUsd, pass.basis).catch(error =>
     logger.warn({ err: error, requestId: jobId }, "A model pass's hold could not be settled; it stays counted in full"));
   const endedAtMs = Date.now(), endedAtIso = new Date(endedAtMs).toISOString();
-  if (!pass.pieces) {
-    await ref.set({ status: "failed", endedAtMs, endedAtIso, lastError: failure ?? "no_answer" }, { merge: true });
-    return null;
-  }
-  const result = applyRemovals(text, pass.pieces);
-  await ref.set({ status: "done", text: result, endedAtMs, endedAtIso, lastError: null }, { merge: true });
-  return result;
+  const failed = (reason: string) => endPass(ref, claim.token, { status: "failed", endedAtMs, endedAtIso, lastError: reason });
+  if (!pass.pieces) { await failed(failure ?? "no_answer"); return null; }
+  // Fail closed when the answer cannot be trusted: a piece the model named that is in the text in no form, or nothing
+  // named for words an empty answer is not trusted for.
+  const { text: result, unmatched } = removalsOf(text, pass.pieces);
+  if (unmatched.length) { await failed("piece_not_found"); return null; }
+  if (!pass.pieces.length && emptyAnswerDistrusted(text)) { await failed("empty_answer_distrusted"); return null; }
+  return await endPass(ref, claim.token, { status: "done", text: result, endedAtMs, endedAtIso, lastError: null, limit: null })
+    ? result : null;
 }
 
-/** What has been screened for one job: the result for an exact text, or null while there is none yet. */
+/** Where one exact text stands: read (its result), not yet read, or held at a limit (`ScreeningLimit`). */
+export type ScreeningState = { state: "shown"; text: string } | { state: "pending" } | { state: "limit"; limit: ScreeningLimit };
+
+/** What has been screened for one job: the result for an exact text, or null while there is none. */
 export interface Screenings {
-  shown(writer: ScreeningWriter, text: string): string | null;
-  /** The texts asked for that have no result yet, to screen next. */
-  readonly missing: ReadonlyArray<{ writer: ScreeningWriter; text: string }>;
+  shown(writer: ScreeningWriter, text: string, budget?: ScreeningBudget): string | null;
+  stateOf(writer: ScreeningWriter, text: string, budget?: ScreeningBudget): ScreeningState;
+  /** The texts asked for that have no result yet, to screen next, each with whose budget it counts against. */
+  readonly missing: ReadonlyArray<{ writer: ScreeningWriter; text: string; budget: ScreeningBudget }>;
 }
 
-/** A lookup over stored results (`key` → the text with the pieces taken out). */
-export function screeningsFrom(results: ReadonlyMap<string, string>): Screenings {
-  const missing: Array<{ writer: ScreeningWriter; text: string }> = [];
+/** A lookup over stored results (`key` → the text with the pieces taken out) and the texts held at a limit. */
+export function screeningsFrom(results: ReadonlyMap<string, string>, limits: ReadonlyMap<string, ScreeningLimit> = new Map()): Screenings {
+  const missing: Array<{ writer: ScreeningWriter; text: string; budget: ScreeningBudget }> = [];
+  const stateOf = (writer: ScreeningWriter, text: string, budget?: ScreeningBudget): ScreeningState => {
+    if (!needsScreening(text)) return { state: "shown", text };
+    const key = screeningKey(writer, text);
+    const found = results.get(key);
+    if (found !== undefined) return { state: "shown", text: found };
+    // A limit may lift (a hold settled lower), so the text is asked for again either way.
+    if (!missing.some(item => item.writer === writer && item.text === text))
+      missing.push({ writer, text, budget: budget ?? budgetFor(writer) });
+    const limit = limits.get(key);
+    return limit ? { state: "limit", limit } : { state: "pending" };
+  };
   return {
     missing,
-    shown(writer, text) {
-      if (!needsScreening(text)) return text;
-      const found = results.get(screeningKey(writer, text));
-      if (found !== undefined) return found;
-      if (!missing.some(item => item.writer === writer && item.text === text)) missing.push({ writer, text });
-      return null;
+    stateOf,
+    shown(writer, text, budget) {
+      const state = stateOf(writer, text, budget);
+      return state.state === "shown" ? state.text : null;
     },
   };
 }
@@ -275,30 +403,57 @@ export function screeningsFrom(results: ReadonlyMap<string, string>): Screenings
 /** Nothing screened: every text that needs a pass reads as not ready. */
 export const NOTHING_SCREENED: () => Screenings = () => screeningsFrom(new Map());
 
-/** The job's stored results. On any failure to read them, none (the words then stay unread). */
+const LIMITS: readonly ScreeningLimit[] = ["writer_passes", "job_passes", "job_spending_cap"];
+
+/** The most texts held at a limit read back to say so; any more read as not ready (they stay unread either way). */
+const LIMIT_ROWS_READ = 500;
+
+/**
+ * The job's stored results and limits. Results are read apart from the rows held at a limit, so however many texts a
+ * writer at its limit sends, every result is read (results are at most the job's passes). On any failure to read them,
+ * none (the words then stay unread).
+ */
 export async function loadScreenings(jobId: string): Promise<Screenings> {
   if (!db) return NOTHING_SCREENED();
   try {
-    const rows = await db.collection("inboundRequests").doc(jobId).collection(FREE_TEXT_SCREENING_COLLECTION)
-      .where("status", "==", "done").limit(SCREENING_PASSES_PER_JOB + 50).get();
-    return screeningsFrom(new Map(rows.docs.filter(doc => typeof doc.data()?.text === "string")
-      .map(doc => [doc.id, String(doc.data().text)])));
+    const collection = db.collection("inboundRequests").doc(jobId).collection(FREE_TEXT_SCREENING_COLLECTION);
+    const [done, held] = await Promise.all([collection.where("status", "==", "done").limit(SCREENING_PASSES_PER_JOB + 50).get(),
+      collection.where("status", "==", "limit").limit(LIMIT_ROWS_READ).get()]);
+    const results = new Map<string, string>(), limits = new Map<string, ScreeningLimit>();
+    for (const doc of done.docs) {
+      const row = doc.data() ?? {};
+      if (row.status === "done" && typeof row.text === "string") results.set(doc.id, String(row.text));
+    }
+    for (const doc of held.docs) {
+      const row = doc.data() ?? {};
+      if (row.status === "limit" && LIMITS.includes(row.limit)) limits.set(doc.id, row.limit);
+    }
+    return screeningsFrom(results, limits);
   } catch (error) {
     logger.warn({ err: error, requestId: jobId }, "Could not read the job's screened words; they stay unread for now");
     return NOTHING_SCREENED();
   }
 }
 
+/** Whether any of the job's words are held at a limit, for the admin job page. */
+export async function screeningLimitReached(jobId: string): Promise<{ limit: ScreeningLimit; atIso: string | null } | null> {
+  if (!db) return null;
+  const rows = await db.collection("inboundRequests").doc(jobId).collection(FREE_TEXT_SCREENING_COLLECTION)
+    .where("status", "==", "limit").limit(1).get();
+  const row = rows.docs[0]?.data();
+  return row && LIMITS.includes(row.limit) ? { limit: row.limit, atIso: typeof row.limitAtIso === "string" ? row.limitAtIso : null } : null;
+}
+
 /** Start a pass for each text a read found unscreened, without waiting (the next read shows the result). */
-export function screenInBackground(jobId: string, items: ReadonlyArray<{ writer: ScreeningWriter; text: string }>) {
-  for (const item of items) void screenText(jobId, item.writer, item.text);
+export function screenInBackground(jobId: string, items: ReadonlyArray<{ writer: ScreeningWriter; text: string; budget?: ScreeningBudget }>) {
+  for (const item of items) void screenText(jobId, item.writer, item.text, { budget: item.budget });
 }
 
 /** Screen each text, waiting at most `waitMs` in all; true when any new result arrived (a second read shows it). */
-export async function screenAndWait(jobId: string, items: ReadonlyArray<{ writer: ScreeningWriter; text: string }>,
+export async function screenAndWait(jobId: string, items: ReadonlyArray<{ writer: ScreeningWriter; text: string; budget?: ScreeningBudget }>,
   waitMs = SCREENING_WAIT_MS): Promise<boolean> {
   if (!items.length) return false;
-  const results = await Promise.all(items.map(item => screenText(jobId, item.writer, item.text, { waitMs })));
+  const results = await Promise.all(items.map(item => screenText(jobId, item.writer, item.text, { waitMs, budget: item.budget })));
   return results.some(result => result !== null);
 }
 
@@ -311,30 +466,46 @@ export function siteWordsDeterministic(text: string, known: KnownSiteIdentity): 
   return removeNamesNotHeld(removeIdentifyingDetails(text, known));
 }
 
+/** Words as the other side may read them: shown, not ready yet, or held at a limit (`ScreeningLimit`). */
+export type ReadState = { state: "shown"; text: string } | { state: "pending" } | { state: "limit"; limit: ScreeningLimit };
+
 /**
  * A site's own words as a deployment company reads them (2026-11-24): the deterministic pass, the model pass over what
- * it leaves, and the deterministic pass again. Empty while the model pass has not succeeded for this exact text, and
- * when the site's identity cannot be read: never words that might name it. The text the model pass still needs is
+ * it leaves, and the deterministic pass again. Not shown while the model pass has not succeeded for this exact text
+ * (`pending`, or `limit` when a limit holds it), nor when the site's identity cannot be read: never words that might
+ * name it. Nothing left once the details are out reads as shown and empty. The text the model pass still needs is
  * recorded in `screenings.missing`, for the caller to screen.
  */
-export function siteWordsForCompany(text: string, known: KnownSiteIdentity | null, screenings: Screenings): string {
-  if (!known) return "";
+export function siteWordsStateForCompany(text: string, known: KnownSiteIdentity | null, screenings: Screenings): ReadState {
+  if (!known) return { state: "pending" };
   const input = siteWordsDeterministic(text, known).trim();
-  if (!input) return "";
-  const screened = screenings.shown("site", input);
-  return screened === null ? "" : siteWordsDeterministic(screened, known).trim();
+  if (!input) return { state: "shown", text: "" };
+  const screened = screenings.stateOf("site", input, "site");
+  return screened.state === "shown" ? { state: "shown", text: siteWordsDeterministic(screened.text, known).trim() } : screened;
+}
+
+/** `siteWordsStateForCompany`'s words, or "" while they are not shown. */
+export function siteWordsForCompany(text: string, known: KnownSiteIdentity | null, screenings: Screenings): string {
+  const read = siteWordsStateForCompany(text, known, screenings);
+  return read.state === "shown" ? read.text : "";
 }
 
 /**
  * The site's reply to a company's question as that company reads it, and as the site's own page shows it: the stored
  * reply (through the deterministic pass with the site's identity when the site sent it, `answerCompanyQuestion`),
- * through the model pass, then the deterministic pass again, with the site's identity when it can be read. Null while
- * the model pass has not succeeded for it.
+ * through the model pass, then the deterministic pass again, with the site's identity when it can be read.
  */
+export function siteReplyStateForCompany(stored: string, known: KnownSiteIdentity | null, screenings: Screenings): ReadState {
+  const screened = screenings.stateOf("site", stored, "site");
+  if (screened.state !== "shown") return screened;
+  const text = siteWordsDeterministic(screened.text, known ?? NO_IDENTITY).trim();
+  return text ? { state: "shown", text } : { state: "pending" };
+}
+
+/** `siteReplyStateForCompany`'s words, or null while they are not shown. */
 export function siteReplyForCompany(stored: string, known: KnownSiteIdentity | null, screenings: Screenings): string | null {
-  const screened = screenings.shown("site", stored);
-  if (screened === null) return null;
-  return siteWordsDeterministic(screened, known ?? NO_IDENTITY).trim() || null;
+  const read = siteReplyStateForCompany(stored, known, screenings);
+  return read.state === "shown" ? read.text : null;
 }
 
 export function resetFreeTextScreeningForTests() {

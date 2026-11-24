@@ -526,6 +526,19 @@ describe("the company's page for one job (E3)", () => {
     expectNoSiteIn("the job page payload", raw);
   });
 
+  // A review of PR #1437: a rule the site gave that is not shown yet is said so, never "has not said what counts as done".
+  it("says the site's rule for done cannot be shown yet while its words are unread, and nothing of the kind when it gave none", async () => {
+    const brief = state.docs.get(`siteTaskBriefs/${ID}`)!;
+    state.docs.set(`siteTaskBriefs/${ID}`, { ...brief, successCriteria: { successDefinition: "Keep each carton upright at 12 cartons per minute." } });
+    const { modelPassFails } = await import("./helpers/freeTextScreening");
+    modelPassFails();
+    const held = (await page()).body.item;
+    expect(held).not.toHaveProperty("successRule");
+    expect(held.successRulePending).toBe(true);
+    state.docs.set(`siteTaskBriefs/${ID}`, brief);
+    expect((await page()).body.item).not.toHaveProperty("successRulePending");
+  });
+
   it("says how quickly the site answers companies' questions, from questions asked and answered on this job", async () => {
     expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?" })).status).toBe(200);
     const ref = `inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`;
@@ -573,6 +586,32 @@ describe("the company's page for one job (E3)", () => {
       siteClarification: { questionId: reply.questionId, text: "About 12.", answeredAtIso: new Date(replyBy).toISOString() } });
     expect(await current()).toBe(false);
     expect((await page()).body.item.pendingQuestion).toBeUndefined();
+  });
+
+  // A review of PR #1437: the site's page shows a company's question only once the model pass over it has succeeded,
+  // so the site is never reminded about a question it cannot read; the window stays open and a later pass reminds it.
+  it("reminds the site about a question only once its page shows it", async () => {
+    const { remindUnansweredQuestions, SITE_REPLY_WINDOWS } = await import("../utils/siteReplyReminders");
+    const { modelPassFails } = await import("./helpers/freeTextScreening");
+    const { budgetFor, screenText } = await import("../utils/freeTextScreening");
+    modelPassFails();
+    expect((await answer(NORTH, { state: "needs_something", inputs: "How many cartons arrive per minute?" })).status).toBe(200);
+    const reply = state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`) as Record<string, any>;
+    const replyBy = Date.parse(reply.questionAskedAtIso) + 3 * 24 * 60 * 60 * 1000;
+    const windowKey = `${SITE_REPLY_WINDOWS}/${ID}__${sha(NORTH.email)}`;
+    expect((await loadSiteCompanyActivity(ID)).entries.find(entry => entry.alias === "Company A")).not.toHaveProperty("question.text");
+    expect(await remindUnansweredQuestions(replyBy)).toBe(0);
+    expect(state.docs.get(windowKey)).toMatchObject({ state: "open" });
+    expect(outbox().filter(row => row.kind === "site_reply_reminder")).toHaveLength(0);
+    // The pass succeeds later: the page shows the question, and the next sweep reminds the site once.
+    for (const key of [...state.docs.keys()]) if (key.startsWith(`inboundRequests/${ID}/freeTextScreenings/`)) state.docs.delete(key);
+    modelPassFindsNothing();
+    expect(await screenText(ID, "company", "How many cartons arrive per minute?", { budget: budgetFor("company", sha(NORTH.email)) }))
+      .toBe("How many cartons arrive per minute?");
+    expect((await loadSiteCompanyActivity(ID)).entries.find(entry => entry.alias === "Company A"))
+      .toMatchObject({ question: { text: "How many cartons arrive per minute?" } });
+    expect(await remindUnansweredQuestions(replyBy + 60_000)).toBe(1);
+    expect(state.docs.get(windowKey)).toMatchObject({ state: "reminded" });
   });
 
   // Review of #1425: a new question replaces the window under the same id; a pass that read the old one leaves it open.
