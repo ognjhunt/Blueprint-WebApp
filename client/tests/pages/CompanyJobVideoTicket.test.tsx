@@ -105,4 +105,37 @@ describe("the company's video and download keep working past their 15-minute tic
     expect(screen.queryByLabelText("The site's video, without sound")).toBeNull();
     expect(screen.queryByRole("link", { name: "Download the simulation" })).toBeNull();
   });
+  it("asks again after a refresh that failed, so the download does not stay on an ended ticket", async () => {
+    fetchMock.mockResolvedValueOnce(pageAnswer(START_MS, "a".repeat(64)));
+    render(<CompanyJob />);
+    await screen.findByLabelText("The site's video, without sound");
+    // The scheduled refresh meets a 503: the page stays as it is.
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({}) });
+    await act(async () => { await vi.advanceTimersByTimeAsync((TICKET_SECONDS - 60) * 1000); });
+    expect(pageRequests()).toBe(2);
+    expect(screen.getByRole("link", { name: "Download the simulation" })).toHaveAttribute("href", simulationUrl(START_MS, "a".repeat(64)));
+    // Thirty seconds later it asks again, and the fresh tickets arrive.
+    const retriedAt = START_MS + (TICKET_SECONDS - 30) * 1000;
+    fetchMock.mockResolvedValueOnce(pageAnswer(retriedAt, "d".repeat(64)));
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+    expect(pageRequests()).toBe(3);
+    expect(screen.getByRole("link", { name: "Download the simulation" })).toHaveAttribute("href", simulationUrl(retriedAt, "d".repeat(64)));
+  });
+
+  it("does not put the job back on the page when the company signs out while a refresh is on its way", async () => {
+    fetchMock.mockResolvedValueOnce(pageAnswer(START_MS, "a".repeat(64)));
+    const view = render(<CompanyJob />);
+    await screen.findByLabelText("The site's video, without sound");
+    let answer: (value: unknown) => void = () => undefined;
+    fetchMock.mockReturnValueOnce(new Promise(resolve => { answer = resolve; }));
+    await act(async () => { await vi.advanceTimersByTimeAsync((TICKET_SECONDS - 60) * 1000); });
+    expect(pageRequests()).toBe(2);
+    // Signed out before the refresh answers.
+    auth.currentUser = null;
+    view.rerender(<CompanyJob />);
+    expect(screen.queryByLabelText("The site's video, without sound")).toBeNull();
+    await act(async () => { answer(pageAnswer(START_MS + 14 * 60_000, "e".repeat(64))); await vi.advanceTimersByTimeAsync(0); });
+    expect(screen.queryByLabelText("The site's video, without sound")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Download the simulation" })).toBeNull();
+  });
 });

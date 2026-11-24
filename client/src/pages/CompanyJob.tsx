@@ -79,6 +79,11 @@ export function ticketRefreshDelayMs(urls: readonly (string | null | undefined)[
   return Math.max(TICKET_REFRESH_MARGIN_MS, Math.min(...ends) * 1000 - nowMs - TICKET_REFRESH_MARGIN_MS);
 }
 
+/** The wait before a failed ticket refresh is asked again: 30 seconds, doubling, at most five minutes. */
+export function ticketRetryDelayMs(failures: number): number {
+  return Math.min(5 * 60_000, (TICKET_REFRESH_MARGIN_MS / 2) * 2 ** Math.max(0, failures - 1));
+}
+
 type LoadedJob = { kind: "ready"; item: CompanyJobPage } | { kind: "missing"; access: LibraryAccess | null } | { kind: "terms" };
 
 /** The one authorised page request: every access check runs again on each call, and it issues the media tickets. */
@@ -159,9 +164,11 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   }, [link, user, auth?.loading, linkState]);
   useEffect(() => {
     const signingIn = Boolean(link) && (linkState === "signing_in" || linkState === "unused");
+    // Every change of account or job starts a new generation, signing out too: a ticket refresh still on its way
+    // for the account before can never put the job back on the page.
+    const generation = ++loadGeneration.current;
     if (!user) { setState(auth && !auth.loading && !signingIn ? "signed_out" : "loading"); return; }
     let cancelled = false;
-    const generation = ++loadGeneration.current;
     setState("loading");
     loadCompanyJob(user, jobId).then(loaded => { if (!cancelled && generation === loadGeneration.current) show(loaded); })
       .catch(() => { if (!cancelled) setState("error"); });
@@ -170,25 +177,28 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   // Fresh tickets for the video and the download, from the same page request: a withdrawn job or a lost approval is
   // refused there and the page says so; a failed request leaves the page as it is, and the next failure asks again.
   const refreshing = useRef(false);
+  // Refreshes that failed in a row (the network, a 503): each one is asked again after a wait that doubles, at most
+  // every five minutes, so the download's link does not stay ended once the service answers again.
+  const [refreshFailures, setRefreshFailures] = useState(0);
   const refreshTickets = useCallback(async () => {
     if (!user || refreshing.current) return;
     refreshing.current = true;
     const generation = loadGeneration.current;
     try {
       const loaded = await loadCompanyJob(user, jobId);
-      if (generation === loadGeneration.current) show(loaded);
-    } catch { /* The page stays; the next timer or video failure asks again. */ }
+      if (generation === loadGeneration.current) { setRefreshFailures(0); show(loaded); }
+    } catch { if (generation === loadGeneration.current) setRefreshFailures(count => count + 1); }
     finally { refreshing.current = false; }
   }, [user, jobId]);
   const videoUrl = page?.video.state === "ready" ? page.video.url : null;
   const downloadUrl = page?.simulationDownload?.state === "ready" ? page.simulationDownload.url : null;
   useEffect(() => {
     if (state !== "ready") return;
-    const delay = ticketRefreshDelayMs([videoUrl, downloadUrl]);
+    const delay = refreshFailures > 0 ? ticketRetryDelayMs(refreshFailures) : ticketRefreshDelayMs([videoUrl, downloadUrl]);
     if (delay === null) return;
     const timer = setTimeout(() => { void refreshTickets(); }, delay);
     return () => clearTimeout(timer);
-  }, [state, videoUrl, downloadUrl, refreshTickets]);
+  }, [state, videoUrl, downloadUrl, refreshTickets, refreshFailures]);
 
   if (state === "loading") return <div className="bare-screen company-job"><p role="status">Loading…</p></div>;
   if (state === "terms" && user) return <div className="bare-screen company-job"><CompanyTermsPrompt user={user} onAccepted={() => setRetry(retry + 1)} /></div>;
