@@ -624,8 +624,40 @@ describe("the company's page for one job (E3)", () => {
     expect(stored.details ?? {}).not.toHaveProperty("estimate");
     expect(stored.details ?? {}).not.toHaveProperty("chargeModel");
     for (const details of [{ estimate: { lowUsd: 30, highUsd: 45 } }, { chargeModel: "undecided", estimate: { lowUsd: 30, highUsd: 45 } },
-      { chargeModel: "per_hour", estimate: { lowUsd: 45, highUsd: 30 } }, { chargeModel: "per_hour", estimate: { lowUsd: 0.5, highUsd: 30 } }])
+      { chargeModel: "per_hour", estimate: { lowUsd: 45, highUsd: 30 } }, { chargeModel: "per_hour", estimate: { lowUsd: 0.005, highUsd: 30 } },
+      { chargeModel: "per_hour", estimate: { lowUsd: 0, highUsd: 30 } }, { chargeModel: "per_hour", estimate: { lowUsd: 30, highUsd: 100_000_001 } }])
       expect((await answer(SOUTH, { state: "interested", details })).status).toBe(400);
+  });
+
+  // Stress test, 2026-11-24: an estimate under $1, or with cents, could not be given.
+  it("takes an estimate in dollars and cents, at most two decimals, and shows it to the site with its cents", async () => {
+    const details = { chargeModel: "per_task", estimate: { lowUsd: 0.35, highUsd: 0.5 } };
+    expect((await answer(NORTH, { state: "interested", details })).status).toBe(200);
+    const stored = state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`) as Record<string, any>;
+    expect(stored.details).toMatchObject(details);
+    const entry = (await loadSiteCompanyActivity(ID)).entries.find(row => row.alias === "Company A");
+    expect(entry).toMatchObject({ details });
+    expect((await answer(NORTH, { state: "interested", details: { chargeModel: "per_hour", estimate: { lowUsd: 45, highUsd: 60.25 } } })).status).toBe(200);
+  });
+
+  // Stress test, 2026-11-24: every refusal was said as "keep your note under 2,000 characters", whatever failed.
+  it("names the field that failed when it refuses an answer's details", async () => {
+    const refusal = async (body: Record<string, unknown>) => (await answer(SOUTH, body)).body.error as string;
+    expect(await refusal({ state: "interested", details: { question: "Hi?" } })).toBe("Write your question for the site in 4 to 400 characters.");
+    expect(await refusal({ state: "interested", details: { visitMustConfirm: "x".repeat(301) } }))
+      .toBe("Keep what a visit must confirm to 300 characters or fewer.");
+    expect(await refusal({ state: "interested", details: { chargeModel: "per_hour", estimate: { lowUsd: 45, highUsd: 30 } } }))
+      .toMatch(/^Enter the estimate in US dollars/);
+    expect(await refusal({ state: "interested", details: { chargeModel: "undecided", estimate: { lowUsd: 5, highUsd: 9 } } }))
+      .toMatch(/^An estimate needs a way of charging/);
+    expect(await refusal({ state: "interested", details: { chargeModel: "barter" } })).toBe("Choose how you charge from the list.");
+    expect(await refusal({ state: "interested", details: { startWindow: "someday" } })).toBe("Choose the earliest start from the list.");
+    expect(await refusal({ state: "interested", details: { similarJobs: "lots" } })).toBe("Choose how many similar jobs you have done from the list.");
+    expect(await refusal({ state: "interested", inputs: "x".repeat(2001) })).toBe("Keep your note to 2,000 characters or fewer.");
+    expect(await refusal({ state: "maybe" })).toBe("Choose a response.");
+    expect(await refusal({ state: "interested", statementVersion: "company-response-2026-11-12" }))
+      .toBe("The wording on this page has changed. Reload the page, read it, then send your response again.");
+    expect(await refusal({ state: "interested", details: { nickname: "x" } })).toBe("Your response could not be read. Reload the page and send it again.");
   });
 
   it("closes a reply window with no email when the question was answered or changed first", async () => {

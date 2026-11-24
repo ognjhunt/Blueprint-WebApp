@@ -326,17 +326,27 @@ function FitSummary({ rows }: { rows: FitSummaryRow[] }) {
   </div>)}</dl>;
 }
 
-/** Said when the estimate's two ends cannot be read as whole dollars from low to high. */
-export const ESTIMATE_INVALID = "Enter the estimate as whole dollars, the lower amount first, or leave both empty.";
+/** Said when the estimate's two ends cannot be read as US dollars from low to high. */
+export const ESTIMATE_INVALID = "Enter the estimate in US dollars, such as 1,200 or 0.35, with at most two decimals and the lower "
+  + "amount first, or leave both empty.";
 
-/** The typed estimate as whole dollars, null when left empty, or "invalid". Needs a way of charging that has a unit. */
+/**
+ * An amount as typed: a dollar sign, spaces and thousands commas are allowed ("$1,200", "$45.00"), and cents up to two
+ * decimals ("0.35", ".35"). A comma that does not group thousands ("0,35", "1,2") is refused, never read as something else.
+ */
+const TYPED_AMOUNT = /^(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{0,2})?|\.\d{1,2})$/;
+
+/** The typed estimate in dollars and cents, null when left empty, or "invalid". Needs a way of charging that has a unit. */
 export function typedEstimate(model: ChargeModel | undefined, low: string, high: string): ApplicationEstimate | null | "invalid" {
-  const read = (value: string) => value.replace(/[$,\s]/g, "");
+  // Full-width digits and signs (typed on some keyboards) read as their plain forms.
+  const read = (value: string) => value.normalize("NFKC").replace(/[$\s]/g, "");
   const [a, b] = [read(low), read(high)];
   if (!a && !b) return null;
   if (!model || !ESTIMATE_UNITS[model]) return "invalid";
-  const estimate = { lowUsd: Number(a || b), highUsd: Number(b || a) };
-  return /^\d+$/.test(a || b) && /^\d+$/.test(b || a) && isApplicationEstimate(estimate) ? estimate : "invalid";
+  if (![a || b, b || a].every(value => TYPED_AMOUNT.test(value))) return "invalid";
+  const amount = (value: string) => Number(value.replace(/,/g, ""));
+  const estimate = { lowUsd: amount(a || b), highUsd: amount(b || a) };
+  return isApplicationEstimate(estimate) ? estimate : "invalid";
 }
 
 /**
@@ -382,7 +392,8 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
   const [answer, setAnswer] = useState<CompanyResponseState | null>(prior && (tested || !TESTED_RESPONSE_STATES.includes(prior.state)) ? prior.state : null);
   const [inputs, setInputs] = useState(prior?.inputs ?? "");
   const [details, setDetails] = useState<CompanyReplyDetails>(prior?.details ?? {});
-  // The estimate's two ends as typed (whole dollars; commas allowed), kept apart from the stored numbers until sent.
+  // The estimate's two ends as typed (dollars and cents; a dollar sign and thousands commas allowed), kept apart from the
+  // stored numbers until sent.
   const [estimateLow, setEstimateLow] = useState(prior?.details?.estimate ? String(prior.details.estimate.lowUsd) : "");
   const [estimateHigh, setEstimateHigh] = useState(prior?.details?.estimate ? String(prior.details.estimate.highUsd) : "");
   // The answer on record: the page's, then the one just saved, so "You answered" never names an answer it replaced.
@@ -453,8 +464,8 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
         </select></label>
         {details.chargeModel && ESTIMATE_UNITS[details.chargeModel] && <div className="company-estimate" role="group" aria-label="Estimate before a site visit">
           <span className="company-estimate-title">Estimate, in US dollars {ESTIMATE_UNITS[details.chargeModel]}</span>
-          <label>From<input inputMode="numeric" value={estimateLow} onChange={event => setEstimateLow(event.target.value)} /></label>
-          <label>To<input inputMode="numeric" value={estimateHigh} onChange={event => setEstimateHigh(event.target.value)} /></label>
+          <label>From<input inputMode="decimal" value={estimateLow} onChange={event => setEstimateLow(event.target.value)} /></label>
+          <label>To<input inputMode="decimal" value={estimateHigh} onChange={event => setEstimateHigh(event.target.value)} /></label>
           <p className="ms-field-hint">{ESTIMATE_LABEL} Leave it empty if you would rather not give one before a visit.</p>
         </div>}
         <label>Similar jobs you have done<select value={details.similarJobs ?? ""}

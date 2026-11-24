@@ -18,7 +18,7 @@ import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { csrfProtection } from "../middleware/csrf";
 import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
-import { CHARGE_MODELS, ESTIMATE_MAX_USD, SIMILAR_JOBS, VISIT_NOTE_LIMIT } from "../../client/src/lib/companyResponses";
+import { CHARGE_MODELS, SIMILAR_JOBS, VISIT_NOTE_LIMIT, isEstimateAmount } from "../../client/src/lib/companyResponses";
 import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, COMPANY_START_WINDOWS, INTRODUCIBLE_RESPONSE_STATES, TESTED_RESPONSE_STATES, companyResponseNeedsNote, type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { firstAnswerTimestamp, prepareCompanyAnswerInTransaction } from "../utils/jobCompanies";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
@@ -43,18 +43,45 @@ const interestSchema = z.object({ state: z.enum(COMPANY_RESPONSE_STATES),
     question: z.string().trim().min(4).max(COMPANY_QUESTION_LIMIT).optional(),
     startWindow: z.enum(COMPANY_START_WINDOWS).optional(),
     // An application at a glance (owner, 2026-11-23): how the company charges, an optional estimate before a site visit
-    // in whole US dollars (never a quote), how many similar jobs it has done, and what a visit must confirm.
+    // in US dollars and cents (never a quote), how many similar jobs it has done, and what a visit must confirm.
     chargeModel: z.enum(CHARGE_MODELS).optional(),
-    estimate: z.object({ lowUsd: z.number().int().min(1).max(ESTIMATE_MAX_USD), highUsd: z.number().int().min(1).max(ESTIMATE_MAX_USD) })
+    estimate: z.object({ lowUsd: z.number().refine(isEstimateAmount), highUsd: z.number().refine(isEstimateAmount) })
       .strict().refine(value => value.lowUsd <= value.highUsd).optional(),
     similarJobs: z.enum(SIMILAR_JOBS).optional(),
     visitMustConfirm: z.string().trim().min(1).max(VISIT_NOTE_LIMIT).optional(),
   }).strict().refine(value => !value.estimate || (value.chargeModel !== undefined && value.chargeModel !== "undecided")).optional(),
   // The line the company saw under the form (E5); stored on the answer.
   statementVersion: z.literal(COMPANY_RESPONSE_STATEMENT_VERSION) }).strict();
+/** A response the form cannot send as it is: unknown fields, or a page that is out of date. */
+export const RESPONSE_UNREADABLE = "Your response could not be read. Reload the page and send it again.";
+/**
+ * Why a response was refused, naming the field that failed (stress test, 2026-11-24: every refusal used to be about the
+ * note, even when the estimate or the visit note was the cause). The first failing field is named.
+ */
+export function interestRefusal(issues: ReadonlyArray<{ code: string; path: ReadonlyArray<PropertyKey> }>): string {
+  const issue = issues[0];
+  if (!issue || issue.code === "unrecognized_keys") return RESPONSE_UNREADABLE;
+  const [field, detail] = issue.path;
+  if (field === "state") return "Choose a response.";
+  if (field === "inputs") return "Keep your note to 2,000 characters or fewer.";
+  if (field === "statementVersion") return "The wording on this page has changed. Reload the page, read it, then send your response again.";
+  if (field !== "details") return RESPONSE_UNREADABLE;
+  switch (detail) {
+    case "question": return `Write your question for the site in 4 to ${COMPANY_QUESTION_LIMIT} characters.`;
+    case "verified": return `Keep what you checked to ${COMPANY_QUESTION_LIMIT} characters or fewer.`;
+    case "startWindow": return "Choose the earliest start from the list.";
+    case "chargeModel": return "Choose how you charge from the list.";
+    case "estimate": return "Enter the estimate in US dollars, between 0.01 and 100,000,000, with at most two decimals and the lower amount first.";
+    case "similarJobs": return "Choose how many similar jobs you have done from the list.";
+    case "visitMustConfirm": return `Keep what a visit must confirm to ${VISIT_NOTE_LIMIT} characters or fewer.`;
+    // The rule on the details as a whole: an estimate is in a unit, so it needs a way of charging that has one.
+    case undefined: return "An estimate needs a way of charging. Choose how you charge, other than Not decided yet, or leave the estimate empty.";
+    default: return RESPONSE_UNREADABLE;
+  }
+}
 router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, async (req, res) => {
   const input = interestSchema.safeParse(req.body), user = res.locals.firebaseUser;
-  if (!input.success) return res.status(400).json({ error: "Choose a response and keep your note under 2,000 characters." });
+  if (!input.success) return res.status(400).json({ error: interestRefusal(input.error.issues) });
   if (companyResponseNeedsNote(input.data.state) && input.data.inputs.length < 4) {
     return res.status(400).json({ error: "Add a few words about what you need or what you tested." });
   }

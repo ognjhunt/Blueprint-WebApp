@@ -70,27 +70,38 @@ export const SIMILAR_JOBS_LABELS: Readonly<Record<SimilarJobs, string>> = {
   none: "None yet", "1_5": "1 to 5", "6_20": "6 to 20", over_20: "More than 20",
 };
 export const ESTIMATE_MAX_USD = 100_000_000;
+/** The smallest estimate: one cent (stress test, 2026-11-24: a per-item price under a dollar must be possible). */
+export const ESTIMATE_MIN_USD = 0.01;
 export const VISIT_NOTE_LIMIT = 300;
 /** Beside every estimate the site reads, and under the company's estimate fields. */
 export const ESTIMATE_LABEL = "Estimate before a site visit. Not a quote.";
 export const ESTIMATES_NOT_CHECKED = "Estimates are each company's own, before a site visit. They are not quotes, and Blueprint does not check them.";
 export interface ApplicationEstimate { lowUsd: number; highUsd: number }
 
-const usd = (value: number) => "$" + value.toLocaleString("en-US");
+/** Dollars, with cents only when the estimate has them: "$12,000", "$0.35"; both ends alike in a range ("$45.50 to $60.00"). */
+const usd = (value: number, cents: boolean) =>
+  "$" + value.toLocaleString("en-US", cents ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 });
 
-/** "$12,000 to $18,000 a month", or "$15 an hour" when both ends are the same. */
+/** "$12,000 to $18,000 a month", "$0.35 to $0.50 per task or item", or "$15 an hour" when both ends are the same. */
 export function estimateInWords(model: ChargeModel, estimate: ApplicationEstimate): string | null {
   const unit = ESTIMATE_UNITS[model];
   if (!unit || !isApplicationEstimate(estimate)) return null;
-  const range = estimate.lowUsd === estimate.highUsd ? usd(estimate.lowUsd) : usd(estimate.lowUsd) + " to " + usd(estimate.highUsd);
+  const cents = !Number.isInteger(estimate.lowUsd) || !Number.isInteger(estimate.highUsd);
+  const range = estimate.lowUsd === estimate.highUsd ? usd(estimate.lowUsd, cents)
+    : usd(estimate.lowUsd, cents) + " to " + usd(estimate.highUsd, cents);
   return range + " " + unit;
+}
+
+/** One end of an estimate: dollars and cents (at most two decimals), from one cent to `ESTIMATE_MAX_USD`. */
+export function isEstimateAmount(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= ESTIMATE_MIN_USD && value <= ESTIMATE_MAX_USD
+    && Math.abs(Math.round(value * 100) - value * 100) < 1e-6;
 }
 
 export function isApplicationEstimate(value: unknown): value is ApplicationEstimate {
   if (!value || typeof value !== "object") return false;
   const { lowUsd, highUsd } = value as Record<string, unknown>;
-  return [lowUsd, highUsd].every(item => typeof item === "number" && Number.isInteger(item) && item >= 1 && item <= ESTIMATE_MAX_USD)
-    && (lowUsd as number) <= (highUsd as number);
+  return isEstimateAmount(lowUsd) && isEstimateAmount(highUsd) && lowUsd <= highUsd;
 }
 
 export interface CompanyReplyDetails {
