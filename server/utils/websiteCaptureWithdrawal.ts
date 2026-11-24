@@ -8,6 +8,7 @@ import { logger } from "../logger";
 import { forgetPracticeRunVideos } from "./websiteCaptureWithdrawalPracticeRunVideos";
 import { forgetWebsiteScenePreviews } from "./websiteScenePreview";
 import { recordWorkerLoopPass } from "./workerHeartbeat";
+import { resetPublicLiveJobsCache } from "./publicLiveJobsCache";
 
 /** The explicit confirmation the signed owner link must send to withdraw. */
 export const OWNER_WITHDRAWAL_CONFIRMATION = "withdraw_recording_permission" as const;
@@ -119,6 +120,9 @@ export async function recordWebsiteCaptureWithdrawal(params: {
   // reason the withdrawal fails. The stored scene preview reference goes with the deletion worker's pass.
   await forgetPracticeRunVideos(params.requestId).catch(() => undefined);
   await forgetWebsiteScenePreviews(params.requestId).catch(() => undefined);
+  // The public live-jobs list is read again at its next request, so the withdrawn job leaves it at once (stress test
+  // round 2, 2026-11-24: it stayed up to six minutes).
+  resetPublicLiveJobsCache();
   // The Pipeline takes its company copies back within a minute rather than at its next read. Best effort, not awaited.
   if (recorded.created) {
     try {
