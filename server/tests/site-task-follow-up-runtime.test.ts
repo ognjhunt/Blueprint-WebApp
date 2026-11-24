@@ -7,14 +7,44 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const runAgentTask = vi.hoisted(() => vi.fn());
+const store = vi.hoisted(() => new Map<string, Map<string, any>>());
 vi.mock("../agents/runtime", () => ({ runAgentTask }));
+// The store holds the job each call is held against (`jobLaneSpend.ts`) and that hold.
+vi.mock("../../client/src/lib/firebaseAdmin", () => {
+  const coll = (name: string) => { if (!store.has(name)) store.set(name, new Map()); return store.get(name)!; };
+  const doc = (name: string, id: string): any => ({
+    id, path: `${name}/${id}`,
+    async get() { const d = coll(name).get(id); return { exists: d !== undefined, id, data: () => d }; },
+    async set(value: any, options?: { merge?: boolean }) {
+      coll(name).set(id, options?.merge ? { ...(coll(name).get(id) || {}), ...value } : value);
+    },
+    collection: (sub: string) => ({ doc: (subId: string) => doc(`${name}/${id}/${sub}`, subId), ...query(`${name}/${id}/${sub}`) }),
+  });
+  const query = (name: string): any => ({
+    where: () => query(name), orderBy: () => query(name), limit: () => query(name), startAfter: () => query(name),
+    async get() {
+      const docs = [...coll(name).entries()].map(([id, d]) => ({ id, data: () => d, ref: doc(name, id) }));
+      return { docs, size: docs.length, empty: !docs.length };
+    },
+  });
+  const db = {
+    collection: (name: string) => ({ doc: (id: string) => doc(name, id), ...query(name) }),
+    async runTransaction(fn: any) { return fn({ get: (ref: any) => ref.get(), set: (ref: any, v: any, o: any) => ref.set(v, o) }); },
+  };
+  return { default: {}, dbAdmin: db, storageAdmin: null };
+});
 
 const eligible = ["success_target", "item_photos", "item_weight", "item_make_model"] as const;
-const input = { taskStatement: "x".repeat(4000), briefSummary: "y".repeat(2400), itemLabels: Array.from({ length: 20 }, (_, i) => `item ${i}`),
-  eligible: [...eligible] };
+const input = { requestId: "req-1", taskStatement: "x".repeat(4000), briefSummary: "y".repeat(2400),
+  itemLabels: Array.from({ length: 20 }, (_, i) => `item ${i}`), eligible: [...eligible] };
+const holds = () => [...(store.get("inboundRequests/req-1/modelLaneReservations")?.values() ?? [])];
 
 // A provider that may receive the site's text is configured; without one the picker starts no run.
-beforeEach(() => { vi.stubEnv("OPENAI_API_KEY", "offline-fixture"); vi.stubEnv("OPENAI_BASE_URL", ""); });
+beforeEach(() => {
+  vi.stubEnv("OPENAI_API_KEY", "offline-fixture"); vi.stubEnv("OPENAI_BASE_URL", "");
+  store.clear();
+  store.set("inboundRequests", new Map([["req-1", { requestId: "req-1" }]]));
+});
 afterEach(() => { runAgentTask.mockReset(); vi.useRealTimers(); vi.unstubAllEnvs(); vi.resetModules(); });
 
 describe("follow-up picker through the runtime", () => {
@@ -64,7 +94,9 @@ describe("follow-up picker through the runtime", () => {
 
   it("waits 12 seconds and no less, and clears its timer once the lane answers", async () => {
     const { selectFollowUps } = await import("../utils/siteTaskFollowUp");
-    await import("../agents/provider-config");
+    // Loaded before the clock is faked: what the picker reads before its call, the hold on the job's cap included.
+    await Promise.all([import("../agents/provider-config"), import("../agents/provider-privacy"), import("../agents/tasks"),
+      import("../agents/tasks/site-task-follow-up"), import("../utils/jobLaneSpend")]);
     vi.useFakeTimers();
     runAgentTask.mockReturnValueOnce(new Promise(() => undefined));
     let settled = false;
@@ -77,6 +109,61 @@ describe("follow-up picker through the runtime", () => {
     runAgentTask.mockResolvedValueOnce({ status: "completed", output: { question_ids: ["item_make_model"] } });
     expect(await selectFollowUps(input)).toEqual(["success_target", "item_photos", "item_make_model"]);
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  // Money is a hard stop: the picker's call is held against the job's one $40 cap (`jobLaneSpend.ts`).
+  it("makes no paid call for a job at its cap, or for an id with no job: the fixed list, nothing held", async () => {
+    store.set("inboundRequests", new Map([["req-1", { requestId: "req-1",
+      website_preparation_reservations: { a: { admission: { maximum_cost_usd: 40 } } } }]]));
+    const { selectFollowUps } = await import("../utils/siteTaskFollowUp");
+    expect(await selectFollowUps(input)).toEqual(["success_target", "item_photos", "item_weight"]);
+    expect(await selectFollowUps({ ...input, requestId: "req-unknown" })).toEqual(["success_target", "item_photos", "item_weight"]);
+    expect(runAgentTask).not.toHaveBeenCalled();
+    expect(holds()).toEqual([]);
+    expect(store.get("inboundRequests/req-unknown/modelLaneReservations")).toBeUndefined();
+  });
+
+  it("holds the call before it starts, settles it at the cost the run reports, and the job's spend counts it", async () => {
+    let heldDuringCall: Array<Record<string, any>> = [];
+    runAgentTask.mockImplementation(async () => {
+      heldDuringCall = holds().map((row) => ({ ...row }));
+      return { status: "completed", output: { question_ids: ["item_make_model"] },
+        artifacts: { inference_reservation: { reconciled_cost_usd: 0.0007 } } };
+    });
+    const { selectFollowUps } = await import("../utils/siteTaskFollowUp");
+    expect(await selectFollowUps(input)).toEqual(["success_target", "item_photos", "item_make_model"]);
+    expect(heldDuringCall).toEqual([expect.objectContaining({ lane: "site_task_follow_up", request_id: "req-1" })]);
+    expect(heldDuringCall[0]).not.toHaveProperty("settlement");
+    // The most the call could cost: its prompt's bytes and framing, 600 output tokens, on gpt-6-luna.
+    expect(heldDuringCall[0].admission.maximum_cost_usd).toBeGreaterThan(0.0007);
+    expect(heldDuringCall[0].admission.maximum_cost_usd).toBeLessThan(0.01);
+    await vi.waitFor(() => expect(holds()[0].settlement).toMatchObject({ actual_cost_usd: 0.0007, basis: "reported_usage" }));
+    const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
+    const { transactionJobLedgerReader, websiteJobSpend } = await import("../utils/websiteJobCeiling");
+    const spend = await websiteJobSpend({ record: store.get("inboundRequests")!.get("req-1"),
+      reader: transactionJobLedgerReader(dbAdmin!, { get: (ref: any) => ref.get() }, "req-1") });
+    expect(spend).toMatchObject({ model_lane_micros: 700, total_micros: 700 });
+  });
+
+  it("settles a late run's hold when it ends, after the page took the fixed list, and keeps a thrown run's hold whole", async () => {
+    const { selectFollowUps } = await import("../utils/siteTaskFollowUp");
+    await Promise.all([import("../agents/provider-config"), import("../agents/provider-privacy"), import("../agents/tasks"),
+      import("../agents/tasks/site-task-follow-up"), import("../utils/jobLaneSpend")]);
+    vi.useFakeTimers();
+    let release!: (value: unknown) => void;
+    runAgentTask.mockReturnValueOnce(new Promise((resolve) => { release = resolve; }));
+    const pending = selectFollowUps(input);
+    await vi.advanceTimersByTimeAsync(12_000);
+    expect(await pending).toEqual(["success_target", "item_photos", "item_weight"]);
+    expect(holds()).toHaveLength(1);
+    expect(holds()[0]).not.toHaveProperty("settlement");
+    vi.useRealTimers();
+    release({ status: "completed", output: { question_ids: [] }, artifacts: { inference_reservation: { reconciled_cost_usd: 0.0004 } } });
+    await vi.waitFor(() => expect(holds()[0].settlement).toMatchObject({ actual_cost_usd: 0.0004 }));
+    runAgentTask.mockRejectedValueOnce(new Error("provider went away"));
+    expect(await selectFollowUps(input)).toEqual(["success_target", "item_photos", "item_weight"]);
+    await vi.waitFor(() => expect(holds()[1]?.settlement).toMatchObject({ basis: "unknown_counts_in_full" }));
+    expect(holds()[1].settlement.actual_cost_usd).toBe(holds()[1].admission.maximum_cost_usd);
   });
 
   it("is a lane of the small tier whose data only OpenAI may receive", async () => {

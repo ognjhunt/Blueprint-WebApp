@@ -26,6 +26,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
     async set(value: any, options?: { merge?: boolean }) {
       coll(name).set(id, options?.merge ? { ...(coll(name).get(id) || {}), ...value } : value);
     },
+    // A job's subcollections: the hold on its spending cap (`jobLaneSpend.ts`).
+    collection: (sub: string) => ({ doc: (subId: string) => doc(`${name}/${id}/${sub}`, subId), ...query(`${name}/${id}/${sub}`) }),
   });
   const query = (name: string): any => ({
     where: () => query(name), orderBy: () => query(name), limit: () => query(name), startAfter: () => query(name),
@@ -63,6 +65,8 @@ const noFunds = async () => (await import("openai")).default.APIError.generate(4
 
 beforeEach(async () => {
   created.mockReset(); logged.length = 0; store.clear();
+  // The job each call is held against (`jobLaneSpend.ts`).
+  store.set("inboundRequests", new Map([[input.requestId, { requestId: input.requestId }]]));
   Object.values(otherAdapters).forEach((fn) => {
     fn.mockReset();
     fn.mockResolvedValue({ status: "completed", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk", model: "m",
@@ -169,9 +173,32 @@ describe("follow-up picker: what is stored", () => {
   it("with no OpenAI key returns the fixed list at once: no request, no stored row", async () => {
     vi.stubEnv("OPENAI_API_KEY", "");
     const { selectFollowUps } = await import("../utils/siteTaskFollowUp");
+    // The store holds the job record only, before and after: nothing is written, not even a hold.
+    const before = JSON.stringify([...store].map(([name, docs]) => [name, [...docs]]));
     expect(await selectFollowUps(input)).toEqual(fixedList);
     expect(created).not.toHaveBeenCalled();
-    expect(store.size).toBe(0);
+    expect([...store.keys()]).toEqual(["inboundRequests"]);
+    expect(JSON.stringify([...store].map(([name, docs]) => [name, [...docs]]))).toBe(before);
+  });
+
+  it("holds the call against the job's cap before the request and settles it at the usage OpenAI reported", async () => {
+    let heldAtRequest: unknown[] = [];
+    created.mockImplementation(async () => {
+      heldAtRequest = [...(store.get(`inboundRequests/${input.requestId}/modelLaneReservations`)?.values() ?? [])];
+      return answer('{"question_ids":["item_weight"]}');
+    });
+    const { selectFollowUps } = await import("../utils/siteTaskFollowUp");
+    await selectFollowUps(input);
+    expect(heldAtRequest).toEqual([expect.objectContaining({ lane: "site_task_follow_up",
+      admission: expect.objectContaining({ maximum_cost_usd: expect.any(Number) }) })]);
+    const rows = () => [...(store.get(`inboundRequests/${input.requestId}/modelLaneReservations`)?.values() ?? [])];
+    await vi.waitFor(() => expect(rows()[0].settlement).toBeDefined());
+    const [run] = storedRuns();
+    // 1,500 input and 100 output tokens on gpt-6-luna, as the adapter priced them.
+    expect(rows()[0].settlement).toMatchObject({ basis: "reported_usage",
+      actual_cost_usd: run.artifacts.inference_reservation.reconciled_cost_usd });
+    expect(rows()[0].settlement.actual_cost_usd).toBeGreaterThan(0);
+    expect(rows()[0].settlement.actual_cost_usd).toBeLessThan(rows()[0].admission.maximum_cost_usd);
   });
 
   it.each([

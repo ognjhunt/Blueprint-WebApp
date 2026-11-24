@@ -21,6 +21,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
     async set(value: any, options?: { merge?: boolean }) {
       coll(name).set(id, options?.merge ? { ...(coll(name).get(id) || {}), ...value } : value);
     },
+    // A job's subcollections: the hold on its spending cap (`jobLaneSpend.ts`).
+    collection: (sub: string) => ({ doc: (subId: string) => doc(`${name}/${id}/${sub}`, subId), ...query(`${name}/${id}/${sub}`) }),
   });
   const query = (name: string): any => ({
     where: () => query(name), orderBy: () => query(name), limit: () => query(name), startAfter: () => query(name),
@@ -48,6 +50,8 @@ const ANSWER_TEXT = "ANSWER-MARKER-91c2";
 const eligible = ["success_target", "item_photos", "item_weight", "item_make_model"];
 const taskInput = { taskStatement: `${SITE_TEXT} move totes`, briefSummary: "b", itemLabels: [], eligible };
 const quoting = `the request said "${SITE_TEXT}" and the answer was "${ANSWER_TEXT}"`;
+/** The job the picker's call is held against (`jobLaneSpend.ts`); the runs below that name no job store nothing. */
+const withJob = () => store.set("inboundRequests", new Map([["req-1", { requestId: "req-1" }]]));
 
 beforeEach(() => {
   adapter.mockReset(); logged.length = 0; store.clear();
@@ -69,6 +73,7 @@ function expectNoMarkers() {
 
 describe("redacted lane: failure messages", () => {
   it("stores and logs a thrown provider error as its class, status, code and a digest, never its message", async () => {
+    withJob();
     const OpenAI = (await import("openai")).default;
     adapter.mockRejectedValue(OpenAI.APIError.generate(400,
       { error: { type: "invalid_request_error", code: "bad_input", message: quoting } }, undefined, new Headers()));
@@ -86,6 +91,7 @@ describe("redacted lane: failure messages", () => {
   });
 
   it("stores and logs a returned failure the same way", async () => {
+    withJob();
     adapter.mockResolvedValue({ status: "failed", provider: "openai_responses", runtime: "openai_responses", model: "gpt-6-luna",
       tool_mode: "api", error: quoting, requires_human_review: true, requires_approval: false,
       artifacts: { provider_error: { error_class: "other", provider: "openai_responses", sdk: "openai", status: 500, type: "server_error",
@@ -122,6 +128,7 @@ describe("redacted lane: never on a path that replays its stored input", () => {
 
 
   it("leaves the picker's normal call as it was", async () => {
+    withJob();
     adapter.mockResolvedValue({ status: "completed", provider: "openai_responses", runtime: "openai_responses", model: "gpt-6-luna",
       tool_mode: "api", output: { question_ids: ["item_make_model"] }, requires_human_review: false, requires_approval: false });
     const { selectFollowUps } = await import("../utils/siteTaskFollowUp");

@@ -10,6 +10,9 @@
  * ledgers, each at its settlement where known and otherwise at its hold, exactly as a preparation reservation is
  * counted, so every other admission of the job (a preparation reservation, a scene intake, a video reading) sees them.
  *
+ * The lanes held here, each with its job's id: the model pass over free text (`free_text_redaction`,
+ * `freeTextScreening.ts`) and the follow-up picker (`site_task_follow_up`, `siteTaskFollowUp.ts`).
+ *
  * Why a ledger of its own (`inboundRequests/{job}/modelLaneReservations`), with the preparation rows' shape
  * (`admission.maximum_cost_usd`, `settlement.actual_cost_usd`), rather than rows in `website_preparation_reservations`:
  * that map is the Pipeline's preparation ledger. Its rows are parsed strictly and summarised to the Pipeline
@@ -156,7 +159,7 @@ export async function holdJobLaneSpend(requestId: string, lane: AgentTaskKind, m
  * usage, and the worst case for any request whose usage is unknown); 0 when the runtime made no provider request
  * (`inference_not_invoked`, or a run refused before the call); null when it cannot be told (the hold then stays whole).
  */
-export function runCostUsd(result: { artifacts?: Record<string, unknown> } | null | undefined): number | null {
+export function runCostUsd(result: { artifacts?: Record<string, unknown> | null } | null | undefined): number | null {
   const artifacts = (result?.artifacts ?? {}) as Record<string, any>;
   const reconciled = artifacts.inference_reservation?.reconciled_cost_usd;
   if (typeof reconciled === "number" && Number.isFinite(reconciled) && reconciled >= 0) return reconciled;
@@ -188,7 +191,7 @@ export async function settleJobLaneSpend(requestId: string, reservationId: strin
  * made, and its full hold when the run threw (null) or its cost cannot be told.
  */
 export async function settleJobLaneRun(requestId: string, reservationId: string,
-  result: { artifacts?: Record<string, unknown> } | null | undefined) {
+  result: { artifacts?: Record<string, unknown> | null } | null | undefined) {
   const cost = runCostUsd(result);
   await settleJobLaneSpend(requestId, reservationId, cost, cost === 0 ? "no_provider_request" : "reported_usage");
 }

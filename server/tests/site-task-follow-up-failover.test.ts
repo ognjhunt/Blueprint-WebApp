@@ -42,6 +42,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
     async set(value: any, options?: { merge?: boolean }) {
       coll(name).set(id, options?.merge ? { ...(coll(name).get(id) || {}), ...value } : value);
     },
+    // A job's subcollections: the hold on its spending cap (`jobLaneSpend.ts`).
+    collection: (sub: string) => ({ doc: (subId: string) => doc(`${name}/${id}/${sub}`, subId), ...query(`${name}/${id}/${sub}`) }),
   });
   const query = (name: string): any => ({
     where: () => query(name), orderBy: () => query(name), limit: () => query(name), startAfter: () => query(name),
@@ -96,6 +98,8 @@ beforeEach(async () => {
     ["job-old", { privacy_version_at_submission: "2026-11-12.2", terms_acceptance: acceptance("2026-11-12.2") }],
     // Accepted later on its page under 2026-11-13.1, with no version at submission: older.
     ["job-accepted-later", { terms_acceptance: acceptance("2026-11-13.1") }],
+    // A job whose record carries no Privacy version at all: the strictest table.
+    ["job-unrecorded", { requestId: "job-unrecorded" }],
   ]));
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
@@ -138,6 +142,38 @@ describe("follow-up picker: OpenAI out of funds", () => {
     expect(await selectFollowUps(input(requestId))).toEqual(fixedList);
     expect(created).toHaveBeenCalledTimes(1);
     expect(anthropic.requests).toHaveLength(0);
+  });
+
+  // Money: each call is held against its job's spending cap (`jobLaneSpend.ts`), so an id with no job is sent nowhere.
+  it("sends nothing to either provider for a request id with no job: the fixed list, nothing held", async () => {
+    const { selectFollowUps } = await import("../utils/siteTaskFollowUp");
+    expect(await selectFollowUps(input("job-missing"))).toEqual(fixedList);
+    expect(created).not.toHaveBeenCalled();
+    expect(anthropic.requests).toHaveLength(0);
+    expect(store.has("inboundRequests/job-missing/modelLaneReservations")).toBe(false);
+  });
+
+  it("holds a call at the most it may cost on either model it may reach, and settles a switched one at what Anthropic cost", async () => {
+    anthropic.respond = () => message('{"question_ids":["item_make_model"]}');
+    const { selectFollowUps } = await import("../utils/siteTaskFollowUp");
+    expect(await selectFollowUps(input("job-new"))).toEqual(["success_target", "item_photos", "item_make_model"]);
+    const holds = () => [...(store.get("inboundRequests/job-new/modelLaneReservations")?.values() ?? [])];
+    await vi.waitFor(() => expect(holds()[0]?.settlement).toBeDefined());
+    const [row] = holds();
+    const [run] = storedRuns();
+    expect(row.lane).toBe("site_task_follow_up");
+    // Priced on both: the lane starts on OpenAI and a "no funds" switch may take it to Anthropic.
+    const { laneCallMaximumUsd } = await import("../utils/jobLaneSpend");
+    const { siteTaskFollowUpTask } = await import("../agents/tasks/site-task-follow-up");
+    const { requestId: _id, ...sent } = input("job-new");
+    expect(row.admission.maximum_cost_usd).toBe(laneCallMaximumUsd({ outputTokenCeiling: 600,
+      promptBytes: Buffer.byteLength(siteTaskFollowUpTask.build_prompt(sent), "utf8"),
+      models: { openai_responses: "gpt-6-luna", anthropic_agent_sdk: "claude-haiku-5-5" } }));
+    // What the run reported for its one Anthropic request (OpenAI's "no funds" answer charged nothing).
+    expect(row.settlement).toMatchObject({ actual_cost_usd: run.artifacts.inference_reservation.reconciled_cost_usd,
+      basis: "reported_usage" });
+    expect(row.settlement.actual_cost_usd).toBeGreaterThan(0);
+    expect(row.settlement.actual_cost_usd).toBeLessThan(row.admission.maximum_cost_usd);
   });
 
   it("lets only the picker lane ignore the global Anthropic model and effort", async () => {

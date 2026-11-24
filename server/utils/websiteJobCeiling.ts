@@ -54,7 +54,7 @@ const LANE_ROWS_READ_LIMIT = 1_000;
 export type WebsiteJobLedgerReader = {
   sceneIntakes(): Promise<Array<Record<string, any>>>;
   screeningRuns(): Promise<Array<{ run: Record<string, any>; result: Record<string, any> | null }>>;
-  /** The job's model lane rows (`JOB_LANE_RESERVATIONS_COLLECTION`): the model pass over free text. */
+  /** The job's model lane rows (`JOB_LANE_RESERVATIONS_COLLECTION`): one per call of a lane `jobLaneSpend.ts` names. */
   laneReservations(): Promise<Array<Record<string, any>>>;
 };
 

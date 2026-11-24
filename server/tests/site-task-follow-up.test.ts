@@ -15,6 +15,7 @@ describe("site task follow-up selection", () => {
   it("still offers short, usable questions when the model is not configured", async () => {
     vi.stubEnv("OPENAI_API_KEY", "");
     expect(await selectFollowUps({
+      requestId: "req-1",
       taskStatement: "Move boxes",
       briefSummary: "Move boxes to a pallet",
       itemLabels: ["Boxes"],
