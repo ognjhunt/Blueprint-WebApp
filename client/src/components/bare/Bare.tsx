@@ -2,10 +2,11 @@
  * Bare bones: the shared parts every screen in the user flow is assembled from (owner direction, 2026-11-11:
  * "a 10 year old should be able to understand what everything is"; rules in
  * docs/superpowers/specs/2026-11-11-site-answer-design.md, "Bare bones"). Styles: ./bare.css (loaded once in
- * main.tsx). These parts carry no words of their own except "‹ Back" and "How sure are we?"; every other word is
- * passed in by the screen, from constants in the repository.
+ * main.tsx). These parts carry no words of their own except "‹ Back" and "How sure are we?" (`SURENESS_QUESTION`, which
+ * the job summary repeats); every other word is passed in by the screen, from constants in the repository.
  */
 import { useId, type ReactNode } from "react";
+import { SURENESS_QUESTION } from "@/lib/siteAnswer";
 
 /** The centred screen column (at most 560 px). Put one `h1` inside. */
 export function BareScreen({ children, className }: { children: ReactNode; className?: string }) {
@@ -62,7 +63,7 @@ export function BareTicks({ items, label }: { items: Array<{ key: string; state:
 /** How sure, as one to three filled dots and a word, with one plain reason line under it. */
 export function BareSureness({ filled, word, reason }: { filled: 1 | 2 | 3; word: string; reason?: string | null }) {
   return <div className="bare-sure">
-    <p className="bare-sure-line">How sure are we?{" "}
+    <p className="bare-sure-line">{SURENESS_QUESTION}{" "}
       <span className="bare-dots" aria-hidden="true">{[1, 2, 3].map(dot => <span key={dot} className={dot <= filled ? "bare-dot bare-dot-on" : "bare-dot"} />)}</span>{" "}
       <strong>{word}</strong></p>
     {reason && <p className="bare-helper">{reason}</p>}

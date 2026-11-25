@@ -124,6 +124,8 @@ const FRAME_FILES = [
   "server/utils/jobCompanies.ts",
   "client/src/types/jobCompanies.ts",
   "client/src/components/admin/JobCompaniesConsole.tsx",
+  // The job summary a company downloads from a job's page (owner, 2026-11-25): its own lines around the page's words.
+  "server/utils/companyJobSummary.ts",
 ] as const;
 
 const FILES = [...CLAIM_FILES, ...FRAME_FILES] as const;

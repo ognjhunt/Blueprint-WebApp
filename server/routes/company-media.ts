@@ -122,10 +122,11 @@ router.get("/jobs/:jobId/video.mp4", async (req, res) => {
 });
 
 /**
- * "Download the simulation" (E9 A; `COMPANY_SIMULATION_CONTRACT.md` section 2): the one download a company is offered.
- * Same ticket rule and the same re-check on every request (every range); the zip is proxied straight through as
- * `simulation.zip`, a name that names nothing. A resumed download's range is passed through; the Pipeline's 206 and 416
- * are passed back; its 403 (a configuration fault) is logged and shown as "not available right now".
+ * "Download the simulation" (E9 A; `COMPANY_SIMULATION_CONTRACT.md` section 2): the package a company downloads (the
+ * job summary, the page's words as a PDF, is the other download, `site-worlds.ts`). Same ticket rule and the same
+ * re-check on every request (every range); the zip is proxied straight through as `simulation-<version>.zip`
+ * (`companySimulationFileName`), a name that names nothing of the site. A resumed download's range is passed through; the
+ * Pipeline's 206 and 416 are passed back; its 403 (a configuration fault) is logged and shown as "not available right now".
  */
 router.get("/jobs/:jobId/simulation.zip", async (req, res) => {
   res.set("Cache-Control", "private, no-store");

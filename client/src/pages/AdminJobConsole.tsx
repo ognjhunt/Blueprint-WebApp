@@ -85,8 +85,11 @@ function useAdminFetch() {
  */
 export const PACKAGE_URL_REVOKE_DELAY_MS = 40_000;
 
-/** Fetches the package with the admin's sign-in (an address alone cannot carry it) and saves it. */
-function SimulationPackageDownload({ requestId, url, helper }: { requestId: string; url: string; helper: ReactNode }) {
+/**
+ * Fetches the package with the admin's sign-in (an address alone cannot carry it) and saves it under the job's id and the
+ * package's version (`companySimulationFileName`), so staff can tell jobs and versions apart in a Downloads folder.
+ */
+function SimulationPackageDownload({ fileName, url, helper }: { fileName: string; url: string; helper: ReactNode }) {
   const { currentUser } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +109,7 @@ function SimulationPackageDownload({ requestId, url, helper }: { requestId: stri
       const objectUrl = URL.createObjectURL(await response.blob());
       const anchor = document.createElement("a");
       anchor.href = objectUrl;
-      anchor.download = `simulation-${requestId}.zip`;
+      anchor.download = fileName;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
@@ -249,7 +252,8 @@ function JobPage({ requestId, onBack }: { requestId: string; onBack: () => void 
     {data.simulationPackageUrl || data.scenePreviewViewUrl ? <BareRows title="What was built">
       <div className="admin-job-lines">
         {data.simulationPackageUrl
-          ? <SimulationPackageDownload requestId={data.requestId} url={data.simulationPackageUrl} helper={packageHelper} /> : null}
+          ? <SimulationPackageDownload fileName={pack?.fileName ?? `simulation-${data.requestId}.zip`} url={data.simulationPackageUrl}
+            helper={packageHelper} /> : null}
         {data.scenePreviewViewUrl ? <ScenePreviewView url={data.scenePreviewViewUrl} /> : null}
       </div>
     </BareRows> : null}

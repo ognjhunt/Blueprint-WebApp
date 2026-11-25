@@ -2,8 +2,8 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { InboundRequest } from "../types/inbound-request";
 import { createHash } from "node:crypto";
 import { listTaskBrowseCards, projectTaskBrowseCard, readTaskCardDetail } from "../utils/taskBrowse";
-import { Response, Router } from "express";
-import { companyViewerForRequest, libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
+import { Request, Response, Router } from "express";
+import { companyViewerForRequest, libraryAccessForRequest, type CompanyViewer } from "../utils/robotTeamLibraryAccess";
 import { loadCompanyJobAccess } from "../utils/teamJobAccess";
 import { loadCompanyJobPage } from "../utils/companyJobPage";
 import { JOB_THUMBNAIL_VERSION } from "../utils/jobThumbnail";
@@ -22,6 +22,10 @@ import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RES
 import { companyAnswerDetailsSchema, recordCompanyAnswer } from "../utils/companyAnswer";
 import { hasInternalTestCompanyMarker, isInternalTestCompanyRow, loadIsInternalTestCompany } from "../utils/internalTestCompany";
 import { recordCompanyJobView } from "../utils/companyJobViews";
+import { companyJobSummaryPdf } from "../utils/companyJobSummary";
+import { companyJobUrl } from "../utils/jobCompanies";
+import { jobSummaryFileName } from "../../client/src/lib/companyJobPage";
+import type { CompanyJobPage } from "../../client/src/types/taskBrowse";
 const router = Router();
 
 /**
@@ -115,26 +119,57 @@ function answerNextStep(state: CompanyResponseState): string {
   return "Saved. The site sees this answer with your company's name, and you can change it on this page.";
 }
 
+/**
+ * The company's page for one job as this request's viewer may read it, under every check the page has: a signed-in
+ * approved deployment company under the current Terms (or Blueprint's internal test company, on an internal test job
+ * only), and the whole sharing rule, so a withdrawn site closes it (`loadCompanyJobPage`). Null once the refusal is sent.
+ */
+async function companyJobPageForRequest(req: Request, res: Response): Promise<{ page: CompanyJobPage; viewer: CompanyViewer;
+  access: Awaited<ReturnType<typeof companyViewerForRequest>>["access"] } | null> {
+  const { access, viewer } = await companyViewerForRequest(req);
+  if (access.termsRequired) { termsRequired(res, access); return null; }
+  // Blueprint's internal test company is shown no library, and opens an internal test job's page only: the page itself
+  // reads the company and closes every real job to it (`loadCompanyJobPage`).
+  const internalTestCompany = Boolean(viewer) && !access.allowed && await loadIsInternalTestCompany(db, viewer!.companyId);
+  if ((!access.allowed && !internalTestCompany) || !viewer) { res.status(404).json({ error: "This job is not available.", access }); return null; }
+  // A public live job's reference (`publicLiveJobRef`) opens its job for an approved company, and only for one.
+  const asked = String(req.params.taskId);
+  const { PUBLIC_LIVE_JOB_REF, resolvePublicLiveJobRef } = await import("../utils/taskBrowse");
+  const taskId = PUBLIC_LIVE_JOB_REF.test(asked) ? await resolvePublicLiveJobRef(asked) : asked;
+  const page = taskId ? await loadCompanyJobPage(taskId, { companyId: viewer.companyId }) : null;
+  if (!page) { res.status(404).json({ error: "This job is not available.", access }); return null; }
+  return { page, viewer, access };
+}
+
 // The company's page for one job (E3): signed-in, approved accounts only, whatever the early-access switch says.
 router.get("/jobs/:taskId", async (req, res) => {
   res.set("Cache-Control", "private, no-store");
   res.set("Vary", "Authorization");
   try {
-    const { access, viewer } = await companyViewerForRequest(req);
-    if (access.termsRequired) return termsRequired(res, access);
-    // Blueprint's internal test company is shown no library, and opens an internal test job's page only: the page itself
-    // reads the company and closes every real job to it (`loadCompanyJobPage`).
-    const internalTestCompany = Boolean(viewer) && !access.allowed && await loadIsInternalTestCompany(db, viewer!.companyId);
-    if ((!access.allowed && !internalTestCompany) || !viewer) return res.status(404).json({ error: "This job is not available.", access });
-    // A public live job's reference (`publicLiveJobRef`) opens its job for an approved company, and only for one.
-    const asked = String(req.params.taskId);
-    const { PUBLIC_LIVE_JOB_REF, resolvePublicLiveJobRef } = await import("../utils/taskBrowse");
-    const taskId = PUBLIC_LIVE_JOB_REF.test(asked) ? await resolvePublicLiveJobRef(asked) : asked;
-    const page = taskId ? await loadCompanyJobPage(taskId, { companyId: viewer.companyId }) : null;
-    if (!page) return res.status(404).json({ error: "This job is not available.", access });
-    if (!viewer.staff) await recordCompanyJobView(page.id, viewer.companyId);
-    return res.json({ item: page, access });
+    const found = await companyJobPageForRequest(req, res);
+    if (!found) return;
+    if (!found.viewer.staff) await recordCompanyJobView(found.page.id, found.viewer.companyId);
+    return res.json({ item: found.page, access: found.access });
   } catch { return res.status(503).json({ error: "This job could not be loaded." }); }
+});
+
+/**
+ * "Download the job summary (PDF)" (owner, 2026-11-25): the page's words as a PDF a company can forward inside its own
+ * team (`companyJobSummary.ts`), built from the very payload the page gets, under the same checks, so it holds nothing
+ * the page does not show. Saved as `job-summary-<short job ref>.pdf`, a name that names nothing of the site.
+ */
+router.get("/jobs/:taskId/summary.pdf", async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  res.set("Vary", "Authorization");
+  res.set("X-Content-Type-Options", "nosniff");
+  try {
+    const found = await companyJobPageForRequest(req, res);
+    if (!found) return;
+    const pdf = companyJobSummaryPdf(found.page, companyJobUrl(found.page.id));
+    res.status(200).set({ "Content-Type": "application/pdf", "Content-Length": String(pdf.length),
+      "Content-Disposition": `attachment; filename="${jobSummaryFileName(found.page.id)}"` });
+    return res.end(pdf);
+  } catch { return res.status(503).json({ error: "The job summary could not be made just now. Try again." }); }
 });
 
 

@@ -156,6 +156,13 @@ export const FIRST_LOOK_SOURCE = "From published specifications and where it has
 /** The same lines as an approved deployment company reads them on the card, with the full note in the card's details. */
 export const JOB_CARD_LIMITS = "A first look on paper, not a test at the site. It checks only picking up and putting down. It does not certify performance or safety.";
 
+/** The job card's lead for a company (`JobCardAnswer`), which the job summary repeats. */
+export const JOB_CARD_PICK_LABEL = "The robot most likely to fit";
+export const JOB_CARD_CLOSEST_LABEL = "The closest robot";
+export const JOB_CARD_NO_CLEAR_FIT = "No robot clearly fits.";
+/** The question the sureness line answers (`BareSureness`). */
+export const SURENESS_QUESTION = "How sure are we?";
+
 /** How sure, in words: the one map the job page, the job card and the emails all read. */
 export const SURENESS_WORDS: Readonly<Record<AnswerConfidenceLevel, string>> = { low: "Not sure yet", fair: "Fairly sure", good: "Sure" };
 /** The same words by number of dots, low to high, for a sureness that comes in steps. */
