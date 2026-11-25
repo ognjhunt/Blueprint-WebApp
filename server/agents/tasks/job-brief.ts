@@ -57,6 +57,7 @@ Each row:
   - "ask_site" with question (at most ${JOB_BRIEF_QUESTION_MAX} characters: one plain question to the site about its own job) and ${JOB_BRIEF_CHOICES_MIN} to ${JOB_BRIEF_CHOICES_MAX} choices (each at most ${JOB_BRIEF_CHOICE_MAX} characters, distinct, covering the likely answers). Only when no catalog question asks it and neither the video nor the sentence gives it. Code adds "Not sure"; never include it.
 
 Rules:
+- Write every label, question and choice in sentence case: capitalise only its first word ("Lamp size and weight", never "Lamp Size and Weight"). A capitalised word inside is read as a name, and the row is not shown.
 - Never invent a value, a number, an answer or a fact about the site. A label names a fact; it never states one.
 - Never ask about or name money: prices, costs, budgets, payment, payback, wages or how a company charges.
 - Never ask for or name anything that identifies the site, a business, a person or a place: names, addresses, contact details, websites.

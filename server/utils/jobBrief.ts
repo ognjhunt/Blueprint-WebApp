@@ -101,6 +101,27 @@ export function jobBriefDigest(sources: JobBriefSources): string {
     JOB_FACT_KEYS])).digest("hex");
 }
 
+const count = (value: unknown) => Number.isInteger(value) && (value as number) >= 0 ? value as number : 0;
+
+/**
+ * Why no run may start now for these inputs, from the claim on the record, or null when one may: a run under way, a
+ * failed run waiting for its retry or out of attempts, or a limit (the job's runs, or its spending cap, looked at again
+ * after an hour). Read before anything is decrypted or held, and again inside the claim's transaction.
+ */
+function runWaits(run: Record<string, any> | null | undefined, digest: string, nowMs: number): "busy" | "limit" | null {
+  if (!run || typeof run !== "object") return null;
+  const same = run.inputDigest === digest;
+  const attempts = same ? count(run.attempts) : 0;
+  if (same && run.status === "running" && nowMs - Number(run.claimedAtMs ?? 0) < CLAIM_LOST_AFTER_MS) return "busy";
+  if (same && run.status === "failed" && (attempts >= JOB_BRIEF_ATTEMPTS_PER_INPUT || nowMs - Number(run.endedAtMs ?? 0) < retryAfterMs(attempts)))
+    return "busy";
+  // The job's runs are a limit for good; its spending cap is looked at again after an hour, as an earlier hold may
+  // have settled lower.
+  if (count(run.total) >= JOB_BRIEF_RUNS_PER_JOB) return "limit";
+  if (same && run.status === "limit" && nowMs - Date.parse(String(run.limitAtIso ?? "")) < CAP_RECHECK_AFTER_MS) return "limit";
+  return null;
+}
+
 /** The stored brief as the job record holds it, checked again (`sanitizeStoredJobBrief`), current or not. */
 export function storedJobBriefOf(record: Record<string, any> | null | undefined): StoredJobBrief | null {
   return sanitizeStoredJobBrief(record?.[JOB_BRIEF_FIELD]);
@@ -109,7 +130,8 @@ export function storedJobBriefOf(record: Record<string, any> | null | undefined)
 /**
  * The job's brief as both pages read it: the stored brief only while it was written from what the record holds now
  * (`current`), with what its values are written from (the reading's estimates and the stored sentence). `wanted` is true
- * when a reading exists and no current brief does: a run may be started (`requestJobBrief`).
+ * when a reading exists, no current brief does and nothing on the claim stops a run now (`runWaits`): a run may be
+ * started (`requestJobBrief`).
  */
 export function jobBriefOfRecord(record: Record<string, any> | null | undefined,
   brief: { summary?: unknown; successCriteria?: any } | null | undefined):
@@ -117,8 +139,10 @@ export function jobBriefOfRecord(record: Record<string, any> | null | undefined,
   const sources = sourcesOf(record, brief);
   if (!sources) return { current: null, wanted: false, estimates: null, sentence: "" };
   const stored = storedJobBriefOf(record);
-  const current = stored && stored.inputDigest === jobBriefDigest(sources) ? stored : null;
-  return { current, wanted: !current, estimates: sources.estimates, sentence: sources.sentence };
+  const digest = jobBriefDigest(sources);
+  const current = stored && stored.inputDigest === digest ? stored : null;
+  return { current, wanted: !current && runWaits(record?.[JOB_BRIEF_RUN_FIELD], digest, Date.now()) === null,
+    estimates: sources.estimates, sentence: sources.sentence };
 }
 
 /**
@@ -221,24 +245,17 @@ async function claimRun(requestId: string, digest: string, maximumUsd: number, n
     const stored = storedJobBriefOf(record);
     if (stored?.inputDigest === digest) return { state: "current", brief: stored };
     const run = record[JOB_BRIEF_RUN_FIELD] ?? {};
-    const same = run.inputDigest === digest;
-    const count = (value: unknown) => Number.isInteger(value) && (value as number) >= 0 ? value as number : 0;
-    const attempts = same ? count(run.attempts) : 0, total = count(run.total);
-    if (same && run.status === "running" && nowMs - Number(run.claimedAtMs ?? 0) < CLAIM_LOST_AFTER_MS) return { state: "busy" };
-    if (same && run.status === "failed" && (attempts >= JOB_BRIEF_ATTEMPTS_PER_INPUT || nowMs - Number(run.endedAtMs ?? 0) < retryAfterMs(attempts)))
-      return { state: "busy" };
-    // A run limit holds for good; the spending cap is looked at again after an hour, as an earlier hold may have settled lower.
-    if (run.status === "limit" && (run.limit === "job_runs"
-      || (same && nowMs - Date.parse(String(run.limitAtIso ?? "")) < CAP_RECHECK_AFTER_MS))) return { state: "limit" };
+    const waits = runWaits(run, digest, nowMs);
+    if (waits) return { state: waits };
+    const attempts = run.inputDigest === digest ? count(run.attempts) : 0, total = count(run.total);
     const atIso = new Date(nowMs).toISOString();
-    const limited = (limit: "job_runs" | "job_spending_cap"): Claim => {
+    const limited = (limit: "job_spending_cap"): Claim => {
       tx.set(ref, { [JOB_BRIEF_RUN_FIELD]: { ...run, inputDigest: digest, status: "limit", limit, limitAtIso: atIso } },
         { mergeFields: [JOB_BRIEF_RUN_FIELD] });
       return { state: "limit" };
     };
     const reservationId = `job_brief-${digest.slice(0, 16)}-${total + 1}`;
     const hold = await planJobLaneReservation(tx, requestId, { lane: "job_brief", reservationId, maximumUsd });
-    if (total >= JOB_BRIEF_RUNS_PER_JOB) return limited("job_runs");
     if (hold.state === "no_job") return { state: "gone" };
     if (hold.state !== "fits") return limited("job_spending_cap");
     const token = randomUUID();
@@ -324,6 +341,7 @@ async function writeOnce(requestId: string): Promise<StoredJobBrief | null> {
   const digest = jobBriefDigest(sources);
   const stored = storedJobBriefOf(record);
   if (stored?.inputDigest === digest) return stored;
+  if (runWaits(record[JOB_BRIEF_RUN_FIELD], digest, Date.now())) return null;
   // Without the site's identity its words cannot go through the deterministic pass: nothing is sent this time.
   const known = await knownSiteIdentity(record).catch(() => null);
   if (!known) return null;

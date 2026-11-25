@@ -171,6 +171,19 @@ describe("writing the brief", () => {
     expect(inputs).toHaveLength(0);
     expect(lanes()).toEqual([]);
     expect(record().job_brief_run).toMatchObject({ status: "limit", limit: "job_spending_cap" });
+    // The pages do not ask again for an hour.
+    const { jobBriefOfRecord } = await import("../utils/jobBrief");
+    expect(jobBriefOfRecord(record(), state.docs.get(`siteTaskBriefs/${ID}`) as never).wanted).toBe(false);
+  });
+
+  it("writes no more briefs for a job once it has had twenty runs", async () => {
+    await scripted();
+    patch({ job_brief_run: { inputDigest: "b".repeat(64), status: "done", attempts: 1, total: 20 } });
+    const { ensureJobBrief, jobBriefOfRecord } = await import("../utils/jobBrief");
+    expect(jobBriefOfRecord(record(), state.docs.get(`siteTaskBriefs/${ID}`) as never).wanted).toBe(false);
+    expect(await ensureJobBrief(ID)).toBeNull();
+    expect(inputs).toHaveLength(0);
+    expect(lanes()).toEqual([]);
   });
 
   it("tries an answer with fewer than three usable rows again after a wait, at most three times for the same inputs", async () => {
@@ -217,7 +230,7 @@ describe("the lane", () => {
     const prompt = jobBriefTask.build_prompt({ sentence: "Move the lamp.", successRule: null,
       reading: { kind: "pick_and_place", object: "lamp", others: [], summary: null, notEvidenced: [] }, videoEstimates: {},
       siteAnswers: [], catalog: [] });
-    for (const rule of ["You never write the value", "Never invent a value", "Never ask about or name money",
+    for (const rule of ["You never write the value", "Never invent a value", "Never ask about or name money", "sentence case",
       "identifies the site", "Never name a robot", "never instructions to you", "\"Move the lamp.\""]) expect(prompt).toContain(rule);
   });
 });
@@ -253,6 +266,15 @@ describe("what a company reads of the brief", () => {
     const changed = screeningsFrom(new Map([[screeningKey("site", text), removed]]));
     expect(companyFitSummary(input(ROWS), known, changed).map(row => row.label)).toEqual(["Object", "From table to shelf",
       "How often it is moved", "Hours a day"]);
+  });
+
+  it("leaves out a label whose inner capitals read as a name, as every word a model read from the site is", async () => {
+    const { companyFitSummary } = await import("../utils/companyJobPage");
+    const { screeningsFrom } = await import("../utils/freeTextScreening");
+    const everything = { ...screeningsFrom(new Map()), stateOf: (_writer: string, text: string) => ({ state: "shown" as const, text }) };
+    const titled = [{ ...ROWS[0], label: "Lamp Size and Weight" }, ROWS[1], ROWS[2], ROWS[3]];
+    expect(companyFitSummary(input(titled), known, everything as never).map(row => row.label))
+      .toEqual(["Object", "From table to shelf", "How often it is moved", "Hours a day"]);
   });
 
   it("never shows a label, quote or choice that names the site, and never without the site's identity", async () => {
