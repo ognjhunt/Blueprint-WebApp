@@ -8,6 +8,7 @@
  * refused once recording consent is withdrawn. Deployment companies (package C1) records, by hand, a send and what a
  * company answered by email, and holds the job back from every company when needed (`server/utils/jobCompanies.ts`).
  * Robot fit is read and ranked here for the reviewed-job form on `/admin/robot-team-access`.
+ * The job brief's lessons, per kind of job, are listed for staff at `/brief-lessons`.
  * The simulation package download serves staff the same bytes a company's download serves, for any job that has a
  * package, internal test jobs included.
  * "View the simulation of the site" mints the same kind of 15-minute viewer ticket the site's own job page mints, under
@@ -71,6 +72,22 @@ router.get("/totals", async (_req: Request, res: Response) => {
   } catch (error) {
     logger.error({ err: error }, "Job console totals failed");
     return res.status(503).json({ error: "The totals are unavailable. Try again." });
+  }
+});
+
+/**
+ * The job brief's lessons for each kind of job (`server/utils/jobBriefLessons.ts`): what companies asked with "Need more
+ * details" and why they said "Not a fit", as checked lessons with how many companies gave each (once per company per job)
+ * and when. No job, no company and no company's own words. Registered before `/:requestId`.
+ */
+router.get("/brief-lessons", async (_req: Request, res: Response) => {
+  try {
+    const { loadAllJobBriefLessons } = await import("../utils/jobBriefLessons");
+    res.set("Cache-Control", "no-store");
+    return res.json({ kinds: await loadAllJobBriefLessons() });
+  } catch (error) {
+    logger.error({ err: error }, "Job brief lessons failed");
+    return res.status(503).json({ error: "The lessons are unavailable. Try again." });
   }
 });
 

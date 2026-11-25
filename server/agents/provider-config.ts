@@ -34,6 +34,7 @@ const TASK_MODEL_SUFFIXES: Partial<Record<AgentTaskKind, string>> = {
   company_website_check: "COMPANY_WEBSITE_CHECK_MODEL",
   free_text_redaction: "FREE_TEXT_REDACTION_MODEL",
   job_brief: "JOB_BRIEF_MODEL",
+  job_brief_lesson: "JOB_BRIEF_LESSON_MODEL",
 };
 
 /**
@@ -157,6 +158,9 @@ const TASK_REASONING_EFFORT: Partial<Record<AgentTaskKind, OpenAiReasoningEffort
   // A few rows naming one job's facts and where each value comes from, from data already held: the small tier at low
   // effort (owner, 2026-11-25: a smaller, cheaper model writes it for each job page).
   job_brief: "low",
+  // One company's words about its answer, as one short question or one reason from a closed list: the small tier at
+  // low effort, as the job brief it feeds.
+  job_brief_lesson: "low",
 };
 
 /**
@@ -172,6 +176,7 @@ const TASK_OPENAI_FIXED_DEFAULTS: Partial<Record<AgentTaskKind, { model: string 
   company_website_check: { model: "gpt-6-luna" },
   free_text_redaction: { model: "gpt-6-luna" },
   job_brief: { model: "gpt-6-luna" },
+  job_brief_lesson: { model: "gpt-6-luna" },
 };
 
 function normalizeEffort(value: string | undefined | null): OpenAiReasoningEffort | null {
@@ -503,6 +508,8 @@ const TASK_DEFAULT_PROVIDER: Partial<Record<AgentTaskKind, StructuredProvider>> 
   free_text_redaction: "openai_responses",
   // One job's sentence, success rule and video reading as text, at the small tier.
   job_brief: "openai_responses",
+  // One company's words about its answer on a job, as text, at the small tier.
+  job_brief_lesson: "openai_responses",
 };
 
 /**

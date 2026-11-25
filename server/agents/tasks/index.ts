@@ -8,6 +8,7 @@ import { siteTaskFollowUpTask } from "./site-task-follow-up";
 import { companyWebsiteCheckTask } from "./company-website-check";
 import { freeTextRedactionTask } from "./free-text-redaction";
 import { jobBriefTask } from "./job-brief";
+import { jobBriefLessonTask } from "./job-brief-lesson";
 
 export const taskDefinitions = {
   site_video_evidence: siteVideoEvidenceTask,
@@ -19,6 +20,7 @@ export const taskDefinitions = {
   company_website_check: companyWebsiteCheckTask,
   free_text_redaction: freeTextRedactionTask,
   job_brief: jobBriefTask,
+  job_brief_lesson: jobBriefLessonTask,
 } satisfies Record<AgentTaskKind, StructuredTaskDefinition<any, any>>;
 
 export function getTaskDefinition<TInput = unknown, TOutput = unknown>(
