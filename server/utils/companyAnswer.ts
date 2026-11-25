@@ -132,5 +132,9 @@ export async function recordCompanyAnswer(input: CompanyAnswerInput): Promise<Co
   // their model pass starts now, without waiting.
   void import("./jobCompanies").then(({ screenCompanyWordsInBackground }) =>
     screenCompanyWordsInBackground(taskId, companyId, row, input.company, row)).catch(() => undefined);
+  // A "Need more details" question or a "Not a fit" reason is a lesson for the next job of this kind
+  // (`jobBriefLessons.ts`), learnt from the answer as stored, without waiting. Never from the internal test company.
+  if ((input.state === "needs_something" || input.state === "declined") && !input.internalTestCompany)
+    void import("./jobBriefLessons").then(({ requestJobBriefLesson }) => requestJobBriefLesson(taskId, companyId)).catch(() => undefined);
   return { ok: true };
 }

@@ -8,6 +8,7 @@
  * refused once recording consent is withdrawn. Deployment companies (package C1) records, by hand, a send and what a
  * company answered by email, and holds the job back from every company when needed (`server/utils/jobCompanies.ts`).
  * Robot fit is read and ranked here for the reviewed-job form on `/admin/robot-team-access`.
+ * The job brief's lessons, per kind of job, are listed for staff at `/brief-lessons`.
  * The simulation package download serves staff the same bytes a company's download serves, for any job that has a
  * package, internal test jobs included.
  * "View the simulation of the site" mints the same kind of 15-minute viewer ticket the site's own job page mints, under
@@ -74,6 +75,22 @@ router.get("/totals", async (_req: Request, res: Response) => {
   }
 });
 
+/**
+ * The job brief's lessons for each kind of job (`server/utils/jobBriefLessons.ts`): what companies asked with "Need more
+ * details" and why they said "Not a fit", as checked lessons with how many companies gave each (once per company per job)
+ * and when. No job, no company and no company's own words. Registered before `/:requestId`.
+ */
+router.get("/brief-lessons", async (_req: Request, res: Response) => {
+  try {
+    const { loadAllJobBriefLessons } = await import("../utils/jobBriefLessons");
+    res.set("Cache-Control", "no-store");
+    return res.json({ kinds: await loadAllJobBriefLessons() });
+  } catch (error) {
+    logger.error({ err: error }, "Job brief lessons failed");
+    return res.status(503).json({ error: "The lessons are unavailable. Try again." });
+  }
+});
+
 /** Every billable event as CSV: ids, times and status; no site identity, no price. */
 router.get("/billable-events.csv", async (_req: Request, res: Response) => {
   try {
@@ -104,8 +121,10 @@ router.get("/:requestId", async (req: Request, res: Response) => {
 
 /**
  * "Download the simulation package": the zip a company's download serves (`company-media.ts`), read through the same
- * signed Pipeline read and proxied straight through, ranges included. Not the company rule: an internal test job's
- * package is served here too. A job with no package, or whose site has withdrawn, answers as the company route does.
+ * signed Pipeline read and proxied straight through, ranges included, with the company download's own headers (its name
+ * is the package's version, `companySimulationFileName`; the console saves it with the job's id before the version). Not
+ * the company rule: an internal test job's package is served here too. A job with no package, or whose site has
+ * withdrawn, answers as the company route does.
  */
 router.get("/:requestId/simulation.zip", async (req: Request, res: Response) => {
   res.set("Cache-Control", "private, no-store");

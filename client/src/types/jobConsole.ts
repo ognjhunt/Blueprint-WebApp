@@ -85,8 +85,9 @@ export interface AdminJobDetail {
   };
   /** "Download the simulation package": the console's own route, only while a package is stored. */
   simulationPackageUrl: string | null;
-  /** What the stored package record says it holds. */
-  simulationPackage: { files: string[]; sizeBytes: number; builtAtIso: string | null } | null;
+  /** What the stored package record says it holds, and the name the console saves it under, by the job and the
+   * package's version (`companySimulationFileName`). */
+  simulationPackage: { files: string[]; sizeBytes: number; builtAtIso: string | null; fileName: string } | null;
   /** The admin route that opens the job's scene preview in the viewer, when one is stored; else null. */
   scenePreviewViewUrl: string | null;
   /** What the job's ledgers count so far, in US dollars; null when the job has no ledger entry. */

@@ -222,9 +222,11 @@ export interface CompanyJobPage {
   thumbnailSource?: "simulation_render" | "company_clip_frame" | null;
   /**
    * "Download the simulation" (E9): the job's simulation package behind a short ticket, or "not finished yet".
-   * `objectIncluded: false` when the Pipeline says the package is the site's room without the job's object.
+   * `sizeBytes` is the stored package's size, said on the button in whole megabytes; `fileName` the name it is saved
+   * under, by the package's version (`companySimulationFileName`). `objectIncluded: false` when the Pipeline says the
+   * package is the site's room without the job's object.
    */
-  simulationDownload: { state: "ready"; url: string; objectIncluded?: false } | { state: "not_finished" };
+  simulationDownload: { state: "ready"; url: string; sizeBytes: number; fileName: string; objectIncluded?: false } | { state: "not_finished" };
   /** The simulation of the site in the viewer, behind a short ticket, or "not finished yet". */
   simulation: { state: "ready"; viewerUrl: string } | { state: "not_finished" };
   /** The first look, or null while there is none. */

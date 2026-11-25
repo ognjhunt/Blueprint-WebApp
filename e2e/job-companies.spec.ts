@@ -101,6 +101,7 @@ test("a signed-in company opens a job from the library, watches the video and an
   const errors = await blockOutside(page);
   const answers: unknown[] = [];
   const videoRequests: string[] = [];
+  const summaryRequests: string[] = [];
   const statement = "The site is told your answer. If you answer Interested or Tested it: can do and the site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.";
   const videoUrl = `/api/company-media/jobs/${JOB}/video.mp4?capture=walkthrough-${JOB}&viewer=${NORTH}&expires=1&signature=x`;
   await page.route("**/api/**", async route => {
@@ -129,6 +130,12 @@ test("a signed-in company opens a job from the library, watches the video and an
       firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 20 kg.", robot: "Universal Robots UR20" }],
       packetFacts: null,
       myAnswer: null, responseStatement: { version: "company-response-2026-11-12", text: statement } } } });
+    // The job summary (owner, 2026-11-25): the page's words as a PDF, behind the page's own checks.
+    if (url.pathname === `/api/site-worlds/jobs/${JOB}/summary.pdf`) {
+      summaryRequests.push(request.method());
+      return route.fulfill({ status: 200, headers: { "content-type": "application/pdf", "cache-control": "private, no-store",
+        "content-disposition": 'attachment; filename="job-summary-c1.pdf"' }, body: Buffer.from("%PDF-1.4\n%%EOF\n") });
+    }
     if (url.pathname === `/api/company-media/jobs/${JOB}/video.mp4`) {
       videoRequests.push(url.search);
       return route.fulfill({ status: 200, headers: { "content-type": "video/mp4", "cache-control": "private, no-store" }, body: Buffer.from("not-a-real-mp4") });
@@ -163,11 +170,19 @@ test("a signed-in company opens a job from the library, watches the video and an
   await expect(video).toHaveAttribute("controlsList", /nodownload/);
   await expect.poll(() => videoRequests.length).toBeGreaterThan(0);
 
+  // The job summary saves as a PDF named by a short job reference, from the top row, with nothing of the site in its name.
+  const summary = page.getByRole("button", { name: "Download the job summary (PDF)" });
+  await expect(summary).toBeVisible();
+  const [saved] = await Promise.all([page.waitForEvent("download"), summary.click()]);
+  expect(saved.suggestedFilename()).toBe("job-summary-c1.pdf");
+  expect(summaryRequests).toEqual(["GET"]);
+
   // Back at the top, as a company arrives on the page at phone width.
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.setViewportSize({ width: 390, height: 844 });
   const answerLink = page.getByRole("link", { name: "Apply or respond", exact: true });
   await expect(answerLink).toBeInViewport();
+  await expect(summary).toBeInViewport();
   await answerLink.click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const form = page.getByRole("form", { name: "Your response" });

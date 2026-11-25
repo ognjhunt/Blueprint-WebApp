@@ -239,6 +239,11 @@ async function companyPage(email: string, jobId: string) {
   const response = await fetch(`${base}/api/site-worlds/jobs/${jobId}`, { headers: signIn(email) });
   return { status: response.status, body: await response.json() as Record<string, any> };
 }
+/** The job summary PDF, with the page's own checks (`site-worlds.ts`). */
+async function companySummary(email: string, jobId: string) {
+  const response = await fetch(`${base}/api/site-worlds/jobs/${jobId}/summary.pdf`, { headers: signIn(email) });
+  return { status: response.status, type: response.headers.get("content-type") };
+}
 async function answerOnWebsite(email: string, jobId: string, body: Record<string, unknown> = {}) {
   const { COMPANY_RESPONSE_STATEMENT_VERSION } = await import("../../client/src/lib/companyResponses");
   const response = await fetch(`${base}/api/site-worlds/tasks/${jobId}/interest`, { method: "POST",
@@ -330,6 +335,7 @@ describe("the internal test company on an internal test job, end to end", () => 
     const page = await companyPage(INBOX, jobId);
     expect(page.status, JSON.stringify(page.body)).toBe(200);
     expect(page.body.item).toMatchObject({ id: jobId, video: { state: "ready" }, simulationDownload: { state: "ready" } });
+    expect(await companySummary(INBOX, jobId)).toEqual({ status: 200, type: "application/pdf" });
     const { companyMediaRefusal } = await import("../utils/companyJobPage");
     expect(await companyMediaRefusal(jobId, captureId, TEST_COMPANY_ID)).toBeNull();
     // And answers on it, as any company does.
@@ -521,12 +527,15 @@ describe("a real company never reaches a test job, and the test company never re
     // The real job is listed for a real company: the baseline.
     expect(await loadCompanyJobPage(REAL_JOB, { companyId: NORTH_ID })).not.toBeNull();
     expect(await companyMediaRefusal(REAL_JOB, REAL_CAPTURE, NORTH_ID)).toBeNull();
-    // The test company: not the real job, through the route signed in with the inbox, nor its media.
+    // The test company: not the real job, through the route signed in with the inbox, nor its media or its summary.
     expect((await companyPage(INBOX, REAL_JOB)).status).toBe(404);
+    expect((await companySummary(INBOX, REAL_JOB)).status).toBe(404);
+    expect((await companySummary(NORTH.email, REAL_JOB)).status).toBe(200);
     expect(await loadCompanyJobPage(REAL_JOB, { companyId: TEST_COMPANY_ID })).toBeNull();
     expect(await companyMediaRefusal(REAL_JOB, REAL_CAPTURE, TEST_COMPANY_ID)).toBe("unavailable");
-    // A real company: not the test job, nor its media.
+    // A real company: not the test job, nor its media or its summary.
     expect(await loadCompanyJobPage(test.jobId, { companyId: NORTH_ID })).toBeNull();
+    expect((await companySummary(NORTH.email, test.jobId)).status).toBe(404);
     expect(await companyMediaRefusal(test.jobId, test.captureId, NORTH_ID)).toBe("unavailable");
     // The test company has no library of real jobs.
     const library = await fetch(`${base}/api/site-worlds/tasks`, { headers: signIn(INBOX) });
