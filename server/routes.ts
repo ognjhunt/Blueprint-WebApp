@@ -31,6 +31,7 @@ import internalCaptureReconstructionRouter from "./routes/internal-capture-recon
 import internalWebsitePreparationRouter from "./routes/internal-website-preparation";
 import internalCaptureWorldsRouter from "./routes/internal-capture-worlds";
 import internalTestJobsRouter from "./routes/internal-test-jobs";
+import internalTestCompanyRouter from "./routes/internal-test-company";
 import internalAccountSpendOverheadRouter from "./routes/internal-account-spend-overhead";
 import selfCaptureUploadsRouter from "./routes/self-capture-uploads";
 import siteTaskBriefRouter from "./routes/site-task-brief";
@@ -71,6 +72,8 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/pipeline", internalCaptureWorldsRouter);
   // Internal test jobs (owner, 2026-11-15): signed Pipeline calls only; never shown to a company, nothing sent.
   app.use("/api/internal/pipeline", internalTestJobsRouter);
+  // The internal test company (owner, 2026-11-25): signed Pipeline calls only; internal test jobs only.
+  app.use("/api/internal/pipeline", internalTestCompanyRouter);
   // The WebApp's own agent runs for the account's month, as named overhead (owner, 2026-11-20): signed reads only.
   app.use("/api/internal/pipeline", internalAccountSpendOverheadRouter);
   app.use("/api/self-capture/uploads", selfCaptureUploadsRouter);

@@ -32,6 +32,7 @@ import { companyWantsJobEmails, NEW_JOB_ALERT_SCHEMA, newJobAlertKey, suppressed
 import { createAutomationLeaderLease, type AutomationLeaderLease } from "./automationLeaderLease";
 import { createAccountSignInToken, JOB_EMAIL_SIGN_IN_TTL_SECONDS } from "./request-review-auth";
 import { recordWorkerLoopPass } from "./workerHeartbeat";
+import { CUSTOMER_JOB_EMAIL_IDENTITY } from "./emailLayout";
 
 export const AUTO_SEND_FIELD = "company_auto_send";
 
@@ -125,6 +126,65 @@ export async function sendJobToApprovedCompanies(requestId: string, now: () => D
     }
     tx.set(jobRef, { [AUTO_SEND_FIELD]: { schemaVersion: 1, sentAtIso, count: companies.length } }, { merge: true });
     return { sent: true, count: companies.length, emailed: emailed.length, sentAtIso };
+  });
+}
+
+export type InternalTestSendResult =
+  | { sent: true; sentAtIso: string; emailed: boolean }
+  | { sent: false; reason: "store_unavailable" | "no_test_company" | "not_found" | "not_a_test_job" | "not_listed"
+    | "already_sent"; closedReason?: string | null };
+
+/**
+ * Send one internal test job to Blueprint's internal test company (owner, 2026-11-25; `internalTestCompany.ts`), as the
+ * automatic send does for one company: its `companySends` row (`system-<companyId>`) and its new-job email to the
+ * internal test inbox, in one transaction, once. Only for the pair: the job must be an internal test job listed for that
+ * company (`loadCompanyJobAccess` with `internalTestCompany`). The automatic send never sends a test job; this is called
+ * by the signed internal route only. The email is decided again at dispatch (`jobAlertIsCurrent`, the outbox).
+ */
+export async function sendJobToInternalTestCompany(requestId: string, now: () => Date = () => new Date()): Promise<InternalTestSendResult> {
+  if (!db) return { sent: false, reason: "store_unavailable" };
+  const store = db;
+  const { isInternalTestJob } = await import("./internalTestJob");
+  const { loadInternalTestCompany } = await import("./internalTestCompany");
+  const jobRef = store.collection("inboundRequests").doc(requestId);
+  // The title's object name only once the model pass has read it, as for the automatic send.
+  let screenings = await loadScreenings(requestId);
+  const before = await loadCompanyJobAccess(requestId, undefined, undefined, { internalTestCompany: true }).catch(() => null);
+  if (before?.record && before.access.listed) {
+    const known = await knownSiteIdentity(before.record).catch(() => null);
+    companyJobHeadline(before.record, before.access.details.taskFamily, jobTitleForDisplay(before.access.details.title), known, screenings);
+    if (screenings.missing.length && await screenAndWait(requestId, screenings.missing, 5_000)) screenings = await loadScreenings(requestId);
+  }
+  return store.runTransaction(async (tx): Promise<InternalTestSendResult> => {
+    const company = await loadInternalTestCompany(store, tx);
+    if (!company) return { sent: false, reason: "no_test_company" };
+    const { record, access } = await loadCompanyJobAccess(requestId, undefined, tx, { internalTestCompany: true });
+    if (!record) return { sent: false, reason: "not_found" };
+    if (!isInternalTestJob(record)) return { sent: false, reason: "not_a_test_job" };
+    if (!access.listed) return { sent: false, reason: "not_listed", closedReason: access.reason };
+    const sendRef = jobRef.collection(COMPANY_SENDS_COLLECTION).doc(`system-${company.id}`);
+    const alertRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(newJobAlertKey(requestId, company.id));
+    const [send, alert] = [await tx.get(sendRef), await tx.get(alertRef)];
+    if (send.exists) return { sent: false, reason: "already_sent" };
+    const email = String(company.record.email ?? "").trim().toLowerCase();
+    const user = company.record.preferencesAccountUid
+      ? (await tx.get(store.collection("users").doc(company.record.preferencesAccountUid))).data()?.updatePreferences : undefined;
+    const suppression = (await tx.get(store.collection("email_suppressions").doc(email))).data();
+    const emailed = !alert.exists && companyWantsJobEmails(company.record, user) && !suppressedForJobAlerts(suppression);
+    const sentAtIso = now().toISOString();
+    const country = await countryOf(record);
+    const known = await knownSiteIdentity(record).catch(() => null);
+    const title = companyJobHeadline(record, access.details.taskFamily, jobTitleForDisplay(access.details.title), known, screenings);
+    tx.set(sendRef, { schemaVersion: 1, companyId: company.id, sentAtIso, sentBy: "system", sentByEmail: null });
+    if (emailed) {
+      const revision = typeof company.record.decidedAtIso === "string" ? company.record.decidedAtIso : null;
+      const message = newJobEmail({ to: email, jobUrl: jobEmailUrl(companyJobUrl(requestId), requestId, { id: company.id, email, revision }),
+        kind: access.details.taskFamily, country, title, facts: rateInWords(readJobFacts(record)) });
+      tx.create(alertRef, buildOutboxEntry({ idempotencyKey: alertRef.id, requestId, kind: "robot_team_new_task", to: email,
+        subject: message.subject, body: message.body, replyTo: CUSTOMER_JOB_EMAIL_IDENTITY.replyTo,
+        jobAlert: { schema: NEW_JOB_ALERT_SCHEMA, jobId: requestId, companyId: company.id } }));
+    }
+    return { sent: true, sentAtIso, emailed };
   });
 }
 

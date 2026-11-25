@@ -55,9 +55,9 @@ export interface AdminJobCompanies {
     /** Set when the introduction was cancelled at dispatch: its emails not yet sent were cancelled. */
     cancelledAtIso?: string; cancelReason?: string | null;
     latestOutcome: { by: "site" | "company"; state: string; label: string; atIso: string } | null }>;
-  /** Billable events (E7): recorded, never priced or charged. */
+  /** Billable events (E7): recorded, never priced or charged. `test_no_charge`: a test introduction, never billable. */
   billableEvents?: Array<{ id: string; kind: "introduction"; companyId: string; company: string | null; atIso: string;
     /** When the introduction was made (the company's email was sent); only a made event counts as billable. */
     madeAtIso?: string | null;
-    priceUsd: null; status: "recorded_no_price" | "void" }>;
+    priceUsd: null; status: "recorded_no_price" | "void" | "test_no_charge" }>;
 }

@@ -27,7 +27,9 @@ import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { billableEventRef, buildIntroductionBillableEvent, writeIntroductionBillableEvent } from "./billableEvents";
 import { COMPANY_RESPONSES_COLLECTION, INTRODUCTIONS_COLLECTION, answerConsentsToIntroduction, companyJobUrl,
   storedAliases } from "./jobCompanies";
-import { companyMaySeeJobs } from "./companyTerms";
+import { companyMayActOnJob } from "./companyTerms";
+import { INTERNAL_TEST_SITE_NAME, internalTestCompanyEmail, internalTestPairAccessOptions } from "./internalTestCompany";
+import { isInternalTestJob } from "./internalTestJob";
 import { HELD_STATUS } from "./jobIntroductionGate";
 import { introductionCompanyEmail, type IntroductionSiteDetails } from "./robotTeamAccessEmails";
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
@@ -85,8 +87,13 @@ async function defaultSiteEmail(): Promise<SiteIntroductionEmail> {
 /** The intake stores "there" and "—" for a name the start form left blank (`inbound-request.ts`); they name nobody. */
 const typedName = (value: string) => value && value.toLowerCase() !== "there" && value !== "—" ? value : "";
 
-/** The site's details as the one chosen company is given them. */
+/**
+ * The site's details as the one chosen company is given them. For an internal test job (`internalTestCompany.ts`), never
+ * any real site's details: Blueprint's own test site, with the internal test inbox as its address.
+ */
 async function siteDetailsOf(record: Record<string, any>, decrypt: (value: unknown) => Promise<string>): Promise<IntroductionSiteDetails> {
+  if (isInternalTestJob(record))
+    return { name: INTERNAL_TEST_SITE_NAME, contactName: null, email: internalTestCompanyEmail() ?? "", phone: null, location: null };
   const [siteName, company, first, last, email, location] = [await decrypt(record.request?.siteName),
     await decrypt(record.contact?.company), await decrypt(record.contact?.firstName), await decrypt(record.contact?.lastName),
     await decrypt(record.contact?.email), await decrypt(record.request?.siteLocation)];
@@ -151,7 +158,13 @@ export async function requestIntroduction(input: { requestId: string; alias: str
   const letter = aliasLetterOf(input.alias);
   const jobRef = store.collection("inboundRequests").doc(input.requestId);
   return store.runTransaction(async (tx): Promise<IntroductionResult> => {
-    const { record, access } = await loadCompanyJobAccess(input.requestId, undefined, tx);
+    // An internal test job is read for Blueprint's internal test company when that is the company asked for, the one
+    // company it may introduce (`internalTestCompany.ts`); every other job and company exactly as before.
+    const stored = (await tx.get(jobRef)).data() ?? null;
+    const asked = letter && stored ? Object.entries(storedAliases(stored)).find(([, value]) => value === letter)?.[0] : undefined;
+    const pairOptions = asked && isInternalTestJob(stored) ? internalTestPairAccessOptions(stored, asked,
+      (await tx.get(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(asked))).data()) : undefined;
+    const { record, access } = await loadCompanyJobAccess(input.requestId, stored, tx, pairOptions);
     if (!record || !access.listed) return { ok: false, reason: "not_listed" };
     const companyId = letter ? Object.entries(storedAliases(record)).find(([, value]) => value === letter)?.[0] : undefined;
     if (!companyId) return { ok: false, reason: "not_interested" };
@@ -172,7 +185,7 @@ export async function requestIntroduction(input: { requestId: string; alias: str
     // record) refuses too, so an attempt is never recorded twice and an event is never rewritten.
     if ((await tx.get(billableEventRef(input.requestId, companyId, attempt))).exists) return { ok: false, reason: "already_introduced" };
     const company = companySnap.data() as RobotTeamAccessRecord | undefined;
-    if (!company || !companyMaySeeJobs(company)) return { ok: false, reason: "company_not_approved" };
+    if (!company || !companyMayActOnJob(record, companyId, company)) return { ok: false, reason: "company_not_approved" };
     const answer = answerSnap.data();
     // A standing `interested` or `tested_can_do` answer (E9).
     if (!INTRODUCIBLE_RESPONSE_STATES.includes(answer?.state)) return { ok: false, reason: "not_interested" };
@@ -215,7 +228,9 @@ export async function requestIntroduction(input: { requestId: string; alias: str
       // accepted"; only under a line that shows the site an estimate, and only when the page said which answer it showed
       // (checked above to be this one).
       ...(answerRead && estimateAtAccept(answer) !== undefined ? { estimateAtAccept: estimateAtAccept(answer) } : {}) });
-    writeIntroductionBillableEvent(tx, buildIntroductionBillableEvent(input.requestId, companyId, requestedAtIso, attempt));
+    // A test introduction is a test event, never billable (`TEST_NO_CHARGE_STATUS`): the flow is exercised, nothing counts.
+    writeIntroductionBillableEvent(tx, buildIntroductionBillableEvent(input.requestId, companyId, requestedAtIso, attempt,
+      { test: isInternalTestJob(record) }));
     if (!companyRow.exists && EMAIL.test(companyEmail)) {
       const message = introductionCompanyEmail({ site, jobUrl: companyJobUrl(input.requestId), contactName: companyShared.contactName,
         answerLabel: COMPANY_RESPONSE_LABELS[answer!.state as CompanyResponseState],

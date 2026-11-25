@@ -35,7 +35,8 @@
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
-import { companyMaySeeJobs } from "./companyTerms";
+import { companyMayActOnJob } from "./companyTerms";
+import { internalTestPairAccessOptions } from "./internalTestCompany";
 
 export const INTRODUCTION_COMPANY_KIND = "introduction_made_company";
 export const INTRODUCTION_SITE_EMAIL_KIND = "introduction_made_site";
@@ -82,8 +83,9 @@ export async function introductionMayProceed(requestId: string, companyId: strin
   const record = job.data();
   if (!job.exists || projectWebsiteCaptureRights(record).consent_revoked)
     return { ok: false, reason: "job_withdrawn", introductionOnRecord: true };
-  // Approved, a deployment company, and the current Terms accepted, signed in (`companyMaySeeJobs`).
-  if (!companyMaySeeJobs(company.data())) return { ok: false, reason: "company_not_approved", introductionOnRecord: true };
+  // Approved, a deployment company, and the current Terms accepted, signed in (`companyMaySeeJobs`); on an internal test
+  // job, Blueprint's internal test company only (`companyMayActOnJob`, `internalTestCompany.ts`).
+  if (!companyMayActOnJob(record, companyId, company.data())) return { ok: false, reason: "company_not_approved", introductionOnRecord: true };
   // The company's answer as it stands now still allows an introduction: Apply or Tested it: can do (money: never
   // introduce or bill a company that has since said Not a fit or anything else). Imported here, not at the top, as the
   // gate stays importable by the outbox without a cycle.
@@ -92,7 +94,8 @@ export async function introductionMayProceed(requestId: string, companyId: strin
   // Blueprint's own work window ending keeps the job listed (`teamJobAccess`, finding G-01), so it passes here; an
   // authority end for a source revocation closes the listing and stops the introduction.
   const { loadCompanyJobAccess } = await import("./teamJobAccess");
-  if (!(await loadCompanyJobAccess(requestId, record as Record<string, any>, tx)).access.listed)
+  if (!(await loadCompanyJobAccess(requestId, record as Record<string, any>, tx,
+    internalTestPairAccessOptions(record, companyId, company.data()))).access.listed)
     return { ok: false, reason: "job_not_shared", introductionOnRecord: true };
   return { ok: true };
 }

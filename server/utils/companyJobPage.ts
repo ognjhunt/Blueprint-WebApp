@@ -32,6 +32,7 @@ import { loadJobCardAnswerWithRobots } from "./jobCardAnswer";
 import { logger } from "../logger";
 import { decryptFieldValue } from "./field-encryption";
 import { companyMaySeeJobs } from "./companyTerms";
+import { hasInternalTestCompanyMarker, isInternalTestCompanyRow } from "./internalTestCompany";
 import { storedPacketFacts, type PacketFacts, type PACKET_FACT_QUESTIONS } from "./websitePreparationStatus";
 import type { JobFactKey, JobFacts } from "../../client/src/lib/jobFacts";
 import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
@@ -47,10 +48,21 @@ import { JOB_DESCRIPTION_MAX_LENGTH } from "../../client/src/lib/jobDescriptionL
  * Read on every page, media request and introduction.
  */
 export async function companyStillApproved(companyId: string, tx?: FirebaseFirestore.Transaction): Promise<boolean> {
-  if (!db || !/^[a-f0-9]{64}$/.test(companyId)) return false;
+  return (await companyReaderOf(companyId, tx)).approved;
+}
+
+/**
+ * Who reads a job page or its media: an approved deployment company under the current Terms (`companyMaySeeJobs`), or
+ * Blueprint's own internal test company (`internalTestCompany.ts`), which is shown internal test jobs only: its reads pass
+ * `internalTestCompany` to `loadCompanyJobAccess`, which closes every real job to it.
+ */
+export async function companyReaderOf(companyId: string, tx?: FirebaseFirestore.Transaction):
+  Promise<{ approved: boolean; internalTestCompany: boolean; record: Record<string, any> | undefined }> {
+  if (!db || !/^[a-f0-9]{64}$/.test(companyId)) return { approved: false, internalTestCompany: false, record: undefined };
   const ref = db.collection("robotTeamAccess").doc(companyId);
   const record = (tx ? await tx.get(ref) : await ref.get()).data();
-  return companyMaySeeJobs(record);
+  const internalTestCompany = isInternalTestCompanyRow(companyId, record);
+  return { approved: internalTestCompany || companyMaySeeJobs(record), internalTestCompany, record };
 }
 
 /**
@@ -70,9 +82,13 @@ export async function companyMediaRefusal(requestId: string, captureId: string, 
   record?: Record<string, any> | null): Promise<null | "terms_acceptance_required" | "unavailable"> {
   if (!db || !/^[a-f0-9]{64}$/.test(companyId)) return "unavailable";
   const company = (await db.collection("robotTeamAccess").doc(companyId).get()).data();
-  if (company?.status === "approved" && company.partnerRole !== "technology" && !companyMaySeeJobs(company)) return "terms_acceptance_required";
-  if (!companyMaySeeJobs(company)) return "unavailable";
-  const { record: job, access } = await loadCompanyJobAccess(requestId, record === undefined ? undefined : record ?? null);
+  // Blueprint's own internal test company: an internal test job's media only, and no Terms asked of it.
+  const internalTestCompany = isInternalTestCompanyRow(companyId, company);
+  if (!internalTestCompany && company?.status === "approved" && company.partnerRole !== "technology"
+    && !hasInternalTestCompanyMarker(company) && !companyMaySeeJobs(company)) return "terms_acceptance_required";
+  if (!internalTestCompany && !companyMaySeeJobs(company)) return "unavailable";
+  const { record: job, access } = await loadCompanyJobAccess(requestId, record === undefined ? undefined : record ?? null, undefined,
+    internalTestCompany ? { internalTestCompany } : undefined);
   return Boolean(job) && access.listed && siteWalkthroughIdentity(requestId, job ?? undefined).captureId === captureId ? null : "unavailable";
 }
 
@@ -303,9 +319,13 @@ export async function companiesReadSiteWords(requestId: string, record: Record<s
 /** The page payload for one viewer, or null when the job is not listed (refused alike with a job that does not exist). */
 export async function loadCompanyJobPage(requestId: string, viewer: { companyId: string }): Promise<CompanyJobPage | null> {
   if (!db) throw new Error("company_job_store_unavailable");
-  // The viewer must still be an approved deployment company, whatever the library gate decided.
-  const [{ record, access, brief, session }, approved] = await Promise.all([loadCompanyJobAccess(requestId), companyStillApproved(viewer.companyId)]);
-  if (!record || !access.listed || !approved) return null;
+  // The viewer must still be an approved deployment company, whatever the library gate decided, or Blueprint's internal
+  // test company, which reads an internal test job only (`companyReaderOf`).
+  const reader = await companyReaderOf(viewer.companyId);
+  if (!reader.approved) return null;
+  const { record, access, brief, session } = await loadCompanyJobAccess(requestId, undefined, undefined,
+    reader.internalTestCompany ? { internalTestCompany: true } : undefined);
+  if (!record || !access.listed) return null;
   const { captureId } = siteWalkthroughIdentity(requestId, record);
   const [answerRow, firstLook, country, known, about, stage, screenings] = await Promise.all([
     db.collection("inboundRequests").doc(requestId).collection("robotTeamInterest").doc(viewer.companyId).get().then(doc => doc.data()),

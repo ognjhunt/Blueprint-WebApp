@@ -30,6 +30,7 @@ import { bindTeamToAccount, teamsForAccount, type AccountHolder } from "./robotT
 import { ROBOT_TEAMS_COLLECTION, type RobotTeamRecord } from "../types/robot-team-registry";
 import type { AccessEmailNotification } from "./robotTeamAccessEmails";
 import type { CompanyCheck } from "../../client/src/lib/companyCheck";
+import { hasInternalTestCompanyMarker } from "./internalTestCompany";
 
 export const ROBOT_TEAM_ACCESS_COLLECTION = "robotTeamAccess";
 
@@ -454,6 +455,10 @@ export async function resolveViewerAccess(viewer: ViewerIdentity): Promise<Libra
     logger.warn({ error }, "Could not read robot-team access; treating as not approved");
   }
   const status = record?.status ?? "none";
+  // Blueprint's internal test company (`internalTestCompany.ts`), or any record carrying its marker: no library of real
+  // jobs, no team bound, no Terms prompt. The test company opens an internal test job's own page only, where the job page
+  // route checks the company itself (`loadCompanyJobPage`).
+  if (hasInternalTestCompanyMarker(record)) return { status, signedIn, emailVerified, allowed: false, staff };
   let allowed = false;
   // Jobs are shared with approved DEPLOYMENT companies (the v4 statement): a technology partner sees no site job.
   let termsRequired = false;
