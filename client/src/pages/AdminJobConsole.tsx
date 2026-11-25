@@ -15,6 +15,7 @@ import { SiteMeasurementsConsole } from "@/components/admin/SiteMeasurementsCons
 import { JobWorkflowPanel } from "@/components/admin/JobWorkflowPanel";
 import { RobotFitConsole } from "@/components/admin/RobotFitConsole";
 import { AccountDeletionQueue } from "@/components/admin/AccountDeletionQueue";
+import { MarketplaceNumbers } from "@/components/admin/MarketplaceNumbers";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
@@ -372,6 +373,7 @@ function JobList({ onOpen }: { onOpen: (requestId: string) => void }) {
   return <>
     <h1>Jobs</h1>
     <JobTotals />
+    <MarketplaceNumbers />
     {jobs.isLoading ? <p className="bare-helper" role="status">Loading jobs…</p> : null}
     {jobs.error ? <BareNotice role="alert">{(jobs.error as Error).message}</BareNotice> : null}
     {!jobs.isLoading && !jobs.error && !rows.length ? <p className="bare-helper">No jobs yet.</p> : null}

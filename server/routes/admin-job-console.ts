@@ -12,6 +12,7 @@
  * package, internal test jobs included.
  * "View the simulation of the site" mints the same kind of 15-minute viewer ticket the site's own job page mints, under
  * its own domain, for any job with a stored scene preview, internal test jobs included (`websiteScenePreview.ts`).
+ * The owner's marketplace numbers are read here too (`server/utils/marketplaceNumbers.ts`): ids, times and counts only.
  */
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
@@ -19,6 +20,7 @@ import { requireAdminRole } from "../middleware/requireAdminRole";
 import { logger } from "../logger";
 import { getJobConsoleDetail, jobScenePreview, jobSimulationPackage, listJobConsoleRows, loadSiteJobRecord, PAGE_LIMIT_MAX } from "../utils/jobConsoleData";
 import { billableEventsCsv, loadJobTotals } from "../utils/ownerTotals";
+import { loadMarketplaceNumbers } from "../utils/marketplaceNumbers";
 import { websiteScenePreviewAdminViewerUrl } from "../utils/websiteScenePreview";
 import { fetchCompanySimulation, forwardableRange } from "../utils/websiteCompanySimulation";
 import { sendThrough } from "./company-media";
@@ -71,6 +73,29 @@ router.get("/totals", async (_req: Request, res: Response) => {
   } catch (error) {
     logger.error({ err: error }, "Job console totals failed");
     return res.status(503).json({ error: "The totals are unavailable. Try again." });
+  }
+});
+
+const numbersQuery = z.object({
+  window: z.enum(["7", "30"]).default("7"),
+  includeTests: z.enum(["0", "1"]).default("0"),
+}).strict();
+
+/**
+ * The owner's marketplace numbers for the jobs shared in the last 7 or 30 UTC days (`marketplaceNumbers.ts`), internal
+ * test jobs left out unless `includeTests=1`. Registered before `/:requestId`.
+ */
+router.get("/marketplace-numbers", async (req: Request, res: Response) => {
+  const parsed = numbersQuery.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid marketplace numbers query." });
+  try {
+    const numbers = await loadMarketplaceNumbers({ windowDays: parsed.data.window === "30" ? 30 : 7,
+      includeTests: parsed.data.includeTests === "1" });
+    res.set("Cache-Control", "no-store");
+    return res.json(numbers);
+  } catch (error) {
+    logger.error({ err: error }, "Marketplace numbers failed");
+    return res.status(503).json({ error: "The marketplace numbers are unavailable. Try again." });
   }
 });
 

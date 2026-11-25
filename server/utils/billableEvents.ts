@@ -84,6 +84,17 @@ export async function listJobBillableEvents(requestId: string): Promise<Array<Bi
 }
 
 /**
+ * One job's events for the owner's marketplace numbers (`marketplaceNumbers.ts`): the company, status, made time and
+ * test marker only, at most `limit` of them. Read only.
+ */
+export async function readJobBillableEventStates(store: FirebaseFirestore.Firestore, requestId: string, limit: number):
+  Promise<Array<Record<string, any>>> {
+  const rows = await store.collection(BILLABLE_EVENTS_COLLECTION).where("requestId", "==", requestId)
+    .select("companyId", "status", "madeAtIso", "testEvent").limit(limit).get();
+  return rows.docs.map(doc => doc.data() ?? {});
+}
+
+/**
  * Owner, 2026-11-23: an event counts as billable only once its introduction is made (`madeAtIso` set, when the company's
  * email was sent). One recorded but not made (its company email not sent yet, or its outcome unknown) is counted apart so
  * staff can see it; a void one is never counted. Nothing here writes to an event.
