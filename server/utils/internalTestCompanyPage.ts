@@ -222,10 +222,31 @@ export async function readInternalTestCompanyPage(jobId: string, options: { brie
     summary_pdf: { pages: summary.pages, lines: summary.lines.length, headings: summary.headings, truncated: false },
     summary_text: "",
   };
-  const clean = redacted(body) as typeof body;
-  const room = RESPONSE_MAX_BYTES - Buffer.byteLength(JSON.stringify(clean), "utf8");
-  const fitted = fittedSummaryText(summary.lines, room);
-  clean.summary_text = fitted.text;
-  clean.summary_pdf.truncated = fitted.truncated;
-  return { ok: true, body: clean };
+  return { ok: true, body: fittedResponse(redacted(body) as typeof body, summary.lines) };
+}
+
+/** What the summary's text is left at least, when the job's emails would otherwise fill the answer. */
+export const SUMMARY_RESERVE_BYTES = 9_000;
+
+/**
+ * The whole answer within `RESPONSE_MAX_BYTES`, not the summary alone (Codex review, 2026-11-25): the job's emails are
+ * the one part that grows with its history, so the oldest are left out first until the summary has at least
+ * `SUMMARY_RESERVE_BYTES` (or all it needs), and how many were left out is said; the summary's text then fills what is
+ * left, cut at a line.
+ */
+export function fittedResponse<T extends { outbox: unknown[]; summary_text: string; summary_pdf: { truncated: boolean } }>(
+  body: T, summaryLines: readonly string[]): T & { outbox_omitted?: number } {
+  const out: T & { outbox_omitted?: number } = { ...body, outbox: [...body.outbox], summary_text: "" };
+  const size = () => Buffer.byteLength(JSON.stringify(out), "utf8");
+  const wanted = Math.min(SUMMARY_RESERVE_BYTES, Buffer.byteLength(JSON.stringify(summaryLines.join("\n")), "utf8"));
+  let omitted = 0;
+  while (out.outbox.length && size() > RESPONSE_MAX_BYTES - wanted) {
+    out.outbox.shift();
+    omitted += 1;
+    out.outbox_omitted = omitted;
+  }
+  const fitted = fittedSummaryText(summaryLines, Math.max(0, RESPONSE_MAX_BYTES - size()));
+  out.summary_text = fitted.text;
+  out.summary_pdf = { ...out.summary_pdf, truncated: fitted.truncated };
+  return out;
 }
