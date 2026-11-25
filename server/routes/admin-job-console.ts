@@ -121,8 +121,10 @@ router.get("/:requestId", async (req: Request, res: Response) => {
 
 /**
  * "Download the simulation package": the zip a company's download serves (`company-media.ts`), read through the same
- * signed Pipeline read and proxied straight through, ranges included. Not the company rule: an internal test job's
- * package is served here too. A job with no package, or whose site has withdrawn, answers as the company route does.
+ * signed Pipeline read and proxied straight through, ranges included, with the company download's own headers (its name
+ * is the package's version, `companySimulationFileName`; the console saves it with the job's id before the version). Not
+ * the company rule: an internal test job's package is served here too. A job with no package, or whose site has
+ * withdrawn, answers as the company route does.
  */
 router.get("/:requestId/simulation.zip", async (req: Request, res: Response) => {
   res.set("Cache-Control", "private, no-store");
