@@ -32,6 +32,7 @@ import { logger } from "../logger";
 import { decryptFieldValue } from "./field-encryption";
 import { companyMaySeeJobs } from "./companyTerms";
 import { hasInternalTestCompanyMarker, isInternalTestCompanyRow } from "./internalTestCompany";
+import { internalTestJobCreatedAtIso } from "./internalTestJob";
 import { storedPacketFacts, type PacketFacts, type PACKET_FACT_QUESTIONS } from "./websitePreparationStatus";
 import type { JobFactKey, JobFacts, JobReading } from "../../client/src/lib/jobFacts";
 import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
@@ -415,7 +416,9 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     headline,
     headlineFacts: rateInWords(facts),
     taskFamily,
-    publishedAtIso: String(record.public_task_listing?.approvedAtIso ?? ""),
+    // When the job was shared: its listing's approval; an internal test job, never listed, from its creation, as the
+    // site's own page dates it (`jobSharingOf`).
+    publishedAtIso: String(record.public_task_listing?.approvedAtIso ?? internalTestJobCreatedAtIso(record) ?? ""),
     // The site's own words, with its own known name, organisation, typed address, email and phone, any street-shaped
     // text and any other contact detail removed (`removeIdentifyingDetails`), then any name-shaped text the record does
     // not hold (`removeNamesNotHeld`), then whatever the model pass finds, then both again (`siteWordsForCompany`):

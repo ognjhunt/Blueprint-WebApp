@@ -578,6 +578,11 @@ describe("the test company's page, read through the signed route (POST /api/inte
     expect(read.body.page.fit_summary).toEqual(page.fitSummary.map((row: Record<string, unknown>) => ({ key: row.key, label: row.label,
       value: row.value, state: row.state, source: row.source ?? null, ...(row.estimateBelow ? { estimate_below: true } : {}) })));
     expect(read.body.page.visit_must_confirm_count).toBe(page.visitMustConfirm.length);
+    // A test job is never listed: its page is dated from its creation, as the site's own page dates it.
+    const created = doc(`inboundRequests/${jobId}`)?.internal_test?.created_at_iso;
+    expect(created).toEqual(expect.any(String));
+    expect(page.publishedAtIso).toBe(created);
+    expect(read.body.page.published_at_iso).toBe(created);
     // The text is the very PDF a company downloads, its link to the job's page said in words.
     const response = await fetch(`${base}/api/site-worlds/jobs/${jobId}/summary.pdf`, { headers: signIn(INBOX) });
     const { pdfTextLines } = await import("./helpers/pdfText");

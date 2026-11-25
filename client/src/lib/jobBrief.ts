@@ -11,7 +11,8 @@
  * - `site_answer`: the site's answer to a catalog quick question, in the catalog's own words (`jobFactLabel`);
  * - `video_estimate`: Blueprint's estimate from the video reading, formatted from its stored numbers and marked
  *   "estimated from the video";
- * - `site_sentence`: a few words quoted from the site's own sentence, shown only while they still are in it;
+ * - `site_sentence`: a few words quoted from the site's own sentence, shown only while they still are in it and are not
+ *   all or nearly all of it (the page shows the whole sentence just above);
  * - `ask_site`: a question of the brief's own, asked on the site's job page with "Not sure" added; the choice the site
  *   tapped, else "Not stated".
  *
@@ -106,6 +107,19 @@ const folded = (text: string) => text.replace(/\s+/g, " ").trim().toLowerCase();
 export function quoteInSentence(quote: string, sentence: string): boolean {
   const needle = folded(quote);
   return needle.length >= 3 && folded(sentence).includes(needle);
+}
+
+/**
+ * The share of the site's sentence a quote may hold and still be shown as a row of its own. The page and the job
+ * summary show the whole sentence just above At a glance, so a row that quotes all or nearly all of it only repeats it
+ * (lamp-2, 2026-11-25: "From bedside table to wall shelf" quoted the whole sentence).
+ */
+export const JOB_BRIEF_QUOTE_MAX_SHARE = 0.8;
+
+/** Whether a quote the sentence holds repeats all or nearly all of it (`JOB_BRIEF_QUOTE_MAX_SHARE`). */
+export function quoteRepeatsSentence(quote: string, sentence: string): boolean {
+  const whole = folded(sentence).replace(/[.!?]+$/u, "");
+  return whole.length > 0 && folded(quote).replace(/[.!?]+$/u, "").length >= JOB_BRIEF_QUOTE_MAX_SHARE * whole.length;
 }
 
 /**
@@ -283,8 +297,9 @@ function companyRow(row: JobBriefRow, inputs: JobBriefCompanyInputs, answers: Jo
       return value ? { key, label: row.label, value, state: "from_video", source: "video_estimate" } : null;
     }
     case "site_sentence":
-      return quoteInSentence(row.quote, inputs.sentence) && inputs.shown(row.quote)
-        ? { key, label: row.label, value: row.quote, state: "stated", source: "site_sentence" } : null;
+      // A quote of nearly the whole sentence only repeats what the page shows above At a glance: the row is left out.
+      return quoteInSentence(row.quote, inputs.sentence) && !quoteRepeatsSentence(row.quote, inputs.sentence)
+        && inputs.shown(row.quote) ? { key, label: row.label, value: row.quote, state: "stated", source: "site_sentence" } : null;
     case "ask_site": {
       const answer = answers?.custom?.[row.id];
       const base = { key, label: row.label, source: "site" as const };

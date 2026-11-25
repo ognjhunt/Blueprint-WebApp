@@ -117,6 +117,16 @@ export function fitRowValue(row: FitSummaryRow): string {
   return row.value ?? (row.state === "unsure" ? NOT_SURE : NOT_STATED);
 }
 
+/**
+ * Whether the At a glance rows hold an answer of the site's, stated or "Not sure", so that the job page and the job
+ * summary say under them that Blueprint has not checked the site's answers (`SITE_ANSWERS_HINT`). Words quoted from the
+ * site's sentence are marked "(the site's words)" on their own row and are not answers: rows of only those and of
+ * Blueprint's estimates carry no such line.
+ */
+export function fitRowsHoldSiteAnswers(rows: readonly FitSummaryRow[]): boolean {
+  return rows.some(row => (row.state === "stated" || row.state === "unsure") && row.source !== "site_sentence");
+}
+
 /** The marks after a row's value, each with its own leading space or dot: where it came from, and an estimate below. */
 export function fitRowMarks(row: FitSummaryRow): string[] {
   const marks: string[] = [];

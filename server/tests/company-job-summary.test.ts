@@ -103,6 +103,20 @@ describe("the job summary holds what the job page shows, in its words and its or
     expect(pdfLinks(companyJobSummaryPdf(item(), JOB_URL))).toEqual([JOB_URL]);
   });
 
+  it("says the site's answers are unchecked only when a row is one of them, not for the site's quoted words or estimates", () => {
+    const hint = "The site's own answers. Blueprint has not checked them.";
+    expect(lines(item())).toContain(hint);
+    // lamp-2 (2026-11-25): every row was an estimate from the video or the site's quoted words, and the line still showed.
+    const noAnswers = item({ fitSummary: [{ key: "object", label: "Object", value: "bedside lamp", state: "from_video" },
+      { key: "brief:size", label: "Lamp size", value: "About 45 cm on its longest side", state: "from_video", source: "video_estimate" },
+      { key: "brief:route", label: "From table to shelf", value: "from the round bedside table to the glass shelf", state: "stated",
+        source: "site_sentence" }] });
+    expect(lines(noAnswers)).not.toContain(hint);
+    expect(textOf(noAnswers)).toContain("(the site's words)");
+    const unsure = item({ fitSummary: [...noAnswers.fitSummary, { key: "timing", label: "When", value: null, state: "unsure" }] });
+    expect(lines(unsure)).toContain(hint);
+  });
+
   it("carries none of the page's media, tickets, the company's own answer, its question, the response line or a price", () => {
     const pdf = companyJobSummaryPdf(item(), JOB_URL);
     const raw = pdf.toString("latin1");

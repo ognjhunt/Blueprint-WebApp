@@ -17,7 +17,7 @@ import { RobotTeamEarlyAccess } from "@/components/site/RobotTeamEarlyAccess";
 import { jobTitleForDisplay, type CompanyJobPage } from "@/types/taskBrowse";
 import { JOB_PAGE_HEADINGS, JOB_SUMMARY_DOWNLOAD_LABEL, JOB_SUMMARY_UNAVAILABLE, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_STATED_YET,
   PACKET_FACTS_PENDING, SIMULATION_DOWNLOAD_HINT, SIMULATION_NOT_FINISHED, SIMULATION_WITHOUT_OBJECT,
-  SITE_ANSWERS_HINT, SITE_DESCRIPTION_CANT_BE_SHOWN, VIDEO_PREPARING, fitRowMarks, fitRowValue, fitRowsShown, jobSummaryFileName,
+  SITE_ANSWERS_HINT, SITE_DESCRIPTION_CANT_BE_SHOWN, VIDEO_PREPARING, fitRowMarks, fitRowValue, fitRowsHoldSiteAnswers, fitRowsShown, jobSummaryFileName,
   sharedOnInWords, simulationDownloadLabel, type FitSummaryRow } from "@/lib/companyJobPage";
 import { SITE_REPLY_BEING_PREPARED, SITE_REPLY_LIMIT, SUCCESS_RULE_CANT_BE_SHOWN } from "@/lib/companiesRead";
 import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
@@ -294,7 +294,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
         <section aria-label="At a glance">
           <h2>{JOB_PAGE_HEADINGS.glance}</h2>
           <FitSummary rows={page.fitSummary} />
-          {page.fitSummary.some(row => row.state === "stated" || row.state === "unsure") && <p className="ms-field-hint">{SITE_ANSWERS_HINT}</p>}
+          {fitRowsHoldSiteAnswers(page.fitSummary) && <p className="ms-field-hint">{SITE_ANSWERS_HINT}</p>}
         </section>
 
         {/* The Pipeline's facts about the object, only once there are some (or while they are being checked). */}
