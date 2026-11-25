@@ -135,6 +135,28 @@ describe("the owner's totals and billable events CSV", () => {
   });
 });
 
+describe("the job brief's lessons", () => {
+  it("are admin only, answer before the job detail route, and list each kind's checked lessons with their counts", async () => {
+    const at = "2026-11-25T12:00:00.000Z";
+    table("jobBriefLessons").set("pick_and_place", { schemaVersion: "job_brief_lessons.v1", kind: "pick_and_place", updatedAtIso: at,
+      questions: [{ topic: "how_often_moved", question: "How often is the item moved?", count: 2, firstSeenAtIso: at, lastSeenAtIso: at },
+        // Refused again on the way out, as any stored value is untrusted.
+        { topic: "budget", question: "What is the budget for the job?", count: 7, firstSeenAtIso: at, lastSeenAtIso: at }],
+      reasons: [{ reason: "people_nearby", count: 1, firstSeenAtIso: at, lastSeenAtIso: at }] });
+    expect((await fetch(`${baseUrl}/brief-lessons`)).status).toBe(401);
+    expect((await fetch(`${baseUrl}/brief-lessons`, { headers: { Authorization: "Bearer user" } })).status).toBe(403);
+    const response = await fetch(`${baseUrl}/brief-lessons`, admin);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const body = await response.json();
+    expect(body.kinds.map((entry: Row) => entry.kind)).toEqual(["pick_and_place", "palletizing", "machine_tending", "transport", "other"]);
+    expect(body.kinds[0]).toEqual({ kind: "pick_and_place", updatedAtIso: at,
+      questions: [{ topic: "how_often_moved", question: "How often is the item moved?", count: 2, firstSeenAtIso: at, lastSeenAtIso: at }],
+      reasons: [{ reason: "people_nearby", words: "People work too close to the job", count: 1, firstSeenAtIso: at, lastSeenAtIso: at }] });
+    expect(body.kinds[1]).toEqual({ kind: "palletizing", updatedAtIso: null, questions: [], reasons: [] });
+  });
+});
+
 describe("GET /api/admin/jobs", () => {
   it("requires authentication", async () => {
     expect((await fetch(baseUrl)).status).toBe(401);

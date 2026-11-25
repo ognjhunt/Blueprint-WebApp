@@ -568,6 +568,27 @@ describe("the company's page for one job (E3)", () => {
     }
   });
 
+  // Owner, 2026-11-25: every "Need more details" question and "Not a fit" reason is a lesson for the next similar job.
+  it("turns a Need more details question saved through the answer route into one lesson for the job's kind, never an Apply", async () => {
+    const { resetJobBriefLessonsForTests, useJobBriefLessonWriter } = await import("../utils/jobBriefLessons");
+    patchJob({ walkthrough_job_estimates: { capture_id: CAPTURE, job_estimates: { job_kind: "palletizing", object: "cartons" } } });
+    const read: string[] = [];
+    try {
+      useJobBriefLessonWriter(async input => { read.push(input.words); return { lesson: { topic: "peakPerMinute", question: "ignored" } }; });
+      expect((await answer(NORTH, { state: "interested", inputs: "We stack cartons every day." })).status).toBe(200);
+      expect((await answer(NORTH, { state: "needs_something", inputs: `How many cartons arrive per minute at ZEBRAPLANT Foods? ${NORTH.email}` }))
+        .status).toBe(200);
+      await vi.waitFor(() => expect(state.docs.get("jobBriefLessons/palletizing")).toMatchObject({ questions: [
+        { topic: "peakPerMinute", question: "How many items arrive per minute at the busiest time?", count: 1 }] }));
+      // One run, for the question only, and the site's and the company's identity were out of what it read.
+      expect(read).toHaveLength(1);
+      expectNoSiteIn("the lesson lane's input", read[0]);
+      expect(read[0]).not.toContain(NORTH.email);
+    } finally {
+      resetJobBriefLessonsForTests();
+    }
+  });
+
   // A review of PR #1437: a rule the site gave that is not shown yet is said so, never "has not said what counts as done".
   it("says the site's rule for done cannot be shown yet while its words are unread, and nothing of the kind when it gave none", async () => {
     const brief = state.docs.get(`siteTaskBriefs/${ID}`)!;

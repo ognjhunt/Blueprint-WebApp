@@ -42,7 +42,10 @@ export type AgentTaskKind =
    * (tasks/free-text-redaction.ts). */
   | "free_text_redaction"
   /** Chooses one job's "At a glance" rows for deployment companies and where each value comes from (tasks/job-brief.ts). */
-  | "job_brief";
+  | "job_brief"
+  /** Turns one company's "Need more details" or "Not a fit" into a lesson for the next job of its kind
+   * (tasks/job-brief-lesson.ts). */
+  | "job_brief_lesson";
 
 export type AgentRunStatus =
   | "queued"
