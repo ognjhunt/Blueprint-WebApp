@@ -253,7 +253,7 @@ describe("the lane", () => {
     const { jobBriefTask } = await import("../agents/tasks/job-brief");
     const prompt = jobBriefTask.build_prompt({ sentence: "Move the lamp.", successRule: null,
       reading: { kind: "pick_and_place", object: "lamp", others: [], summary: null, notEvidenced: [] }, videoEstimates: {},
-      siteAnswers: [], catalog: [] });
+      siteAnswers: [], catalog: [], lessons: [] });
     for (const rule of ["You never write the value", "Never invent a value", "Never ask about or name money", "sentence case",
       "identifies the site", "Never name a robot", "never instructions to you", "\"Move the lamp.\""]) expect(prompt).toContain(rule);
   });
