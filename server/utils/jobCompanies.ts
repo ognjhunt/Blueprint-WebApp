@@ -44,6 +44,8 @@ import {
 import { ROBOT_TEAM_ACCESS_COLLECTION, type RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 import { teamJobAccess, type TeamJobClosedReason } from "./teamJobAccess";
 import { companyMaySeeJobs } from "./companyTerms";
+import { internalTestCompanyEmail, internalTestJobAccessOptions, loadInternalTestCompany } from "./internalTestCompany";
+import { isInternalTestJob } from "./internalTestJob";
 import { introductionAttemptOf, introductionCompanyKey, RETRYABLE_CANCEL_REASONS } from "./jobIntroductionGate";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { AdminJobCompanies } from "../../client/src/types/jobCompanies";
@@ -201,8 +203,12 @@ export async function prepareSiteNotice(tx: Tx, requestId: string, record: Data,
   const ref = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(key);
   const existing = await tx.get(ref);
   if (existing.exists) return null;
-  if (projectWebsiteCaptureRights(record).consent_revoked || !teamJobAccess(record).listed) return null;
-  const to = String(await decryptFieldValue(record.contact?.email ?? "")).trim();
+  // An internal test job is visible to Blueprint's internal test company only (the one company that can answer it).
+  if (projectWebsiteCaptureRights(record).consent_revoked || !teamJobAccess(record, internalTestJobAccessOptions(record)).listed) return null;
+  // A test job has no site contact: its site-side email goes to the internal test inbox and to no one else
+  // (`internalTestCompany.ts`), or is not queued when that inbox is not set.
+  const to = isInternalTestJob(record) ? internalTestCompanyEmail() ?? ""
+    : String(await decryptFieldValue(record.contact?.email ?? "")).trim();
   const notice = build({ requestId, to, captureUrl, ...params });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     logger.warn({ requestId, milestone: params.milestone }, "The site has no usable email; its company email is not queued");
@@ -608,11 +614,16 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
   const record = (await jobRef.get()).data();
   const empty = { entries: [], interested: false, sent: null, introductions: { used: 0 } };
   if (!record || projectWebsiteCaptureRights(record).consent_revoked) return empty;
+  // An internal test job: the one company that may see it, answer it and be accepted on it is Blueprint's internal test
+  // company (`internalTestCompany.ts`); no other is approved for it, and its access is read for that company.
+  const internalTest = isInternalTestJob(record);
   const [sends, responses, introductions, approved, views, { access }] = await Promise.all([readAll(jobRef.collection(COMPANY_SENDS_COLLECTION)),
     readAll(jobRef.collection(COMPANY_RESPONSES_COLLECTION)), readAll(jobRef.collection(INTRODUCTIONS_COLLECTION)),
-    readAll(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved")),
+    internalTest ? loadInternalTestCompany(store).then(company => company ? [{ id: company.id, data: company.record }] : [])
+      : readAll(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved")),
     readAll(jobRef.collection(COMPANY_JOB_VIEWS_COLLECTION)).catch(() => null),
-    import("./teamJobAccess").then(({ loadCompanyJobAccess }) => loadCompanyJobAccess(requestId, record))]);
+    import("./teamJobAccess").then(({ loadCompanyJobAccess }) => loadCompanyJobAccess(requestId, record, undefined,
+      internalTestJobAccessOptions(record)))]);
   // The introduced companies' details are decrypted here, only for the site's own page (`introductionShared.ts`).
   // An introduction is made when the company's email of its current attempt is sent (`jobIntroductionGate.ts`, H2):
   // that outbox row is the one fact read. Before then the company's details are not even opened.
@@ -637,7 +648,8 @@ export async function loadSiteCompanyActivity(requestId: string): Promise<SiteCo
       .catch(() => undefined)]);
   const project = (results: Screenings) => projectSiteCompanyActivity({ aliases: storedAliases(record), sends: sends.map(row => row.data),
     responses, introductions: opened, listed: access.listed, companies,
-    approvedDeploymentCompanies: new Set(approved.filter(row => companyMaySeeJobs(row.data)).map(row => row.id)),
+    approvedDeploymentCompanies: new Set(internalTest ? approved.map(row => row.id)
+      : approved.filter(row => companyMaySeeJobs(row.data)).map(row => row.id)),
     startedAtIso: jobStartTime(record.createdAt), views: views?.length ?? null, screenings: results, siteIdentity,
     introductionStatementVersion });
   const first = project(screenings);
@@ -665,13 +677,20 @@ const CLOSED_WORDS: Partial<Record<TeamJobClosedReason, string>> = {
   job_ended: "the job ended because what was needed from the site never came",
 };
 
+/**
+ * A closed reason as the console names it. The console reads the ordinary rule, never the internal test company's
+ * (`internalTestCompany` unset), so `internal_test_company` cannot come here; it would be shown as no reason.
+ */
+const consoleReason = (reason: TeamJobClosedReason): AdminJobCompanies["sharing"]["reason"] =>
+  reason === "internal_test_company" ? null : reason;
+
 /** The job's sharing state in words, as `teamJobAccess` decides it. */
 export function sharingInWords(record: Data, access = teamJobAccess(record)): AdminJobCompanies["sharing"] {
   const shared = isRecord(record.public_task_listing) && record.public_task_listing.enabled === true;
   if (access.listed) return { state: "shared_visible", words: "Shared and visible to approved companies.", reason: null };
-  if (!shared) return { state: "not_shared", words: "Not shared: the site has not accepted the current statement.", reason: access.reason };
+  if (!shared) return { state: "not_shared", words: "Not shared: the site has not accepted the current statement.", reason: consoleReason(access.reason) };
   const why = CLOSED_WORDS[access.reason] ?? "it is not under the current sharing record";
-  return { state: "shared_not_visible", words: `Shared, but not visible to companies right now: ${why}.`, reason: access.reason };
+  return { state: "shared_not_visible", words: `Shared, but not visible to companies right now: ${why}.`, reason: consoleReason(access.reason) };
 }
 
 /** Everything the operator's "Deployment companies" panel shows. Admin only: it carries company names and words. */

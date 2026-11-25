@@ -12,10 +12,18 @@
  * has its own event (`attempt`, and an id ending `-a{attempt}`), so the void one is never rewritten.
  * `madeAtIso` is written when the company's email is sent: the moment the introduction was actually made. Only an event
  * with it counts as billable (owner, 2026-11-23); one without it is shown to staff apart, never counted.
+ *
+ * An introduction between Blueprint's internal test company and an internal test job (owner, 2026-11-25,
+ * `internalTestCompany.ts`) is a test event: written the same way, so the flow is exercised, with
+ * `status: "test_no_charge"` and `testEvent: true` (kept if the event is later marked void). It is never billable: no
+ * count and no CSV row (`ownerTotals.ts`) includes it.
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 
 export const BILLABLE_EVENTS_COLLECTION = "billableEvents";
+
+/** The status of a test introduction's event: recorded, never billable. */
+export const TEST_NO_CHARGE_STATUS = "test_no_charge" as const;
 
 export interface BillableEvent {
   kind: "introduction";
@@ -23,8 +31,13 @@ export interface BillableEvent {
   companyId: string;
   atIso: string;
   priceUsd: null;
-  /** "void": the introduction was cancelled at dispatch (G3). The event is kept and never counted. */
-  status: "recorded_no_price" | "void";
+  /**
+   * "void": the introduction was cancelled at dispatch (G3). The event is kept and never counted. "test_no_charge": a
+   * test introduction (the internal test company on an internal test job), never billable.
+   */
+  status: "recorded_no_price" | "void" | typeof TEST_NO_CHARGE_STATUS;
+  /** Only on a test introduction's event, and kept when it is marked void: never billable, never in the CSV. */
+  testEvent?: true;
   voidedAtIso?: string;
   voidReason?: string;
   /** The attempt for this pair, from 1, after an earlier one was cancelled by a failed email; absent on the first. */
@@ -42,10 +55,16 @@ export function billableEventRef(requestId: string, companyId: string, attempt =
   return db.collection(BILLABLE_EVENTS_COLLECTION).doc(billableEventId(requestId, companyId, attempt));
 }
 
-export function buildIntroductionBillableEvent(requestId: string, companyId: string, atIso: string, attempt = 0):
-  BillableEvent & { status: "recorded_no_price" } {
-  return { kind: "introduction", requestId, companyId, atIso, priceUsd: null, status: "recorded_no_price",
+export function buildIntroductionBillableEvent(requestId: string, companyId: string, atIso: string, attempt = 0,
+  options: { test?: boolean } = {}): BillableEvent {
+  return { kind: "introduction", requestId, companyId, atIso, priceUsd: null,
+    ...(options.test ? { status: TEST_NO_CHARGE_STATUS, testEvent: true as const } : { status: "recorded_no_price" as const }),
     ...(attempt > 0 ? { attempt } : {}) };
+}
+
+/** A test introduction's event (`TEST_NO_CHARGE_STATUS`, or `testEvent` on one marked void since): never billable. */
+export function isTestBillableEvent(event: { status?: unknown; testEvent?: unknown }): boolean {
+  return event.status === TEST_NO_CHARGE_STATUS || event.testEvent === true;
 }
 
 /**
@@ -69,19 +88,32 @@ export async function listJobBillableEvents(requestId: string): Promise<Array<Bi
  * email was sent). One recorded but not made (its company email not sent yet, or its outcome unknown) is counted apart so
  * staff can see it; a void one is never counted. Nothing here writes to an event.
  */
-export function isMadeBillableEvent(event: { status?: unknown; madeAtIso?: unknown }): boolean {
-  return event.status === "recorded_no_price" && typeof event.madeAtIso === "string" && event.madeAtIso.length > 0;
+export function isMadeBillableEvent(event: { status?: unknown; madeAtIso?: unknown; testEvent?: unknown }): boolean {
+  return event.status === "recorded_no_price" && event.testEvent !== true && typeof event.madeAtIso === "string"
+    && event.madeAtIso.length > 0;
 }
-export function isUnmadeBillableEvent(event: { status?: unknown; madeAtIso?: unknown }): boolean {
-  return event.status === "recorded_no_price" && !isMadeBillableEvent(event);
+export function isUnmadeBillableEvent(event: { status?: unknown; madeAtIso?: unknown; testEvent?: unknown }): boolean {
+  return event.status === "recorded_no_price" && event.testEvent !== true && !isMadeBillableEvent(event);
 }
 
-/** The standing events, made (billable) and recorded but not made, for the owner's totals (`ownerTotals.ts`). Read only. */
+/**
+ * The events for the owner's totals (`ownerTotals.ts`), in one read: standing events made (billable) and recorded but
+ * not made, and the test introductions made (`testMade`), which the totals take out of the introductions made. Read only.
+ */
+export async function tallyBillableEvents(store: FirebaseFirestore.Firestore | null = db):
+  Promise<{ made: number; notMade: number; testMade: number }> {
+  if (!store) throw new Error("billable_events_store_unavailable");
+  const rows = (await store.collection(BILLABLE_EVENTS_COLLECTION).select("status", "madeAtIso", "testEvent").get()).docs
+    .map(doc => doc.data());
+  return { made: rows.filter(isMadeBillableEvent).length, notMade: rows.filter(isUnmadeBillableEvent).length,
+    testMade: rows.filter(row => isTestBillableEvent(row) && typeof row.madeAtIso === "string" && row.madeAtIso.length > 0).length };
+}
+
+/** The standing events, made (billable) and recorded but not made. Read only. */
 export async function tallyStandingBillableEvents(store: FirebaseFirestore.Firestore | null = db):
   Promise<{ made: number; notMade: number }> {
-  if (!store) throw new Error("billable_events_store_unavailable");
-  const rows = (await store.collection(BILLABLE_EVENTS_COLLECTION).select("status", "madeAtIso").get()).docs.map(doc => doc.data());
-  return { made: rows.filter(isMadeBillableEvent).length, notMade: rows.filter(isUnmadeBillableEvent).length };
+  const { made, notMade } = await tallyBillableEvents(store);
+  return { made, notMade };
 }
 
 /** How many events count as billable: standing (never void) and made. */
@@ -89,9 +121,11 @@ export async function countStandingBillableEvents(store: FirebaseFirestore.Fires
   return (await tallyStandingBillableEvents(store)).made;
 }
 
-/** Every event's ids, times and status, for the admin CSV (`ownerTotals.ts`). Read only. */
+/** Every event's ids, times and status, for the admin CSV (`ownerTotals.ts`), but a test introduction's. Read only. */
 export async function listAllBillableEvents(store: FirebaseFirestore.Firestore | null = db): Promise<Array<Record<string, any>>> {
   if (!store) throw new Error("billable_events_store_unavailable");
-  const snapshot = await store.collection(BILLABLE_EVENTS_COLLECTION).select("requestId", "companyId", "atIso", "madeAtIso", "status").get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const snapshot = await store.collection(BILLABLE_EVENTS_COLLECTION)
+    .select("requestId", "companyId", "atIso", "madeAtIso", "status", "testEvent").get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Record<string, any>)).filter(row => !isTestBillableEvent(row))
+    .map(({ testEvent: _test, ...row }) => row);
 }

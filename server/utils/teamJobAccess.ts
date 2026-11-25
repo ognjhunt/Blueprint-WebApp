@@ -4,7 +4,9 @@
  * ## The rule (package E, E2, owner direction of 2026-11-12)
  *
  * Sharing is the service: a job is listed for every approved deployment company if and only if ALL hold:
- * - it is not an internal test job (`internal_test`, checked before anything else);
+ * - it is not an internal test job (`internal_test`, checked before anything else). The one exception is Blueprint's own
+ *   internal test company (owner, 2026-11-25; `internalTestCompany.ts`), read with `internalTestCompany` in the context:
+ *   for it every real job is closed and a test job is open through the same stops;
  * - the site accepted recording statement `2026-11-12.v4` or later, and the grant stands (`RECORDING_VERSIONS_THAT_SHARE`),
  *   and a verified company video for the current capture is available;
  * - the listing record is `job-shared-2026-11-12` (`sharedJobListing`); older cards drop out with no data change;
@@ -29,13 +31,14 @@
  */
 import type { TaskListingDetails, TeamEvaluationTerms } from "../../client/src/types/taskBrowse";
 import type { InboundRequest } from "../types/inbound-request";
+import { storedAnonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { listingDetailsForSentence, sharedJobListing } from "./taskListingDetails";
 import { SHARING_RECORDING_STATEMENT_VERSIONS } from "../../client/src/lib/recordingRightsStatement";
 import { recordingStatementShares } from "./jobSharedListing";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { operatorListingHold } from "./operatorListing";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
-import { isInternalTestJob } from "./internalTestJob";
+import { isInternalTestJob, isInternalTestRecordingGrant } from "./internalTestJob";
 import { recordedWebsiteJobNoGrantEnding } from "./websiteJobWindowEnding";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 
@@ -43,6 +46,11 @@ import { siteWalkthroughIdentity } from "./siteWalkthrough";
 export type TeamJobClosedReason =
   /** An internal test job (`internalTestJob.ts`): never shown to any company, whatever else it holds. Checked first. */
   | "internal_test_job"
+  /**
+   * Asked for Blueprint's internal test company (`internalTestCompany.ts`) about a job that is not an internal test job:
+   * that company never sees a real job. Checked first, on that flag only.
+   */
+  | "internal_test_company"
   /** Not a site's job: a robot team's own request, or no buyer type at all. */
   | "not_a_site_job"
   /** A placeholder the Pipeline created, not a site's submission. */
@@ -132,6 +140,20 @@ export interface TeamJobAccessContext {
   preparationState?: string | null;
   /** The company simulation of the current capture is stored (`storedCompanySimulation`). Absent reads as not ready. */
   companySimulationReady?: boolean;
+  /**
+   * Asked for Blueprint's internal test company (`internalTestCompany.ts`; the caller has checked the company). Only an
+   * internal test job may then be listed: every other job is closed (`internal_test_company`). A test job runs every
+   * safety stop below, with three of its own facts in place of a site's: its internal recording grant stands in for a
+   * sharing statement, the job's own sentence for the listing record a test job never gets, and its internal clip counts
+   * as the company video (`loadCompanyJobAccess`). Without it, nothing here changes.
+   */
+  internalTestCompany?: boolean;
+}
+
+/** The internal test job's own grant (`isInternalTestRecordingGrant`), not withdrawn: what stands in for a sharing statement. */
+function internalTestGrantStands(raw: Record<string, any>): boolean {
+  const grant = raw.request?.consent_attestation;
+  return isInternalTestRecordingGrant(grant) && !grant.revoked_at_iso && !grant.withdrawn_at_iso;
 }
 
 /** The site closed its job: a run closure on record for any capture. */
@@ -156,8 +178,12 @@ export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext 
   const raw = (record ?? {}) as Record<string, any>;
   const closed = (reason: TeamJobClosedReason): TeamJobAccess =>
     ({ listed: false, evaluationAvailable: false, reason, details: null });
-  // An internal test job stays internal (owner, 2026-11-15): refused before every other stop, with its own reason.
-  if (isInternalTestJob(raw)) return closed("internal_test_job");
+  // The internal test company sees internal test jobs only (owner, 2026-11-25): any other job is closed to it first.
+  const internalTestCompany = context.internalTestCompany === true;
+  if (internalTestCompany && !isInternalTestJob(raw)) return closed("internal_test_company");
+  // An internal test job stays internal (owner, 2026-11-15): refused before every other stop, with its own reason, to
+  // every company but Blueprint's own internal test company.
+  if (!internalTestCompany && isInternalTestJob(raw)) return closed("internal_test_job");
   if (raw.request?.buyerType !== "site_operator") return closed("not_a_site_job");
   if (raw.debug?.autoCreatedByPipeline === true) return closed("pipeline_placeholder");
   const rights = projectWebsiteCaptureRights(raw);
@@ -183,8 +209,10 @@ export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext 
     return closed("development_only");
   const legacy = legacyRestriction(raw);
   if (legacy) return closed(legacy);
-  if (!recordingStatementShares(raw)) return closed("older_statement");
-  const listing = sharedJobListing(raw);
+  // For the internal test company, a test job's own grant stands in for the sharing statement, and its sentence for the
+  // listing record (a test job never gets one): the details are the closed category the brief's sentence names.
+  if (internalTestCompany ? !internalTestGrantStands(raw) : !recordingStatementShares(raw)) return closed("older_statement");
+  const listing = internalTestCompany ? { details: storedAnonymizedOpportunityDraft(undefined) } : sharedJobListing(raw);
   if (!listing) return closed("not_listed");
   if (context.brief !== undefined && !briefHasSentence(context.brief)) return closed("no_job_sentence");
   if (context.companyVideoReady === false) return closed("video_required");
@@ -202,7 +230,12 @@ export function teamJobAccess(record: RecordLike, context: TeamJobAccessContext 
  * stored preparation state. Inside a transaction, pass `tx` so every read participates.
  */
 export async function loadCompanyJobAccess(requestId: string, given?: Record<string, any> | null,
-  tx?: FirebaseFirestore.Transaction): Promise<{ record: Record<string, any> | null; access: TeamJobAccess;
+  tx?: FirebaseFirestore.Transaction,
+  /**
+   * `internalTestCompany`: the read is for Blueprint's internal test company (the caller checked the company): only an
+   * internal test job may be listed, and its internal clip counts as the company video (`teamJobAccess`).
+   */
+  options: { internalTestCompany?: boolean } = {}): Promise<{ record: Record<string, any> | null; access: TeamJobAccess;
     brief: FirebaseFirestore.DocumentData | undefined; session: FirebaseFirestore.DocumentData | undefined }> {
   if (!db) throw new Error("company_job_store_unavailable");
   let record = given ?? null;
@@ -210,7 +243,9 @@ export async function loadCompanyJobAccess(requestId: string, given?: Record<str
     const ref = db.collection("inboundRequests").doc(requestId);
     record = (tx ? await tx.get(ref) : await ref.get()).data() ?? null;
   }
-  if (!record) return { record: null, access: teamJobAccess(null), brief: undefined, session: undefined };
+  const internalTestCompany = options.internalTestCompany === true;
+  if (!record) return { record: null, access: teamJobAccess(null, internalTestCompany ? { internalTestCompany } : {}), brief: undefined,
+    session: undefined };
   const { captureId } = siteWalkthroughIdentity(requestId, record);
   const read = (ref: FirebaseFirestore.DocumentReference) => (tx ? tx.get(ref) : ref.get()).then(snapshot => snapshot.data());
   const [brief, session] = await Promise.all([read(db.collection("siteTaskBriefs").doc(requestId)),
@@ -223,11 +258,12 @@ export async function loadCompanyJobAccess(requestId: string, given?: Record<str
   const { storedCompanyClip } = await import("./websiteCompanyClip");
   const clip = storedCompanyClip(session, captureId);
   const privateClip = clip?.permission_basis === "internal_test";
-  const companyVideoReady = Boolean(clip) && !privateClip;
+  // A test job's internal clip is the company video for the internal test company only.
+  const companyVideoReady = Boolean(clip) && (!privateClip || internalTestCompany);
   const { storedCompanySimulation } = await import("./websiteCompanySimulation");
   const companySimulationReady = Boolean(storedCompanySimulation(session, captureId));
   return { record, access: teamJobAccess(record, { brief: briefForAccess, preparationState, companyVideoReady,
-    companySimulationReady }), brief, session };
+    companySimulationReady, ...(internalTestCompany ? { internalTestCompany } : {}) }), brief, session };
 }
 
 /** The card image route, when the site approved a thumbnail with its card. */

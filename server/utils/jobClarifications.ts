@@ -4,7 +4,9 @@ import { COMPANY_RESPONSE_STATEMENT_VERSIONS, COMPANY_QUESTION_LIMIT, SITE_CLARI
   isCompanyResponseState } from "../../client/src/lib/companyResponses";
 import { REMOVED, removeIdentifyingDetails, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
 import { type OutboxEntry } from "./captureOutbox";
-import { companyMaySeeJobs } from "./companyTerms";
+import { companyMayActOnJob, companyMaySeeJobs } from "./companyTerms";
+import { internalTestPairAccessOptions, isInternalTestCompanyRow } from "./internalTestCompany";
+import { isInternalTestJob } from "./internalTestJob";
 import { companyJobUrl, COMPANY_RESPONSES_COLLECTION, siteReasonOf, knownCompanyIdentity, storedAliases } from "./jobCompanies";
 import { knownSiteIdentity } from "./siteIdentity";
 import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
@@ -51,7 +53,13 @@ export async function answerCompanyQuestion(input: { jobId: string; alias: strin
   const { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION } = await import("./captureOutbox");
   let known: KnownSiteIdentity | null = null;
   const saved = await store.runTransaction(async tx => {
-    const { record, access } = await loadCompanyJobAccess(input.jobId, undefined, tx);
+    // An internal test job is read for Blueprint's internal test company when that is the company asked about
+    // (`internalTestCompany.ts`); every other job and company exactly as before.
+    const stored = (await tx.get(store.collection("inboundRequests").doc(input.jobId))).data() ?? null;
+    const asked = stored ? Object.entries(storedAliases(stored)).find(([, letter]) => letter === input.alias)?.[0] : undefined;
+    const pairOptions = asked && isInternalTestJob(stored) ? internalTestPairAccessOptions(stored, asked,
+      (await tx.get(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(asked))).data()) : undefined;
+    const { record, access } = await loadCompanyJobAccess(input.jobId, stored, tx, pairOptions);
     if (!record || !access.listed) return { status: "closed" } as const;
     const companyId = Object.entries(storedAliases(record)).find(([, letter]) => letter === input.alias)?.[0];
     if (!companyId) return { status: "changed" } as const;
@@ -61,7 +69,7 @@ export async function answerCompanyQuestion(input: { jobId: string; alias: strin
     ]);
     const reply = replySnap.data(), company = companySnap.data();
     const question = questionOnReply(reply);
-    if (!companyMaySeeJobs(company) || !question || question.id !== input.questionId
+    if (!companyMayActOnJob(record, companyId, company) || !question || question.id !== input.questionId
       || !siteReasonOf({ ...reply, inputs: question.text }, knownCompanyIdentity(company, reply)))
       return { status: "changed" } as const;
     known = await knownSiteIdentity(record);
@@ -98,16 +106,19 @@ export async function clarificationNoticeIsCurrent(entry: ClarificationNotice, t
   const email = entry.to.trim().toLowerCase();
   const companyId = accessRecordId(email);
   const store = db;
-  const [{ access }, company, replySnap, suppression] = await Promise.all([
-    loadCompanyJobAccess(entry.requestId, undefined, tx),
+  const [company, replySnap, suppression] = await Promise.all([
     tx.get(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId)),
     tx.get(store.collection("inboundRequests").doc(entry.requestId).collection(COMPANY_RESPONSES_COLLECTION).doc(companyId)),
     tx.get(store.collection("email_suppressions").doc(email)),
   ]);
+  // Blueprint's internal test company (`internalTestCompany.ts`): its job read closes every real job to it.
+  const internalTestCompany = isInternalTestCompanyRow(companyId, company.data());
+  const { access } = await loadCompanyJobAccess(entry.requestId, undefined, tx, internalTestCompany ? { internalTestCompany } : undefined);
   const reply = replySnap.data(), question = questionOnReply(reply);
   const blocked = suppression.data();
   return blocked?.global_suppressed !== true && !(Array.isArray(blocked?.suppressed_scopes) && blocked.suppressed_scopes.includes("all"))
-    && access.listed && companyMaySeeJobs(company.data()) && String(company.data()?.email ?? "").trim().toLowerCase() === email
+    && access.listed && (internalTestCompany || companyMaySeeJobs(company.data()))
+    && String(company.data()?.email ?? "").trim().toLowerCase() === email
     && !!question && !!clarificationOnReply(reply, question.id)
     && entry.idempotencyKey === noticeKey(entry.requestId, companyId, question.id);
 }

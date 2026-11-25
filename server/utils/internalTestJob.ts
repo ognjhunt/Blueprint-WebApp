@@ -14,6 +14,9 @@
  *   (with `basis: blueprint_internal_test`) is accepted under that version; no form can send that basis.
  * - It has no contact address, so every notice addressed to the site finds no one, and the outbox checks the marker
  *   before every send. Blueprint's own ops notices about it are internal and go as for any job.
+ * - The one exception (owner, 2026-11-25): Blueprint's own internal test company (`internalTestCompany.ts`) is shown
+ *   test jobs, and only test jobs, so the company side can be tested end to end. Its emails, and the site-side emails of
+ *   a test job, go to the one configured internal test inbox and to no one else; every other row is still cancelled.
  *
  * No person accepted anything for a test job: its footage is Blueprint's own test material.
  */
@@ -61,6 +64,13 @@ export function internalTestRightsMarker(record: unknown): { internal_test?: { l
   const marker = (record as Record<string, any>)[INTERNAL_TEST_FIELD];
   const text = (value: unknown) => typeof value === "string" ? value : null;
   return { internal_test: { label: text(marker?.label), footage_id: text(marker?.footage_id) } };
+}
+
+/** When the internal route created the test job (its marker's `created_at_iso`), or null for any other job. */
+export function internalTestJobCreatedAtIso(record: unknown): string | null {
+  if (!isInternalTestJob(record)) return null;
+  const value = (record as Record<string, any>)[INTERNAL_TEST_FIELD]?.created_at_iso;
+  return typeof value === "string" && Number.isFinite(Date.parse(value)) ? value : null;
 }
 
 /** A recording grant the internal route built for a test job: the one shape `internal_test.v1` is accepted in. */

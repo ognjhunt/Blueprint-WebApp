@@ -10,6 +10,7 @@ import { savedUpdatePreferences } from './updatePreferences';
 import { accessRecordId, type RobotTeamAccessRecord } from './robotTeamEarlyAccess';
 import { loadCompanyJobAccess } from './teamJobAccess';
 import { companyMaySeeJobs } from './companyTerms';
+import { isInternalTestCompanyRow } from './internalTestCompany';
 
 /** The context a new-job email carries. Rows queued before 2026-11-12 carry another shape and are never sent. */
 export const NEW_JOB_ALERT_SCHEMA = 'job-alert-2026-11-12';
@@ -60,12 +61,14 @@ export async function jobAlertIsCurrent(entry: Pick<OutboxEntry, 'kind' | 'to' |
   ]);
   if (suppressedForJobAlerts(suppression.data())) return false;
   const record = contact.data() as RobotTeamAccessRecord | undefined;
+  // Blueprint's internal test company (`internalTestCompany.ts`): its job read below closes every real job to it.
+  const internalTestCompany = isInternalTestCompanyRow(alert.companyId, record);
   // An approved deployment company that has accepted the current Terms (`companyMaySeeJobs`): no link it cannot open.
-  if (!record || !companyMaySeeJobs(record)
+  if (!record || !(internalTestCompany || companyMaySeeJobs(record))
     || String(record.email ?? '').trim().toLowerCase() !== email) return false;
   const user = record.preferencesAccountUid
     ? (await tx.get(db.collection('users').doc(record.preferencesAccountUid))).data() : null;
   if (!companyWantsJobEmails(record, user?.updatePreferences)) return false;
-  const { access } = await loadCompanyJobAccess(alert.jobId, undefined, tx);
+  const { access } = await loadCompanyJobAccess(alert.jobId, undefined, tx, internalTestCompany ? { internalTestCompany } : undefined);
   return access.listed;
 }

@@ -10,9 +10,13 @@
  * read is null, never the line.
  *
  * The CSV carries ids and times only: no site name, address or contact, and no price.
+ *
+ * A test introduction (Blueprint's internal test company on an internal test job, owner 2026-11-25) is never counted:
+ * its event is a test event (`isTestBillableEvent`), outside every billable number and the CSV, and its sent company
+ * email is taken out of the introductions made (as the test events made, read with the billable events).
  */
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
-import { listAllBillableEvents, tallyStandingBillableEvents } from "./billableEvents";
+import { listAllBillableEvents, tallyBillableEvents } from "./billableEvents";
 import { CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { COMPANY_RESPONSES_COLLECTION, COMPANY_SENDS_COLLECTION, INTRODUCTIONS_COLLECTION } from "./jobCompanies";
 import { INTRODUCTION_COMPANY_KIND } from "./jobIntroductionGate";
@@ -66,8 +70,10 @@ export async function loadJobTotals(now: Date = new Date(), store: Store | null 
       .filter(doc => { const id = jobIdOf(doc); return Boolean(id && ids.has(id)); })),
     best(async () => (await db.collection(CAPTURE_OUTBOX_COLLECTION).where("kind", "==", INTRODUCTION_COMPANY_KIND)
       .where("status", "==", "sent").count().get()).data().count),
-    best(() => tallyStandingBillableEvents(db)),
+    best(() => tallyBillableEvents(db)),
   ]);
+  // The company emails sent, less the test introductions' (read with the billable events): null when either is unread.
+  const realIntroductionsMade = introductionsMade === null ? null : billable ? Math.max(0, introductionsMade - billable.testMade) : null;
   return {
     siteJobs: jobs.length,
     siteJobsThisWeek: thisWeek,
@@ -75,7 +81,7 @@ export async function loadJobTotals(now: Date = new Date(), store: Store | null 
     shownToCompanies,
     answered,
     introductionsAsked: introductions ? introductions.length : null,
-    introductionsMade,
+    introductionsMade: realIntroductionsMade,
     outcomeAnswers: introductions
       ? introductions.reduce((sum, doc) => sum + (Array.isArray(doc.data().outcomes) ? doc.data().outcomes.length : 0), 0) : null,
     billableEvents: billable ? billable.made : null,

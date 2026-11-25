@@ -52,6 +52,7 @@ import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
 import { accountNoticeDigest, accountNoticeDispatchBlocker, type AccountNoticeContext } from "./accountNotice";
 import { robotTeamAccessNotificationAuthority, type RobotTeamAccessNoticeContext } from "./robotTeamAccessNotificationAuthority";
 import { loadIsInternalTestJob } from "./internalTestJob";
+import { internalTestRowMayBeDelivered } from "./internalTestCompany";
 import { attemptIsDue, MAX_UNDELIVERED_AGE_MS, providerIdempotencyKey, RESEND_WINDOW_MS, retryDelayMs,
   undeliveredAgeMs, unknownRowState } from "./captureOutboxRetry";
 
@@ -471,8 +472,10 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
         tx.set(doc.ref, uncertain ? retryEnded(reason) : fields, { merge: true });
         return false;
       };
-      // The last check before any send, however the row was queued: nothing about an internal test job is sent.
-      if (await loadIsInternalTestJob(store, entry.requestId, tx))
+      // The last check before any send, however the row was queued: nothing about an internal test job is sent, but for
+      // the internal test company's own emails (owner, 2026-11-25): a row of a kind the pair uses, to exactly the
+      // configured internal test inbox (`internalTestRowMayBeDelivered`). Such a row still meets every check below.
+      if (await loadIsInternalTestJob(store, entry.requestId, tx) && !internalTestRowMayBeDelivered(entry))
         return stop({ status: "cancelled", lastError: "internal_test_job", ...clearedIntroductionDetails(entry) }, "internal_test_job");
       const accountBlocker = await accountNoticeDispatchBlocker(entry);
       if (accountBlocker) return stop({ status: "review_required", lastError: accountBlocker }, accountBlocker);

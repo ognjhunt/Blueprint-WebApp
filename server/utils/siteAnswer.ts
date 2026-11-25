@@ -36,6 +36,7 @@ import { getMeasurements, type SiteTaskMeasurementRecord } from "./siteTaskMeasu
 import type { PublicRobotFit } from "./websitePreparationStatus";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { teamJobAccess } from "./teamJobAccess";
+import { internalTestJobCreatedAtIso, isInternalTestJob } from "./internalTestJob";
 import { jobIsShared } from "./jobSharedListing";
 import { hasCurrentRecordingConsent } from "./recordingConsent";
 
@@ -730,10 +731,20 @@ const PREPARING_REASONS = new Set<string>(["no_job_sentence", "not_listed", "vid
  * - `not_visible`: shared, but held (Blueprint's hold, a rights hold, the site closed it);
  * - `not_shared`: never shared. `olderStatement` says the site agreed to an older statement and its page offers v4.
  * The date is when the site accepted the statement that shares the job.
+ *
+ * An internal test job, with `internalTestCompany` and the whole rule read for Blueprint's internal test company
+ * (`internalTestCompany.ts`, owner 2026-11-25): where it stands with that company, the only one it is shown to, dated from
+ * the test job's creation. Without that option a test job is never shared, as before.
  */
 export function jobSharingOf(request: Record<string, any>,
   /** The whole rule's answer (`loadCompanyJobAccess`), when the caller read it; else the record-only rule. */
-  wholeAccess?: { listed: boolean; reason: string | null }): JobSharing {
+  wholeAccess?: { listed: boolean; reason: string | null },
+  options: { internalTestCompany?: boolean } = {}): JobSharing {
+  if (options.internalTestCompany === true && wholeAccess && isInternalTestJob(request)) {
+    const sharedAtIso = internalTestJobCreatedAtIso(request);
+    if (wholeAccess.listed) return { state: "visible", sharedAtIso };
+    return { state: wholeAccess.reason && PREPARING_REASONS.has(wholeAccess.reason) ? "preparing" : "not_visible", sharedAtIso };
+  }
   if (!jobIsShared(request)) {
     const older = isRecord(request.request) && request.request.buyerType === "site_operator"
       && hasCurrentRecordingConsent(request.request.consent_attestation) && !projectWebsiteCaptureRights(request).consent_revoked;

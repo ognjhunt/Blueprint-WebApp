@@ -24,6 +24,7 @@
  */
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { buildLegalAcceptanceRecord, isCurrentLegalAcceptance, type ShownLegalVersions } from "../../client/src/lib/legalAcceptance";
+import { hasInternalTestCompanyMarker, isInternalTestPair } from "./internalTestCompany";
 
 export const TERMS_ACCEPTANCE_REQUIRED = "terms_acceptance_required";
 
@@ -62,16 +63,32 @@ export function recordHasCurrentTerms(record: { termsAcceptance?: unknown } | nu
  * the accepting user's id (`termsAcceptedByUid`), written only by the signed-in accept route or copied by
  * `syncCompanyTerms` from that same person's signed-in account acceptance. The tick on the unsigned application form
  * (`applicationTermsAcceptance`, on applications before 2026-11-23 only) never satisfies it (planner, 19:50Z, G1).
+ * Never a record carrying the internal test company's marker (owner, 2026-11-25, `internalTestCompany.ts`): that company
+ * sees internal test jobs only, so it is kept out of every real job's path here.
  */
 export function companyMaySeeJobs(record: AccessLike): boolean {
   return record?.status === "approved" && record.partnerRole !== "technology" && recordHasCurrentTerms(record)
     && typeof (record as { termsAcceptedByUid?: unknown }).termsAcceptedByUid === "string"
-    && Boolean((record as { termsAcceptedByUid?: string }).termsAcceptedByUid);
+    && Boolean((record as { termsAcceptedByUid?: string }).termsAcceptedByUid) && !hasInternalTestCompanyMarker(record);
 }
 
-/** Approved and a deployment company, whatever its Terms state: who an outcome question may still go to (G4). */
+/**
+ * Approved and a deployment company, whatever its Terms state: who an outcome question may still go to (G4). Never the
+ * internal test company (its marker), which is introduced to no real job.
+ */
 export function isApprovedDeploymentCompanyRecord(record: AccessLike): boolean {
-  return record?.status === "approved" && record.partnerRole !== "technology";
+  return record?.status === "approved" && record.partnerRole !== "technology" && !hasInternalTestCompanyMarker(record);
+}
+
+/**
+ * Who may act on THIS job, for a path that holds the job and the company (introductions, clarifications, their emails):
+ * the pair (Blueprint's internal test company AND an internal test job, `internalTestCompany.ts`), or the one predicate
+ * `companyMaySeeJobs`. Such a path reads the job's access with `internalTestPairAccessOptions` (`internalTestCompany.ts`),
+ * so a company that passes here is still refused a job closed to it: a real company an internal test job, the test company
+ * every real job.
+ */
+export function companyMayActOnJob(job: unknown, companyId: unknown, company: AccessLike): boolean {
+  return isInternalTestPair(companyId, company, job) || companyMaySeeJobs(company);
 }
 
 /**

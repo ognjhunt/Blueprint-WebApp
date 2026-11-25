@@ -86,7 +86,7 @@ import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
 import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import { storedCompanySimulation } from "../utils/websiteCompanySimulation";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { loadIsInternalTestJob } from "../utils/internalTestJob";
+import { isInternalTestJob, loadIsInternalTestJob } from "../utils/internalTestJob";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { taskBriefUnclear, UNCLEAR_BRIEF_ASK } from "../utils/siteTaskScope";
@@ -1178,12 +1178,20 @@ async function siteCompanyStatus(params: StatusAnswerParams | null) {
     const [{ loadCompanyJobAccess }, { jobSharingOf }, { descriptionStatementShares, isJobSharedListing }] = await Promise.all([
       import("../utils/teamJobAccess"), import("../utils/siteAnswer"), import("../utils/jobSharedListing"),
     ]);
-    const { access } = await loadCompanyJobAccess(params.requestId, params.request);
-    const sharing = jobSharingOf(params.request, access);
+    // An internal test job is shown to Blueprint's internal test company only, while that company exists
+    // (`internalTestCompany.ts`): its page then says where the job stands with it, and offers Accept for it alone.
+    const internalTestCompany = isInternalTestJob(params.request)
+      && Boolean(await import("../utils/internalTestCompany").then(({ loadInternalTestCompany }) => loadInternalTestCompany(db))
+        .catch(() => null));
+    const { access } = await loadCompanyJobAccess(params.requestId, params.request, undefined,
+      internalTestCompany ? { internalTestCompany } : undefined);
+    const sharing = jobSharingOf(params.request, access, { internalTestCompany });
     if (sharing.state === "preparing" || (sharing.state === "not_shared" && !sharing.olderStatement && !params.videoReceived))
       sharing.videoReceived = params.videoReceived;
-    // "Posted" only when at least one approved company may see jobs (the automatic send's own rule).
-    if (sharing.state === "visible" && !await import("../utils/jobAutoSend").then(({ anyCompanyMaySeeJobs }) => anyCompanyMaySeeJobs()))
+    // "Posted" only when at least one approved company may see jobs (the automatic send's own rule); for the test job,
+    // the internal test company, read just above.
+    if (sharing.state === "visible" && !internalTestCompany
+      && !await import("../utils/jobAutoSend").then(({ anyCompanyMaySeeJobs }) => anyCompanyMaySeeJobs()))
       sharing.noCompanyCanSee = true;
     const [companies, companiesRead] = await Promise.all([sharing.state === "not_shared" ? undefined
       : import("../utils/jobCompanies").then(({ loadSiteCompanyActivity }) => loadSiteCompanyActivity(params.requestId))

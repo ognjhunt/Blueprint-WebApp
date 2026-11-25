@@ -35,8 +35,11 @@ export async function taskLifecycleNotificationIsCurrent(
  // A company was sent the job, or answered it (package C1): sent only while the job is visible to companies by the whole
  // sharing rule (an operator hold, a rights hold, the site closing its job or an authority end each stop these emails),
  // and while what the email says still stands (the send not voided, the answer unchanged).
+ // An internal test job is visible to Blueprint's internal test company only (`internalTestCompany.ts`), the one company
+ // that can answer it; the outbox lets its notice go to the internal test inbox alone.
  const {loadCompanyJobAccess}=await import('./teamJobAccess');
- if(!(await loadCompanyJobAccess(entry.requestId,snapshot.data()??null,transaction)).access.listed)return false;
+ const {internalTestJobAccessOptions}=await import('./internalTestCompany');
+ if(!(await loadCompanyJobAccess(entry.requestId,snapshot.data()??null,transaction,internalTestJobAccessOptions(snapshot.data()))).access.listed)return false;
  if(entry.idempotencyKey===undefined)return true;
  const {companyNoticeStillTrue}=await import('./jobCompanies');
  return companyNoticeStillTrue(entry.requestId,entry.kind,entry.idempotencyKey,snapshot.data()??{},transaction);
