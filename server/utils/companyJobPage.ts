@@ -20,7 +20,7 @@ import { readJobFacts } from "./jobFacts";
 import { jobThumbnailViewUrl } from "./jobThumbnailTicket";
 import { jobReadingOf, readingActionsOf } from "./siteRobotFit";
 import { firstLookFromStoredPreparation } from "./firstLookTable";
-import { companySimulationUrl, storedCompanySimulation } from "./websiteCompanySimulation";
+import { companySimulationFileName, companySimulationUrl, storedCompanySimulation } from "./websiteCompanySimulation";
 import { REMOVED, identifyingDetailsRemoved, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
 import { clarificationOnReply, questionOnReply } from "./jobClarifications";
 import { knownSiteIdentity } from "./siteIdentity";
@@ -445,9 +445,11 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     // The ticketed address this company's browser can load as the video's poster (`jobThumbnailViewUrl`).
     thumbnailUrl: taskThumbnailUrl(requestId, record) ? jobThumbnailViewUrl(requestId, viewer.companyId) : null,
     thumbnailSource: taskThumbnailUrl(requestId, record) ? thumbnailSourceOf(record) : null,
-    // The Pipeline says whether the package holds the job's object (`object_included`); said only when it does not.
-    simulationDownload: simulationUrl ? { state: "ready", url: simulationUrl,
-      ...(simulationPackage?.object_included === false ? { objectIncluded: false as const } : {}) } : { state: "not_finished" },
+    // The Pipeline says whether the package holds the job's object (`object_included`); said only when it does not. The
+    // button says the stored size, and the file is saved under the package's version (owner, 2026-11-25).
+    simulationDownload: simulationUrl && simulationPackage ? { state: "ready", url: simulationUrl,
+      sizeBytes: simulationPackage.size_bytes, fileName: companySimulationFileName(simulationPackage),
+      ...(simulationPackage.object_included === false ? { objectIncluded: false as const } : {}) } : { state: "not_finished" },
     simulation: viewerUrl ? { state: "ready", viewerUrl } : { state: "not_finished" },
     firstLook: firstLook.summary,
     firstLookRows: rows,

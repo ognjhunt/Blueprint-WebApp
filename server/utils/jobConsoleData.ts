@@ -17,7 +17,7 @@ import { projectWebsiteCaptureWithdrawal } from "./websiteCaptureWithdrawal";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
 import { iso, object, text } from "./workspace-projection";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
-import { adminCompanySimulation, storedCompanySimulation, type WebsiteCompanySimulation } from "./websiteCompanySimulation";
+import { adminCompanySimulation, companySimulationFileName, storedCompanySimulation, type WebsiteCompanySimulation } from "./websiteCompanySimulation";
 import { isInternalTestJob } from "./internalTestJob";
 import { adminViewableWebsiteScenePreview } from "./websiteScenePreview";
 import { isPlaceholderSummary } from "./siteTaskBrief";
@@ -499,7 +499,8 @@ export async function getJobConsoleDetail(requestId: string): Promise<AdminJobDe
     standing: { phase, phrase, siteSees,
       companies: companies && !revoked ? companies.sharing.words : null, pipeline: pipelineWords(preparation, scene) },
     simulationPackageUrl: packageReady ? `/api/admin/jobs/${encodeURIComponent(requestId)}/simulation.zip` : null,
-    simulationPackage: packageReady ? { files: packageReady.files, sizeBytes: packageReady.size_bytes, builtAtIso } : null,
+    simulationPackage: packageReady ? { files: packageReady.files, sizeBytes: packageReady.size_bytes, builtAtIso,
+      fileName: companySimulationFileName(packageReady, requestId) } : null,
     // The same reading as the view route's own (`jobScenePreview`), from the session this read already holds.
     scenePreviewViewUrl: adminViewableWebsiteScenePreview(record, session ?? undefined, captureId)
       ? `/api/admin/jobs/${encodeURIComponent(requestId)}/scene-preview-view` : null,
