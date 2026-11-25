@@ -264,7 +264,7 @@ describe("build output", () => {
     expect(llmsFull).not.toMatch(/early trial/i);
     // The answers the company form offers, as the site sees them, and what an introduction gives each side (review, 2026-11-12).
     expect(llmsFull).toContain("Blueprint sends each job automatically to the deployment companies it has approved.");
-    expect(llmsFull).toContain("A company answers \"Interested\", \"Not a fit\" or \"Need more details\". Blueprint can't promise any will say yes.");
+    expect(llmsFull).toContain("A company answers \"Apply\", \"Not a fit\" or \"Need more details\". Blueprint can't promise any will say yes.");
     // No company can give a tested answer (owner, 2026-11-25), and the first look is the site's own: companies are not promised one.
     for (const text of [llms, llmsFull]) {
       expect(text).not.toMatch(/Tested it/);
