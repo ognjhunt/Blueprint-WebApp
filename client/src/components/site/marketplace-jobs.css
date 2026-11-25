@@ -249,7 +249,6 @@
 }
 
 .company-job-overview,
-.company-job-evidence > section,
 .company-job-ready #answer-this-job {
   min-width: 0;
   margin: 0;
@@ -268,7 +267,17 @@
 .company-job-ready #answer-this-job .company-answer-options label { border-radius: 8px; }
 .company-job-ready #answer-this-job .ms-button { align-self: start; border-radius: 8px; }
 .company-job-ready #answer-this-job textarea { border-radius: 8px; }
-.company-job-evidence { grid-column: 1 / -1; display: grid; grid-template-columns: 1.35fr 1fr 1fr; gap: 16px; }
+/* Under the title: about the site, then a line under the simulation's buttons; both quiet, both short. */
+.company-job ul.company-job-about { margin: 6px 0 0; padding: 0; list-style: none; color: var(--ms-muted); font-size: 14px; }
+.company-job-about li { display: inline; }
+.company-job-about li + li::before { content: " · "; }
+.company-job > section.company-job-simulation { margin: -12px 0 18px; padding: 0; border: 0; }
+.company-job-simulation p { margin: 0; color: var(--ms-muted); font-size: 14px; }
+.company-job-simulation p + p { margin-top: 4px; }
+/* The visit list is the same for every job of its kind: one line until opened. */
+.company-job-visit details > summary { cursor: pointer; font-weight: 650; }
+.company-job-visit ul { margin: 8px 0 0; padding-left: 20px; }
+.company-job-visit .ms-field-hint { margin: 6px 0 0; }
 /* The fit summary: label and answer side by side, scanned like a load post; a skipped answer reads quieter. */
 .company-fit-summary { display: grid; gap: 0; margin: 10px 0 8px; border-top: 1px solid #e3e6dd; }
 .company-fit-summary > div { display: grid; grid-template-columns: minmax(9rem, 38%) minmax(0, 1fr); gap: 12px; padding: 7px 0;
@@ -276,6 +285,8 @@
 .company-fit-summary dt { font-size: 14px; font-weight: 650; }
 .company-fit-summary dd { margin: 0; overflow-wrap: anywhere; }
 .company-fit-summary .company-fit-missing dd { color: var(--ms-muted); }
+.company-fit-skipped { margin: 8px 0 6px; color: var(--ms-muted); font-size: 14px; }
+.company-fit-skipped strong { font-weight: 650; }
 
 /* The site's next decision is the company reply. Sent dates and timings stay readable at secondary weight. */
 .bare-screen.site-job-status { max-width: 680px; }
@@ -394,7 +405,7 @@
   .opportunities-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .opportunities-search { grid-column: 1 / -1; }
   .opportunities-ready { grid-column: 1 / -1; width: max-content; }
-  .company-job-grid, .company-job-evidence { grid-template-columns: minmax(0, 1fr); }
+  .company-job-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 460px) {

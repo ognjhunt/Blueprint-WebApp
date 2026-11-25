@@ -12,7 +12,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { jobTitleForDisplay, type CompanyFirstLookRow, type CompanyJobPage } from "../../client/src/types/taskBrowse";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, isCompanyResponseState, replyByIso } from "../../client/src/lib/companyResponses";
 import { jobFactsInWords } from "../../client/src/lib/jobFacts";
-import { FIRST_LOOK_STATUS, SIMULATION_STATUS, SITE_AGREED_SHARING, SITE_IDENTITY_RULE, answerSpeedInWords, fitSummary, jobHeadline,
+import { FIRST_LOOK_STATUS, SIMULATION_STATUS, SITE_IDENTITY_RULE, answerSpeedInWords, fitSummary, jobHeadline,
   rateInWords, visitMustConfirm } from "../../client/src/lib/companyJobPage";
 import { firstLookRowFromAnswerRobot, firstLookRowInWords } from "../../client/src/lib/firstLookWords";
 import { readJobFacts } from "./jobFacts";
@@ -247,12 +247,13 @@ export function companyJobHeadline(record: Record<string, any>, taskFamily: stri
 }
 
 /**
- * About the site, with nothing that identifies it: that its identity comes only with an introduction it asks for,
- * that it agreed to share the job, and how quickly it has answered companies' questions here (the median, from
- * questions asked and answered on this job; nothing when none has been).
+ * About the site, with nothing that identifies it: that its identity comes only with an introduction it asks for, and
+ * how quickly it has answered companies' questions here (the median, from questions asked and answered on this job;
+ * nothing when none has been). That the site agreed to share the job is not said to the company (owner, 2026-11-25:
+ * the page said more than a company acts on).
  */
 export async function aboutTheSite(requestId: string): Promise<string[]> {
-  const lines: string[] = [SITE_IDENTITY_RULE, SITE_AGREED_SHARING];
+  const lines: string[] = [SITE_IDENTITY_RULE];
   if (!db) return lines;
   try {
     // One row per company that answered this job; bounded, as the job page reads it on every visit.

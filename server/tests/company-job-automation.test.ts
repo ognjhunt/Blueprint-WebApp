@@ -33,7 +33,7 @@ import { currentTermsAcceptance, passedPrivacyScreen, sharedJobListing, sharedRe
 import { INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION as INTRODUCTION_REQUEST_STATEMENT_VERSION } from "../../client/src/lib/siteIntroductions";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
-import { SITE_AGREED_SHARING, SITE_IDENTITY_RULE, VISIT_MUST_CONFIRM } from "../../client/src/lib/companyJobPage";
+import { SITE_IDENTITY_RULE, VISIT_MUST_CONFIRM } from "../../client/src/lib/companyJobPage";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -510,7 +510,7 @@ describe("the company's page for one job (E3)", () => {
       ["When", null, "not_stated"],
     ]);
     expect(item.visitMustConfirm).toEqual([...VISIT_MUST_CONFIRM.palletizing]);
-    expect(item.aboutSite).toEqual([SITE_IDENTITY_RULE, SITE_AGREED_SHARING]);
+    expect(item.aboutSite).toEqual([SITE_IDENTITY_RULE]);
     expect(item).not.toHaveProperty("notShown");
     // A viewer and a first look exist in this fixture, so neither box needs a status.
     expect(item).toMatchObject({ simulationStatus: null });
@@ -550,7 +550,7 @@ describe("the company's page for one job (E3)", () => {
     const answeredAtIso = new Date(Date.parse(reply.questionAskedAtIso) + 150 * 60_000).toISOString();
     state.docs.set(ref, { ...(state.docs.get(ref) as Record<string, any>), siteClarification: { questionId: reply.questionId,
       text: "About 12.", answeredAtIso } });
-    expect((await page(SOUTH)).body.item.aboutSite).toEqual([SITE_IDENTITY_RULE, SITE_AGREED_SHARING,
+    expect((await page(SOUTH)).body.item.aboutSite).toEqual([SITE_IDENTITY_RULE,
       "Answers questions from companies here, usually within 3 hours."]);
   });
 
