@@ -101,6 +101,14 @@ describe("job facts code lists (PACKAGE_E E1)", () => {
     expect(jobFactKeysFor(undefined, reading("transport", null))).toEqual(["route", "routeObstacles", "perHour", "hours", "timing"]);
     // A keyword type of the same kind keeps its narrower questions; a disagreeing one gives way to the reading.
     expect(jobFactKeysFor("Case packing", reading("pick_and_place"))).toEqual(jobFactKeysForType("Case packing"));
+    expect(jobFactKeysFor("Packaging", reading("pick_and_place"))).toEqual(jobFactKeysForType("Packaging"));
+    // Owner, 2026-11-25: one lamp moved from a bedside table to a shelf is not a flow of loads. "Material handling" is
+    // matched by any words about moving things, so the reading's own questions win, kinds agreeing or not.
+    expect(jobFactKeysFor("Material handling", reading("pick_and_place", "bedside lamp")))
+      .toEqual(["weight", "size", "perHour", "hours", "timing"]);
+    expect(jobFactKeysFor("Material handling", reading("pick_and_place"))).not.toContain("pickupHandoff");
+    // Until a reading gives a kind, the keyword's questions stay.
+    expect(jobFactKeysFor("Material handling", null)).toEqual(jobFactKeysForType("Material handling"));
     expect(jobFactKeysFor("Depalletizing", reading("palletizing"))).toEqual(jobFactKeysForType("Depalletizing"));
     expect(jobFactKeysFor("Case packing", reading("palletizing"))).toEqual(jobFactKeysForType("Palletizing"));
     expect(jobFactKeysFor("Quality inspection", reading("other"))).toEqual(jobFactKeysForType("Quality inspection"));
@@ -159,6 +167,17 @@ describe("job facts code lists (PACKAGE_E E1)", () => {
     expect(sanitizeJobFacts({ size: "huge" })).toBeNull();
     expect(sanitizeJobFacts("x")).toBeNull();
     expect(sanitizeJobFacts([])).toBeNull();
+  });
+
+  // The job brief's own questions (`client/src/lib/jobBrief.ts`): an id and a choice index or "unsure", never words.
+  it("keeps the answers to the job brief's own questions as an id and a choice index, and nothing else", () => {
+    expect(sanitizeJobFacts({ weight: "5_15kg", custom: { how_often_moved: 1, lamp_fragile: "unsure", Bad_Id: 0,
+      too_far: 4, negative: -1, half: 1.5, words: "Daily", nested: { x: 1 } }, updatedAtIso: "2026-11-12T00:00:00.000Z" }))
+      .toEqual({ weight: "5_15kg", custom: { how_often_moved: 1, lamp_fragile: "unsure" }, updatedAtIso: "2026-11-12T00:00:00.000Z" });
+    // Answers to the brief's questions alone are answers.
+    expect(sanitizeJobFacts({ custom: { how_often_moved: 0 } })).toEqual({ custom: { how_often_moved: 0 }, updatedAtIso: "" });
+    expect(sanitizeJobFacts({ custom: { Bad: 0 } })).toBeNull();
+    expect(sanitizeJobFacts({ weight: "5_15kg", custom: [] })).toEqual({ weight: "5_15kg", updatedAtIso: "" });
   });
 
   it("words the answers the same way for both pages", () => {

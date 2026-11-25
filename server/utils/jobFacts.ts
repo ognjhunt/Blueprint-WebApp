@@ -57,7 +57,8 @@ export async function saveJobFactTap(requestId: string, tap: JobFactTap, now = n
     const next: Record<string, string> = {};
     for (const key of JOB_FACT_KEYS) if (current?.[key]) next[key] = current[key] as string;
     next[tap.key] = tap.code;
-    const stored = { ...next, updatedAtIso: now.toISOString() } as JobFacts;
+    // The answers to the job brief's own questions stay as they are.
+    const stored = { ...next, ...(current?.custom ? { custom: current.custom } : {}), updatedAtIso: now.toISOString() } as JobFacts;
     // `update` with the whole map replaces the field's value, so nothing but known codes remains under it;
     // every other field on the job is untouched.
     tx.update(ref, { [JOB_FACTS_FIELD]: stored });

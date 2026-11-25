@@ -12,8 +12,9 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { jobTitleForDisplay, type CompanyFirstLookRow, type CompanyJobPage } from "../../client/src/types/taskBrowse";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, isCompanyResponseState, replyByIso } from "../../client/src/lib/companyResponses";
 import { jobFactsInWords } from "../../client/src/lib/jobFacts";
-import { FIRST_LOOK_STATUS, SIMULATION_STATUS, SITE_AGREED_SHARING, SITE_IDENTITY_RULE, answerSpeedInWords, fitSummary, jobHeadline,
-  rateInWords, visitMustConfirm } from "../../client/src/lib/companyJobPage";
+import { FIRST_LOOK_STATUS, SIMULATION_STATUS, SITE_AGREED_SHARING, SITE_IDENTITY_RULE, answerSpeedInWords, fitObjectRow, fitSummary,
+  jobHeadline, rateInWords, visitMustConfirm, type FitSummaryRow } from "../../client/src/lib/companyJobPage";
+import { jobBriefFitSummary, jobBriefWords, type JobBriefEstimates, type StoredJobBrief } from "../../client/src/lib/jobBrief";
 import { firstLookRowFromAnswerRobot, firstLookRowInWords } from "../../client/src/lib/firstLookWords";
 import { readJobFacts } from "./jobFacts";
 import { jobThumbnailViewUrl } from "./jobThumbnailTicket";
@@ -34,7 +35,7 @@ import { decryptFieldValue } from "./field-encryption";
 import { companyMaySeeJobs } from "./companyTerms";
 import { hasInternalTestCompanyMarker, isInternalTestCompanyRow } from "./internalTestCompany";
 import { storedPacketFacts, type PacketFacts, type PACKET_FACT_QUESTIONS } from "./websitePreparationStatus";
-import type { JobFactKey, JobFacts } from "../../client/src/lib/jobFacts";
+import type { JobFactKey, JobFacts, JobReading } from "../../client/src/lib/jobFacts";
 import type { KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { loadScreenings, NOTHING_SCREENED, screenAndWait, siteReplyStateForCompany, siteWordsDeterministic, siteWordsForCompany,
   siteWordsStateForCompany, type Screenings } from "./freeTextScreening";
@@ -236,6 +237,27 @@ function companyJobObject(name: string | null, known: KnownSiteIdentity, screeni
 }
 
 /**
+ * The "At a glance" rows as a company reads them: the job's brief (`client/src/lib/jobBrief.ts`) when it is current and
+ * at least three of its rows can be shown (`jobBriefFitSummary`), else the catalog's rows (`fitSummary`). The brief's
+ * labels, quotes and choices are a model's words and the site's own, so each is read as the reading's words are
+ * (`deterministicPassesKeep`, then `modelPassKeeps` over all of them as one text): a word any pass would change is not
+ * shown, a row whose label or value is not shown is left out, and while the model pass has not read them, or the
+ * site's identity cannot be read, the catalog's rows are shown. Every value is written by code from the job record.
+ */
+export function companyFitSummary(input: { jobBrief: StoredJobBrief | null; estimates: JobBriefEstimates | null; sentence: string;
+  facts: Partial<JobFacts> | null; taskFamily: string; reading: Pick<JobReading, "kind" | "object" | "others"> | null;
+  estimated: ReadonlySet<JobFactKey> }, known: KnownSiteIdentity | null, screenings: Screenings = NOTHING_SCREENED()): FitSummaryRow[] {
+  const catalog = () => fitSummary(input.facts, input.taskFamily, input.reading, input.estimated);
+  if (!input.jobBrief || !known) return catalog();
+  const words = jobBriefWords(input.jobBrief).filter(text => deterministicPassesKeep(text, known));
+  const screened = modelPassKeeps(words, screenings);
+  if (screened.state !== "shown") return catalog();
+  const kept = new Set(words.filter((_, index) => screened.kept[index]));
+  return jobBriefFitSummary(input.jobBrief, { facts: input.facts, estimates: input.estimates, sentence: input.sentence,
+    estimated: input.estimated, shown: text => kept.has(text), objectRow: fitObjectRow(input.reading) }) ?? catalog();
+}
+
+/**
  * The job's title from the video reading (`jobHeadline`), with the object's name only as `companyJobObject` allows: no
  * name at all without the site's identity, or while the model pass over it has not succeeded.
  */
@@ -339,6 +361,11 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
   const facts = readJobFacts(record);
   const storedFacts = storedPacketFacts(session?.website_preparation);
   const reading = jobReadingOf(record);
+  // The job's brief, when it was written from what the record holds now; a job with a reading and none gets one
+  // written in the background, never waited for (the catalog's rows are shown meanwhile).
+  const { jobBriefOfRecord, requestJobBrief } = await import("./jobBrief");
+  const jobBrief = jobBriefOfRecord(record, brief);
+  if (jobBrief.wanted) requestJobBrief(requestId);
   const taskFamily = access.details.taskFamily;
   const clip = storedCompanyClip(session, captureId);
   const clipUrl = clip ? companyClipUrl(requestId, captureId, viewer.companyId) : null;
@@ -360,21 +387,28 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
   // The words a model read from the site's video and sentence go the same way: the Pipeline's packet facts and the
   // reading's object names (`packetFactsForCompany`, `companyJobObject`). Identity that cannot be read right now: no
   // sentence, no packet facts and no object name this time, never one that might name the site.
-  const siteWords = (results: Screenings) => ({
-    sentence: siteSentenceForCompany(brief, known, results),
-    successRule: siteWordsStateForCompany(siteSuccessRuleSource(brief), known, results),
-    clarification: clarification === undefined ? undefined : siteReplyStateForCompany(clarification, known, results),
-    packet: known ? packetFactsForCompany(storedFacts, facts, known, results)
-      : { packetFacts: null, estimated: [] as JobFactKey[], pending: Boolean(storedFacts) },
-    headline: companyJobHeadline(record, taskFamily, jobTitleForDisplay(access.details.title), known, results),
-    reading: reading && known ? { ...reading, object: companyJobObject(reading.object, known, results),
+  const siteWords = (results: Screenings) => {
+    const packet = known ? packetFactsForCompany(storedFacts, facts, known, results)
+      : { packetFacts: null, estimated: [] as JobFactKey[], pending: Boolean(storedFacts) };
+    const readingShown = reading && known ? { ...reading, object: companyJobObject(reading.object, known, results),
       others: reading.others.map(item => companyJobObject(item, known, results)).filter(isName) }
-      : reading ? { ...reading, object: null, others: [] } : null,
-  });
+      : reading ? { ...reading, object: null, others: [] } : null;
+    return {
+      sentence: siteSentenceForCompany(brief, known, results),
+      successRule: siteWordsStateForCompany(siteSuccessRuleSource(brief), known, results),
+      clarification: clarification === undefined ? undefined : siteReplyStateForCompany(clarification, known, results),
+      packet,
+      headline: companyJobHeadline(record, taskFamily, jobTitleForDisplay(access.details.title), known, results),
+      // The job's brief, else the questions the site's page asked, chosen the same way, "Not stated" where the site
+      // skipped one; the object's name only as `companyJobObject` allows it (`companyFitSummary`).
+      fit: companyFitSummary({ jobBrief: jobBrief.current, estimates: jobBrief.estimates, sentence: jobBrief.sentence, facts,
+        taskFamily, reading: readingShown, estimated: new Set(packet.estimated) }, known, results),
+    };
+  };
   let words = siteWords(screenings);
   if (screenings.missing.length && await screenAndWait(requestId, screenings.missing, 4_000))
     words = siteWords(await loadScreenings(requestId));
-  const { sentence, successRule: successRead, clarification: clarificationRead, packet, headline, reading: readingShown } = words;
+  const { sentence, successRule: successRead, clarification: clarificationRead, packet, headline, fit } = words;
   const successRule = successRead.state === "shown" ? successRead.text : "";
   // A rule the site gave that is not shown yet is said so, never as "The site has not said what counts as done yet"
   // (a review of PR #1437).
@@ -401,9 +435,9 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     ...(successRulePending ? { successRulePending: true as const } : {}),
     // The questions the site's page asked, chosen the same way: the reading's kind of job, else the keyword match.
     jobFacts: jobFactsInWords(facts, taskFamily, reading),
-    // The same answers as a fixed set of fields, "Not stated" where the site skipped one; the object's name only as
-    // `companyJobObject` allows it.
-    fitSummary: fitSummary(facts, taskFamily, readingShown, new Set(packet.estimated)),
+    // The facts that decide this job, from its brief (`companyFitSummary`), else the catalog's: "Not stated" where the
+    // site skipped one; the object's name only as `companyJobObject` allows it.
+    fitSummary: fit,
     country,
     video: clip && clipUrl ? { state: "ready", url: clipUrl, width: clip.width, height: clip.height, durationSeconds: clip.duration_seconds }
       : { state: "preparing" },

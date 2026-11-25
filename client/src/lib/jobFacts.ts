@@ -219,6 +219,15 @@ export const KINDS_OF_JOB_TYPE: Readonly<Partial<Record<string, readonly ReaderJ
 };
 
 /**
+ * Keyword types whose questions are not a narrower case of the reading's own, even where the kinds agree (owner,
+ * 2026-11-25: "Move the lamp from the round bedside table to the glass shelf on the wall." was asked where the robot
+ * picks up the load, the heaviest loaded item and the peak incoming rate). "Material handling" is matched by any words
+ * about moving things, and its questions are about a flow of loads; one object moved now and then is asked the reading's
+ * own questions. Case packing and packaging keep theirs: a case packing job is still asked how many items go in a case.
+ */
+const READING_QUESTIONS_WIN_OVER: ReadonlySet<string> = new Set(["Material handling"]);
+
+/**
  * The questions for a job: from the video reading's kind once it gives one, the keyword match only until then. A job
  * that moves between places with nothing carried is not asked a weight. The site's page and the company's page both
  * choose with this, so they show the same questions.
@@ -226,7 +235,8 @@ export const KINDS_OF_JOB_TYPE: Readonly<Partial<Record<string, readonly ReaderJ
 export function jobFactKeysFor(taskFamily: string | undefined, reading?: Pick<JobReading, "kind" | "object"> | null): readonly JobFactKey[] {
   const kind = reading?.kind ?? null;
   if (!kind) return jobFactKeysForType(taskFamily);
-  if (taskFamily && KINDS_OF_JOB_TYPE[taskFamily]?.includes(kind)) return jobFactKeysForType(taskFamily);
+  if (taskFamily && !READING_QUESTIONS_WIN_OVER.has(taskFamily) && KINDS_OF_JOB_TYPE[taskFamily]?.includes(kind))
+    return jobFactKeysForType(taskFamily);
   const keys = QUESTIONS_BY_KIND[kind];
   return kind === "transport" && !reading?.object ? keys.filter(key => key !== "weight") : keys;
 }
@@ -336,7 +346,36 @@ export const JOB_FACT_SHORT_LABELS: Readonly<Record<JobFactKey, string>> = {
   areaChange: "Work area can change",
 };
 
-export type JobFacts = { [Key in JobFactKey]?: JobFactCode<Key> } & { updatedAtIso: string };
+/**
+ * The site's answer to one of its job brief's own questions (`client/src/lib/jobBrief.ts`, `ask_site` rows): the index of
+ * the choice it tapped, or "unsure" for "Not sure". Stored under `job_facts.custom`, by the brief row's id.
+ */
+export type CustomJobFactAnswer = number | "unsure";
+/** A brief row's id as `job_facts.custom` keys it (`JOB_BRIEF_ID` in `jobBrief.ts`). */
+export const CUSTOM_JOB_FACT_ID = /^[a-z][a-z0-9_]{0,31}$/;
+/** The most choices a brief's own question offers, besides "Not sure". */
+export const CUSTOM_JOB_FACT_CHOICES_MAX = 4;
+const CUSTOM_JOB_FACTS_MAX = 12;
+
+export type JobFacts = { [Key in JobFactKey]?: JobFactCode<Key> } & { updatedAtIso: string;
+  /** Answers to the job brief's own questions, by row id; absent when there are none. */
+  custom?: Readonly<Record<string, CustomJobFactAnswer>> };
+
+/** Whether a stored value can be an answer to a brief's own question: a choice index, or "unsure". */
+export function isCustomJobFactAnswer(value: unknown): value is CustomJobFactAnswer {
+  return value === "unsure" || (typeof value === "number" && Number.isInteger(value) && value >= 0 && value < CUSTOM_JOB_FACT_CHOICES_MAX);
+}
+
+/** The well-formed answers to the brief's own questions in a stored value, or null when there are none. */
+export function sanitizeCustomJobFacts(value: unknown): Record<string, CustomJobFactAnswer> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const answers: Record<string, CustomJobFactAnswer> = {};
+  for (const [id, answer] of Object.entries(value as Record<string, unknown>).slice(0, CUSTOM_JOB_FACTS_MAX * 4)) {
+    if (Object.keys(answers).length >= CUSTOM_JOB_FACTS_MAX) break;
+    if (CUSTOM_JOB_FACT_ID.test(id) && isCustomJobFactAnswer(answer)) answers[id] = answer;
+  }
+  return Object.keys(answers).length ? answers : null;
+}
 
 /** The weight range's bounds in kg; null where the answer gives none (over 30 kg has no upper bound). */
 export const WEIGHT_RANGE_KG: Readonly<Record<JobFactCode<"weight">, { lower: number; upper: number | null } | null>> = {
@@ -395,16 +434,18 @@ export function jobFactLabel<K extends JobFactKey>(key: K, code: string): string
 
 /**
  * Only the known answers of a stored value, or null when there are none. Anything else on the record
- * (an unknown key, an unknown code, text) is dropped, never shown.
+ * (an unknown key, an unknown code, text) is dropped, never shown. Answers to the job brief's own questions are kept
+ * under `custom` as an id and a choice index (or "unsure"), never as words.
  */
 export function sanitizeJobFacts(value: unknown): JobFacts | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const raw = value as Record<string, unknown>;
   const facts: Record<string, string> = {};
   for (const key of JOB_FACT_KEYS) if (isJobFactCode(key, raw[key])) facts[key] = raw[key] as string;
-  if (Object.keys(facts).length === 0) return null;
+  const custom = sanitizeCustomJobFacts(raw.custom);
+  if (Object.keys(facts).length === 0 && !custom) return null;
   const updatedAtIso = typeof raw.updatedAtIso === "string" && !Number.isNaN(Date.parse(raw.updatedAtIso)) ? raw.updatedAtIso : "";
-  return { ...(facts as Omit<JobFacts, "updatedAtIso">), updatedAtIso };
+  return { ...(facts as Omit<JobFacts, "updatedAtIso" | "custom">), ...(custom ? { custom } : {}), updatedAtIso };
 }
 
 /**

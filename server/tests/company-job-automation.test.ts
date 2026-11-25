@@ -526,6 +526,48 @@ describe("the company's page for one job (E3)", () => {
     expectNoSiteIn("the job page payload", raw);
   });
 
+  // Owner, 2026-11-25: "At a glance" is chosen for this job by its brief, every value written by code from the record.
+  it("leads with the job brief's own rows once one is written, each value from the record and never the site's name", async () => {
+    const { ensureJobBrief, resetJobBriefForTests, useJobBriefWriter } = await import("../utils/jobBrief");
+    state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, confirmedAtIso: null,
+      summary: "Move the lamp from the round bedside table to the glass shelf on the wall." });
+    patchJob({ job_facts: { hours: "two_shifts", updatedAtIso: "2026-11-25T10:00:00.000Z" },
+      walkthrough_job_estimates: { capture_id: CAPTURE, job_estimates: { job_kind: "pick_and_place", object: "bedside lamp",
+        object_largest_side_m: 0.45, object_mass_kg_low: 1, object_mass_kg_high: 3 } } });
+    const rows = (item: Record<string, any>) => item.fitSummary.map((row: Record<string, unknown>) => [row.label, row.value, row.state]);
+    // No brief yet (none can be written here): the reading's own questions for one lamp, not a flow of loads.
+    expect(rows((await page()).body.item)).toEqual([["Object", "bedside lamp", "from_video"], ["Weight", null, "not_stated"],
+      ["Size, longest side", null, "not_stated"], ["Times an hour", null, "not_stated"], ["Hours a day", "Two shifts", "stated"],
+      ["When", null, "not_stated"]]);
+    try {
+      useJobBriefWriter(async () => [
+        { id: "lamp_size_weight", label: "Lamp size and weight", evidence: "video_estimate",
+          estimate_fields: ["object_largest_side_m", "object_mass_kg_low", "object_mass_kg_high"] },
+        { id: "table_to_shelf", label: "From table to shelf", evidence: "site_sentence", quote: "from the round bedside table to the glass shelf" },
+        { id: "how_often_moved", label: "How often it is moved", evidence: "ask_site", question: "How often is the lamp moved?",
+          choices: ["Once a day", "A few times a day", "Once a week or less"] },
+        { id: "zebra_care", label: "ZEBRAPLANT lamp care", evidence: "ask_site", question: "Is the lamp fragile?", choices: ["Yes", "No"] },
+        { id: "hours", label: "Hours a day", evidence: "site_answer", answer_key: "hours" },
+      ]);
+      await ensureJobBrief(ID);
+      // The site answers the brief's own question on its page: the second choice.
+      patchJob({ job_facts: { ...jobDoc().job_facts, custom: { how_often_moved: 1 } } });
+      const { body, raw } = await page();
+      expect(body.item.fitSummary).toEqual([
+        { key: "object", label: "Object", value: "bedside lamp", state: "from_video" },
+        { key: "brief:lamp_size_weight", label: "Lamp size and weight", value: "About 45 cm on its longest side, about 1 to 3 kg",
+          state: "from_video", source: "video_estimate" },
+        { key: "brief:table_to_shelf", label: "From table to shelf", value: "from the round bedside table to the glass shelf",
+          state: "stated", source: "site_sentence" },
+        { key: "brief:how_often_moved", label: "How often it is moved", value: "A few times a day", state: "stated", source: "site" },
+        { key: "hours", label: "Hours a day", value: "Two shifts", state: "stated", source: "site" },
+      ]);
+      expectNoSiteIn("the job page payload with a brief", raw);
+    } finally {
+      resetJobBriefForTests();
+    }
+  });
+
   // A review of PR #1437: a rule the site gave that is not shown yet is said so, never "has not said what counts as done".
   it("says the site's rule for done cannot be shown yet while its words are unread, and nothing of the kind when it gave none", async () => {
     const brief = state.docs.get(`siteTaskBriefs/${ID}`)!;
