@@ -53,7 +53,7 @@ describe("a job in the library", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
   });
 
-  it("shows each card's sentence from the site, with search and Ready to test as the only filters", async () => {
+  it("shows each card's sentence from the site, with search and Simulation ready as the only filters", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access, items: [
       card({ region: "United States", sentence: "Stack 12 kg cartons onto the pallet." }),
       card({ id: "job-2", title: "Inspect cases", region: "Canada", sentence: "Check each case label." }),
@@ -62,7 +62,7 @@ describe("a job in the library", () => {
     expect(await screen.findByText("Stack 12 kg cartons onto the pallet.")).toBeVisible();
     expect(screen.queryByRole("combobox", { name: "Job type" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Region" })).toBeNull();
-    expect(screen.getByRole("checkbox", { name: "Ready to test" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Simulation ready" })).toBeInTheDocument();
     fireEvent.change(screen.getByRole("searchbox", { name: "Search jobs" }), { target: { value: "label" } });
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
     expect(screen.getByRole("heading", { name: "Inspect cases" })).toBeVisible();
@@ -104,9 +104,9 @@ describe("a job in the library", () => {
       card({ id: "job-2", title: "Scene without a package", evaluationAvailable: true, simulationStage: "simulation_built" }),
     ] }) });
     render(<TaskBrowse />);
-    fireEvent.click(await screen.findByRole("checkbox", { name: "Ready to test" }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Simulation ready" }));
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
-    expect(within(screen.getByRole("listitem")).getByText("Ready to test")).toBeVisible();
+    expect(within(screen.getByRole("listitem")).getByText("Simulation ready")).toBeVisible();
     expect(screen.queryByText("Scene without a package")).toBeNull();
   });
   it("links the row to the job's own page and carries no answer form of its own", async () => {

@@ -20,6 +20,7 @@ import {
   viewableWebsiteScenePreview,
   websiteScenePreviewViewerFiles,
 } from "../utils/websiteScenePreview";
+import { recordSimulationUse } from "../utils/simulationUse";
 
 const router = Router();
 const unavailable = { error: "3D preview is unavailable", code: "website_atlas_preview_unavailable" };
@@ -82,6 +83,8 @@ router.get("/:requestId/:captureId/:file(scene.ply|settings.json)", async (req, 
     const { size } = await stat(file);
     res.set({ "Content-Type": name === "settings.json" ? "application/json" : "application/octet-stream",
       "Content-Length": String(size), "Content-Disposition": "inline", "X-Content-Type-Options": "nosniff" });
+    // The owner's count of viewer opens (`simulationUse.ts`): a company's viewer loading the scene; never waited for.
+    if (companyViewer !== null && name === "scene.ply" && req.method === "GET") recordSimulationUse(requestId, companyViewer, "viewer_open");
     createReadStream(file).on("error", () => res.destroy()).pipe(res);
   } catch (error) {
     logger.warn({ error, requestId, captureId }, "3D preview view unavailable");

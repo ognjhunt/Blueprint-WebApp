@@ -920,6 +920,8 @@ describe("the company's page for one job (E3)", () => {
     expect(firstResponse)
       .toMatchObject({ state: "interested", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION, recordedBy: "company" });
     expect(firstResponse?.firstAnsweredAtIso).toBe(firstResponse?.updatedAtIso);
+    // When it first applied, for the owner's marketplace numbers (`marketplaceNumbers.ts`).
+    expect(firstResponse?.firstAppliedAtIso).toBe(firstResponse?.updatedAtIso);
     expect((await page()).body.item.myAnswer).toMatchObject({ state: "interested", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION });
     // The site is queued one email by alias and fixed label only; no person at Blueprint is rung.
     const queued = outbox();
@@ -927,7 +929,25 @@ describe("the company's page for one job (E3)", () => {
     expect(queued[0]).toMatchObject({ to: SITE.email, subject: "A deployment company answered" });
     expect(JSON.stringify(queued)).not.toMatch(/North|contact@north|We do this every day/);
     expect((await answer(NORTH, { state: "needs_something" })).status).toBe(200);
-    expect(state.docs.get(responsePath)).toMatchObject({ state: "needs_something", firstAnsweredAtIso: firstResponse?.firstAnsweredAtIso });
+    expect(state.docs.get(responsePath)).toMatchObject({ state: "needs_something", firstAnsweredAtIso: firstResponse?.firstAnsweredAtIso,
+      firstAppliedAtIso: firstResponse?.firstAppliedAtIso });
+  });
+
+  it("keeps that an older, edited application applied, when it changes to Not a fit and back, without making up its time", async () => {
+    const responsePath = `inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`;
+    // An application recorded before the first-application fields existed, edited since: its first Apply is not known.
+    state.docs.set(responsePath, { state: "interested", inputs: "We do this every day", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION,
+      email: NORTH.email, company: "North Robotics", recordedBy: "company", firstAnsweredAtIso: "2026-11-20T10:00:00.000Z",
+      updatedAtIso: "2026-11-21T10:00:00.000Z" });
+    expect((await answer(NORTH, { state: "declined" })).status).toBe(200);
+    const declined = state.docs.get(responsePath);
+    expect(declined).toMatchObject({ state: "declined", firstAnsweredAtIso: "2026-11-20T10:00:00.000Z",
+      appliedAtOrBeforeIso: "2026-11-21T10:00:00.000Z" });
+    expect(declined?.firstAppliedAtIso).toBeUndefined();
+    expect((await answer(NORTH)).status).toBe(200);
+    const again = state.docs.get(responsePath);
+    expect(again).toMatchObject({ state: "interested", appliedAtOrBeforeIso: "2026-11-21T10:00:00.000Z" });
+    expect(again?.firstAppliedAtIso).toBeUndefined();
   });
 
   it("lists the job in the library with its page link and nothing that names the site", async () => {

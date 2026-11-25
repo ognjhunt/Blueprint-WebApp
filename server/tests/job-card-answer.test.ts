@@ -209,7 +209,8 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
 });
 
 describe("GET /api/site-worlds/tasks", () => {
-  it("shows the headline alone on a shared card, and does not list a card under an older version", async () => {
+  // Owner, 2026-11-25: a company's list carries no first look; the answer is not composed for it at all.
+  it("lists a shared card with no first look, and does not list a card under an older version", async () => {
     const { loadSiteAnswer } = await import("../utils/siteAnswer");
     vi.mocked(loadSiteAnswer).mockClear();
     put(job());
@@ -218,11 +219,11 @@ describe("GET /api/site-worlds/tasks", () => {
     const { body } = await get("/tasks");
     const shared = body.items.find((item: { id: string }) => item.id === ID);
     const plain = body.items.find((item: { id: string }) => item.id === "req-plain");
-    expect(shared.answerHeadline).toMatch(/^Most likely to fit: /);
+    expect(shared.answerHeadline).toBeUndefined();
     expect(shared.answerSummary).toBeUndefined();
     expect(plain).toBeUndefined();
     expect(seams.managed).not.toHaveBeenCalled();
-    // The answer is composed for the consenting card only.
-    expect(vi.mocked(loadSiteAnswer).mock.calls.map(call => call[0])).toEqual([ID]);
+    // No answer is composed for the list.
+    expect(vi.mocked(loadSiteAnswer)).not.toHaveBeenCalled();
   });
 });

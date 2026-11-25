@@ -227,7 +227,8 @@ router.get("/tasks", async (req, res) => {
     const { access, viewer } = await companyViewerForRequest(req);
     if (access.termsRequired) return termsRequired(res, access);
     if (!access.allowed) return res.json({ items: [], access });
-    const items = await listTaskBrowseCards({ withAnswerHeadlines: true });
+    // No first look on a company's list (owner, 2026-11-25: companies know robots better than a paper check does).
+    const items = await listTaskBrowseCards();
     return res.json({ items: items.map(item => withViewerThumbnail(item, viewer?.companyId ?? null)), access });
   } catch { return res.status(503).json({ error: "The job library could not be loaded." }); }
 });

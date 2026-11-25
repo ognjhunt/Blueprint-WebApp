@@ -120,7 +120,7 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
           </label>
           <label className="opportunities-ready">
             <input type="checkbox" checked={readyToTest} onChange={event => setReadyToTest(event.currentTarget.checked)} />
-            Ready to test
+            Simulation ready
           </label>
         </div>
       </div>
@@ -135,7 +135,7 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
         const title = item.headline || jobTitleForDisplay(item.title);
         const ready = item.simulationDownloadAvailable === true;
         // No label when the stage is unknown, or built but not yet downloadable.
-        const simulationStatus = ready ? "Ready to test" : item.simulationStage && item.simulationStage !== "simulation_built"
+        const simulationStatus = ready ? "Simulation ready" : item.simulationStage && item.simulationStage !== "simulation_built"
           ? libraryStageLabels[item.simulationStage] : null;
         return <li key={item.id} id={`job-${item.id}`} className="opportunity-card">
           {item.thumbnailUrl ? <TaskThumbnail src={item.thumbnailUrl} title={title} taskFamily={item.taskFamily} source={item.thumbnailSource} />
@@ -152,7 +152,6 @@ export function TaskBrowse({ onLibrary }: { onLibrary?: (shown: boolean, applied
               <span className={ready ? "opportunity-label-ready" : undefined}>{simulationStatus}</span>
             </div>}
             <TaskFacts details={item} omitRegion />
-            {item.answerHeadline && <p className="opportunity-first-look">{item.answerHeadline}</p>}
           </div>
           <a className="opportunity-open" aria-describedby={`job-title-${item.id}`}
             href={`${item.jobUrl ?? `/jobs/${encodeURIComponent(item.id)}`}${filtersQuery ? `?from=${encodeURIComponent(filtersQuery)}` : ""}`}>

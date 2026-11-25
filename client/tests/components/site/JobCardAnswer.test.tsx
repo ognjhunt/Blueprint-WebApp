@@ -116,7 +116,8 @@ describe("Blueprint's answer on a job card", () => {
     expect(screen.queryByText(/Kind of job/)).toBeNull();
   });
 
-  it("shows the first-look headline on the card and sends the company to the job for details", async () => {
+  // Owner, 2026-11-25: no first look on a company's list; a stray headline in the payload is not shown.
+  it("shows no first-look headline on the card and sends the company to the job", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ access,
       items: [card({ answerHeadline: ANSWER.headline }), card({ id: "job-2", title: "Packing opportunity" })] }) });
     render(<TaskBrowse />);
@@ -124,7 +125,7 @@ describe("Blueprint's answer on a job card", () => {
     const shared = items.find(item => within(item).queryByText("Palletize cartons"))!;
     const plain = items.find(item => within(item).queryByText("Pack items"))!;
     expect(within(plain).queryByText(ANSWER.headline)).toBeNull();
-    expect(within(shared).getByText(ANSWER.headline)).toBeVisible();
+    expect(within(shared).queryByText(ANSWER.headline)).toBeNull();
     expect(within(shared).getByRole("link", { name: "View job" })).toHaveAttribute("href", "/jobs/job-1");
     expect(within(shared).getAllByRole("link")).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
