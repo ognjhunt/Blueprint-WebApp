@@ -86,6 +86,40 @@ beforeEach(async () => {
 });
 afterEach(() => { vi.unstubAllEnvs(); resetFreeTextScreeningForTests(); });
 
+describe("an answer saved again while its run is under way", () => {
+  // Codex review, 2026-11-25: a second request joined the run that had read the earlier words, and the changed words
+  // were never learnt unless the company saved once more.
+  it("is read once more when the run ends, and its new words are learnt", async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    const { useJobBriefLessonWriter, ensureJobBriefLesson } = await import("../utils/jobBriefLessons");
+    useJobBriefLessonWriter(async input => {
+      inputs.push(input);
+      if (inputs.length === 1) { await held; return { lesson: HOW_OFTEN, costUsd: 0.0002 }; }
+      return { lesson: { topic: "weight", question: "How heavy is the heaviest thing the robot handles?" }, costUsd: 0.0002 };
+    });
+    await answers(JOB, COMPANY, "needs_something", "How often is the lamp moved each day?");
+    const first = ensureJobBriefLesson(JOB, COMPANY);
+    await vi.waitFor(() => expect(inputs).toHaveLength(1));
+    // The company changes its question while the first run is still under way, and the save asks again.
+    await answers(JOB, COMPANY, "needs_something", "How heavy is the lamp?");
+    const second = ensureJobBriefLesson(JOB, COMPANY);
+    release();
+    await Promise.all([first, second]);
+    expect(inputs).toHaveLength(2);
+    expect(inputs[1].words).toMatch(/How heavy is the lamp\?/);
+    expect(lessons()?.questions.map((row: { topic: string }) => row.topic).sort()).toEqual(["how_often_moved", "weight"]);
+  });
+
+  it("is not run again when nothing was saved meanwhile", async () => {
+    await scripted(HOW_OFTEN);
+    await answers(JOB, COMPANY, "needs_something", "How often is the lamp moved each day?");
+    const { ensureJobBriefLesson } = await import("../utils/jobBriefLessons");
+    await ensureJobBriefLesson(JOB, COMPANY);
+    expect(inputs).toHaveLength(1);
+  });
+});
+
 describe("distilling a company's answer", () => {
   it("turns a Need more details question into a generic question with a topic, from words with both identities out", async () => {
     await scripted(HOW_OFTEN);
