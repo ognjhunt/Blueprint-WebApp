@@ -17,7 +17,10 @@
  *   billable event a test event;
  * - a real company still cannot reach a test job on any of these surfaces, and the test company cannot reach a real job;
  * - the outbox delivers a test job's row only to the configured inbox, only of a kind the pair uses, and none with the
- *   setting unset.
+ *   setting unset;
+ * - the signed page read answers the test company's own page of a test job as a redacted summary (no address, ticket,
+ *   signature, token or inbox), with the job summary's text, starts the job's brief as a page read does, and is refused
+ *   for a real job.
  */
 import express from "express";
 import { createHash } from "node:crypto";
@@ -122,6 +125,8 @@ beforeAll(async () => {
   vi.stubEnv("BLUEPRINT_INTAKE_DAILY_LIMIT", "10000");
   vi.stubEnv("BLUEPRINT_INTAKE_PER_IP_DAILY_LIMIT", "10000");
   vi.stubEnv("PIPELINE_SYNC_TOKEN", "fixture-pipeline-sync-secret");
+  // Every signed call of this file is counted by the route's one limiter (60 a window by default).
+  vi.stubEnv("PIPELINE_SYNC_RATE_LIMIT_MAX", "10000");
   vi.stubEnv("INTAKE_OWNER_EMAIL", OPS);
   vi.stubEnv("CONTACT_TO", OPS);
   vi.stubEnv("TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET", "fixture-ticket-secret");
@@ -506,6 +511,131 @@ describe("the internal test company on an internal test job, end to end", () => 
     await deliver();
     expect(rows(jobId).filter(row => row.kind === "job_clarification").map(row => [row.status])).toEqual([["sent"]]);
     expect(outwardEmails().map(message => message.to)).toEqual([INBOX, INBOX]);
+  });
+});
+
+/* ----------------------------------------------------------------- the page, read without a browser */
+
+describe("the test company's page, read through the signed route (POST /api/internal/pipeline/test-company/page)", () => {
+  const PAGE = "/api/internal/pipeline/test-company/page";
+  /** Every field name in an answer, however deep. */
+  const fieldNames = (value: unknown): string[] => Array.isArray(value) ? value.flatMap(fieldNames)
+    : value && typeof value === "object" ? Object.entries(value).flatMap(([key, item]) => [key, ...fieldNames(item)]) : [];
+  /** The rows the brief's scripted writer returns: the box's size, the site's own words and a catalog question. */
+  const BRIEF_ROWS = [
+    { id: "box_size", label: "Box size", evidence: "video_estimate", estimate_fields: ["object_largest_side_m"] },
+    { id: "shelf_to_cart", label: "From shelf to cart", evidence: "site_sentence", quote: "from the shelf and place it on the cart" },
+    { id: "hours", label: "Hours a day", evidence: "site_answer", answer_key: "hours" },
+  ];
+
+  it("is refused unsigned, without the test company, and for a real job, which it reads nothing of", async () => {
+    seedRealJob();
+    expect(await signedPost(PAGE, { job_id: REAL_JOB })).toEqual({ status: 409, body: { code: "internal_test_company_missing" } });
+    expect((await ensureTestCompany()).status).toBe(201);
+    const { jobId } = await createTestJob();
+    expect((await signedPost(PAGE, { job_id: jobId }, { sign: false })).status).toBe(401);
+    expect(await signedPost(PAGE, { job_id: REAL_JOB })).toEqual({ status: 409, body: { code: "not_an_internal_test_job", job_id: REAL_JOB } });
+    expect(doc(`inboundRequests/${REAL_JOB}/companyViews/${TEST_COMPANY_ID}`)).toBeUndefined();
+    expect(await signedPost(PAGE, { job_id: "itest-missing" }))
+      .toEqual({ status: 404, body: { code: "internal_test_job_not_found", job_id: "itest-missing" } });
+    expect((await signedPost(PAGE, { job_id: jobId, company_id: NORTH_ID })).status).toBe(400);
+    expect((await signedPost(PAGE, { job_id: "../x" })).status).toBe(400);
+  });
+
+  it("answers the page as the test company reads it, with the job summary's text and no address, ticket, signature or token", async () => {
+    expect((await ensureTestCompany()).status).toBe(201);
+    const { jobId } = await createTestJob();
+    expect((await signedPost("/api/internal/pipeline/test-company/answer", { job_id: jobId, state: "interested",
+      inputs: "Blueprint's own test answer, from the internal route." })).status).toBe(200);
+    const read = await signedPost(PAGE, { job_id: jobId });
+    expect(read.status, JSON.stringify(read.body)).toBe(200);
+    const raw = JSON.stringify(read.body);
+    // Nothing a browser loads, nothing that signs or opens anything, and never the inbox.
+    expect(raw).not.toMatch(/https?:|www\.|\/api\/|\/capture-upload\/|signature|ticket|token|expires=|viewer=|secret|password/i);
+    expect(raw).not.toContain(INBOX);
+    expect(raw).not.toContain("@");
+    expect(fieldNames(read.body).filter(name => /token|secret|signature|password|passwd|url|email/i.test(name))).toEqual([]);
+    // Under what the Pipeline's signed call reads (20,000 bytes).
+    expect(Buffer.byteLength(raw, "utf8")).toBeLessThanOrEqual(18_000);
+    expect(read.body).toMatchObject({ ok: true, job_id: jobId,
+      // The fixture publishes the simulation package, not the scene preview the viewer opens.
+      page: { video: { state: "ready", width: 1280, height: 720, duration_seconds: 4.2 }, simulation: { state: "not_finished" },
+        simulation_download: { state: "ready", size_bytes: 12, file_name: expect.stringMatching(/^simulation-[A-Za-z0-9._-]+\.zip$/) },
+        simulation_status: null, my_answer: { state: "interested", updated_at_iso: expect.any(String) }, fit_summary_from: "catalog",
+        about_site: [expect.stringContaining("come only with an introduction")], packet_facts: { present: false, pending: false } },
+      job_brief: { requested: false, current: false, run: null }, view: { opened_at_iso: expect.any(String) }, introduction: null,
+      summary_pdf: { pages: expect.any(Number), headings: expect.arrayContaining(["At a glance", "What a visit must confirm"]),
+        truncated: false } });
+    expect(read.body.outbox.map((row: Record<string, unknown>) => row.kind)).toContain("company_answered");
+    expect(Object.keys(read.body.outbox[0]).sort()).toEqual(["created_at_iso", "error", "kind", "sent_at_iso", "status"]);
+    // The page read recorded the test company's open, as its own page read does.
+    expect(doc(`inboundRequests/${jobId}/companyViews/${TEST_COMPANY_ID}`)).toMatchObject({ openedAtIso: expect.any(String) });
+
+    // The same rows the company's own page shows, without the page's tickets.
+    const page = (await companyPage(INBOX, jobId)).body.item;
+    expect(page.simulationDownload.url).toEqual(expect.any(String));
+    expect(read.body.page.headline).toBe(page.headline);
+    expect(read.body.page.fit_summary).toEqual(page.fitSummary.map((row: Record<string, unknown>) => ({ key: row.key, label: row.label,
+      value: row.value, state: row.state, source: row.source ?? null, ...(row.estimateBelow ? { estimate_below: true } : {}) })));
+    expect(read.body.page.visit_must_confirm_count).toBe(page.visitMustConfirm.length);
+    // The text is the very PDF a company downloads, its link to the job's page said in words.
+    const response = await fetch(`${base}/api/site-worlds/jobs/${jobId}/summary.pdf`, { headers: signIn(INBOX) });
+    const { pdfTextLines } = await import("./helpers/pdfText");
+    const lines = pdfTextLines(Buffer.from(await response.arrayBuffer()));
+    expect(lines.some(line => line.startsWith("https://"))).toBe(true);
+    expect(read.body.summary_text).toBe(lines.map(line => line.startsWith("https://") ? "[link to the job's page]" : line).join("\n"));
+    expect(read.body.summary_pdf.lines).toBe(lines.length);
+    expect(read.body.summary_text).toContain("At a glance");
+  });
+
+  it("starts the job's brief as the page read does, waits for it, and the next read shows the brief's rows", async () => {
+    expect((await ensureTestCompany()).status).toBe(201);
+    const { jobId, captureId } = await createTestJob();
+    state.docs.set(`inboundRequests/${jobId}`, { ...doc(`inboundRequests/${jobId}`), walkthrough_job_estimates: { capture_id: captureId,
+      job_estimates: { job_kind: "pick_and_place", object: "red box", object_largest_side_m: 0.4 } } });
+    const { resetJobBriefForTests, useJobBriefWriter } = await import("../utils/jobBrief");
+    const asked: unknown[] = [];
+    useJobBriefWriter(async input => { asked.push(input); return { rows: BRIEF_ROWS, costUsd: 0.0004 }; });
+    try {
+      const first = await signedPost(PAGE, { job_id: jobId });
+      expect(first.status, JSON.stringify(first.body)).toBe(200);
+      // This read asked for the brief, once; its page was built before the brief existed: the catalog's rows.
+      expect(asked).toHaveLength(1);
+      expect(first.body.job_brief).toEqual({ requested: true, run_ended_in_wait: true, current: true,
+        run: { status: "done", attempts: 1, total: 1, reason: null, limit: null, claimed_at_iso: expect.any(String),
+          ended_at_iso: expect.any(String) } });
+      expect(first.body.page.fit_summary_from).toBe("catalog");
+      // The run's claim and its hold stay on the record, never in the answer.
+      expect(doc(`inboundRequests/${jobId}`).job_brief_run).toMatchObject({ claimToken: expect.any(String), reservationId: expect.any(String) });
+      expect(JSON.stringify(first.body)).not.toMatch(/claim_?token|reservation/i);
+
+      const second = await signedPost(PAGE, { job_id: jobId });
+      expect(second.body.job_brief).toMatchObject({ requested: false, current: true, run: { status: "done", attempts: 1 } });
+      expect(second.body.job_brief).not.toHaveProperty("run_ended_in_wait");
+      expect(second.body.page.fit_summary_from).toBe("job_brief");
+      expect(second.body.page.fit_summary.map((row: Record<string, unknown>) => row.label))
+        .toEqual(expect.arrayContaining(["Box size", "From shelf to cart"]));
+      expect(second.body.summary_text).toContain("Box size");
+      expect(asked).toHaveLength(1);
+    } finally { resetJobBriefForTests(); }
+  });
+
+  it("an open recorded by the read makes the test company hear that the simulation is ready, and says so", async () => {
+    expect((await ensureTestCompany()).status).toBe(201);
+    const { jobId, publishSimulation } = await createTestJob({ simulation: false });
+    const before = await signedPost(PAGE, { job_id: jobId });
+    expect(before.body.page).toMatchObject({ simulation_download: { state: "not_finished" }, simulation_status: expect.any(String) });
+    expect(before.body.simulation_ready_notice).toBeNull();
+    await publishSimulation();
+    const { queueSimulationReadyNotices } = await import("../utils/simulationReadyNotice");
+    expect(await queueSimulationReadyNotices(jobId)).toEqual({ queued: 1, closed: true });
+    await deliver();
+    const after = await signedPost(PAGE, { job_id: jobId });
+    expect(after.body.page).toMatchObject({ simulation_download: { state: "ready", size_bytes: 12 }, simulation_status: null });
+    expect(after.body.simulation_ready_notice).toMatchObject({ owed: false, queued: 1, queued_at_iso: expect.any(String) });
+    expect(after.body.outbox.filter((row: Record<string, unknown>) => row.kind === "company_simulation_ready"))
+      .toEqual([expect.objectContaining({ status: "sent", sent_at_iso: expect.any(String) })]);
+    expect(emailsTo(INBOX).map(message => message.subject)).toEqual(["The simulation of the site is ready"]);
   });
 });
 

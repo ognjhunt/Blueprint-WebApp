@@ -16,6 +16,11 @@
  *   introduction on an internal test job, asks that date's outcome question (14, 45 or 90; 14 by default) of both sides
  *   now rather than on the date, to the internal test inbox only, and answers with each side's answer links
  *   (`queueInternalTestOutcomeQuestions`). Never billable.
+ * - `POST /api/internal/pipeline/test-company/page` `{ job_id }`: the test company's page of an internal test job, built
+ *   as its own page read builds it (the page's loader with the test company as viewer, so a job with a reading and no
+ *   current brief starts its brief; its view recorded), answered as a redacted summary with the job summary PDF's text
+ *   and no address, ticket, signature or token (`readInternalTestCompanyPage`), so a session checks the company side
+ *   without a browser.
  *
  * The same signature check as every internal Pipeline route (`verifyPipelineSyncRequest`) is the only door. None of these
  * reaches a real job: each refuses a job that is not an internal test job, and the test company's every read closes real
@@ -222,6 +227,33 @@ router.post("/test-company/outcome-questions", rateLimiter, requirePipelineSigna
   } catch (error) {
     logger.warn({ jobId, error: error instanceof Error ? error.message : String(error) }, "The internal test outcome questions were not queued");
     return res.status(503).json({ code: "internal_test_outcome_questions_unavailable", job_id: jobId });
+  }
+});
+
+const pageSchema = z.object({ job_id: JOB_ID }).strict();
+
+router.post("/test-company/page", rateLimiter, requirePipelineSignature, async (req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store");
+  const parsed = pageSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ code: "internal_test_company_page_invalid" });
+  const refused = unavailable(res);
+  if (refused) return refused;
+  const jobId = parsed.data.job_id;
+  try {
+    const { readInternalTestCompanyPage } = await import("../utils/internalTestCompanyPage");
+    const result = await readInternalTestCompanyPage(jobId);
+    if (result.ok) return res.json(result.body);
+    switch (result.reason) {
+      case "no_test_company": return res.status(409).json({ code: "internal_test_company_missing" });
+      case "not_found": return res.status(404).json({ code: "internal_test_job_not_found", job_id: jobId });
+      case "not_a_test_job": return res.status(409).json({ code: "not_an_internal_test_job", job_id: jobId });
+      case "not_listed": return res.status(409).json({ code: "internal_test_job_not_listed", job_id: jobId,
+        reason: result.closedReason ?? null });
+      default: return res.status(503).json({ code: "internal_test_company_store_unavailable" });
+    }
+  } catch (error) {
+    logger.warn({ jobId, error: error instanceof Error ? error.message : String(error) }, "The internal test company's page was not read");
+    return res.status(503).json({ code: "internal_test_company_page_unavailable", job_id: jobId });
   }
 });
 
