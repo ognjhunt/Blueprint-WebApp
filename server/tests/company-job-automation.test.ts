@@ -882,6 +882,8 @@ describe("the company's page for one job (E3)", () => {
     expect(firstResponse)
       .toMatchObject({ state: "interested", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION, recordedBy: "company" });
     expect(firstResponse?.firstAnsweredAtIso).toBe(firstResponse?.updatedAtIso);
+    // When it first applied, for the owner's marketplace numbers (`marketplaceNumbers.ts`).
+    expect(firstResponse?.firstAppliedAtIso).toBe(firstResponse?.updatedAtIso);
     expect((await page()).body.item.myAnswer).toMatchObject({ state: "interested", statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION });
     // The site is queued one email by alias and fixed label only; no person at Blueprint is rung.
     const queued = outbox();
@@ -889,7 +891,8 @@ describe("the company's page for one job (E3)", () => {
     expect(queued[0]).toMatchObject({ to: SITE.email, subject: "A deployment company answered" });
     expect(JSON.stringify(queued)).not.toMatch(/North|contact@north|We do this every day/);
     expect((await answer(NORTH, { state: "needs_something" })).status).toBe(200);
-    expect(state.docs.get(responsePath)).toMatchObject({ state: "needs_something", firstAnsweredAtIso: firstResponse?.firstAnsweredAtIso });
+    expect(state.docs.get(responsePath)).toMatchObject({ state: "needs_something", firstAnsweredAtIso: firstResponse?.firstAnsweredAtIso,
+      firstAppliedAtIso: firstResponse?.firstAppliedAtIso });
   });
 
   it("lists the job in the library with its page link and nothing that names the site", async () => {

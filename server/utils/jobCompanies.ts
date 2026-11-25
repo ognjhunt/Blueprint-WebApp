@@ -284,6 +284,22 @@ export function firstAnswerTimestamp(prior: Data | undefined, answeredAtIso: str
   return prior ? instant(prior.firstAnsweredAtIso) : answeredAtIso;
 }
 
+/**
+ * When the company first applied on the job (Apply, or Tested it: can do), for the owner's marketplace numbers
+ * (2026-11-25, `marketplaceNumbers.ts`): kept once set, even if the answer changes later; else this answer's time when
+ * it is an application. An answer recorded before this existed holds none: when its one write was an application, that
+ * write's time is it; when it already stood as an application after an edit, the time is not known, and none is made up.
+ */
+export function firstApplicationTimestamp(prior: Data | undefined, state: CompanyResponseState, answeredAtIso: string): string | null {
+  const kept = instant(prior?.firstAppliedAtIso);
+  if (kept) return kept;
+  if (prior && INTRODUCIBLE_RESPONSE_STATES.includes(prior.state)) {
+    const first = instant(prior.firstAnsweredAtIso);
+    return first && first === instant(prior.updatedAtIso) ? first : null;
+  }
+  return INTRODUCIBLE_RESPONSE_STATES.includes(state) ? answeredAtIso : null;
+}
+
 function firstRecordedAnswer(responses: readonly { data: Data }[]): string | null {
   const dates = responses.filter(({ data }) => isCompanyResponseState(data.state)
     && (data.recordedBy === "company" || data.recordedBy === "operator")).map(({ data }) => instant(data.firstAnsweredAtIso));
