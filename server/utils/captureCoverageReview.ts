@@ -337,6 +337,11 @@ export async function reviewCaptureCoverage(params: {
   // Retain missing observations for Blueprint's recovery work. They do not
   // automatically become a request for the customer to record more footage.
 
+  // The reading is stored (and the job named from it, when it had no name): the job's brief is written from it in the
+  // background (`jobBrief.ts`). It never holds or fails the review; the job pages show the catalog's rows until it lands.
+  if (estimates) void import("./jobBrief").then(({ requestJobBrief }) => requestJobBrief(params.requestId))
+    .catch(error => logger.warn({ error, requestId: params.requestId }, "Could not start the job brief after the coverage review"));
+
   return finding;
 }
 

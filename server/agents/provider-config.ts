@@ -33,6 +33,7 @@ const TASK_MODEL_SUFFIXES: Partial<Record<AgentTaskKind, string>> = {
   site_task_follow_up: "SITE_TASK_FOLLOW_UP_MODEL",
   company_website_check: "COMPANY_WEBSITE_CHECK_MODEL",
   free_text_redaction: "FREE_TEXT_REDACTION_MODEL",
+  job_brief: "JOB_BRIEF_MODEL",
 };
 
 /**
@@ -153,6 +154,9 @@ const TASK_REASONING_EFFORT: Partial<Record<AgentTaskKind, OpenAiReasoningEffort
   company_website_check: "low",
   // One short piece of text and the pieces of it to take out: the small tier at low effort.
   free_text_redaction: "low",
+  // A few rows naming one job's facts and where each value comes from, from data already held: the small tier at low
+  // effort (owner, 2026-11-25: a smaller, cheaper model writes it for each job page).
+  job_brief: "low",
 };
 
 /**
@@ -167,6 +171,7 @@ const TASK_OPENAI_FIXED_DEFAULTS: Partial<Record<AgentTaskKind, { model: string 
   site_task_follow_up: { model: "gpt-6-luna" },
   company_website_check: { model: "gpt-6-luna" },
   free_text_redaction: { model: "gpt-6-luna" },
+  job_brief: { model: "gpt-6-luna" },
 };
 
 function normalizeEffort(value: string | undefined | null): OpenAiReasoningEffort | null {
@@ -496,6 +501,8 @@ const TASK_DEFAULT_PROVIDER: Partial<Record<AgentTaskKind, StructuredProvider>> 
   company_website_check: "openai_responses",
   // One piece of a site's or a company's own words, at the small tier (gpt-6-luna by default).
   free_text_redaction: "openai_responses",
+  // One job's sentence, success rule and video reading as text, at the small tier.
+  job_brief: "openai_responses",
 };
 
 /**

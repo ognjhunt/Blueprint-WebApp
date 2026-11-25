@@ -352,7 +352,8 @@ function FitSummary({ rows }: { rows: FitSummaryRow[] }) {
       className={row.state === "stated" || row.state === "from_video" ? undefined : "company-fit-missing"}>
       <dt>{row.label}</dt>
       <dd>{row.value ?? (row.state === "unsure" ? NOT_SURE : NOT_STATED)}
-        {row.state === "from_video" && <span className="ms-field-hint"> (from the video)</span>}
+        {row.state === "from_video" && <span className="ms-field-hint">{row.source === "video_estimate" ? " (estimated from the video)" : " (from the video)"}</span>}
+        {row.source === "site_sentence" && <span className="ms-field-hint"> (the site's words)</span>}
         {row.estimateBelow && <span className="ms-field-hint"> · {ESTIMATE_BELOW}</span>}</dd>
     </div>)}</dl>}
     {skipped.length > 0 && <p className="company-fit-skipped"><strong>{NOT_STATED} yet:</strong> {skipped.map(row => row.label).join(" · ")}</p>}

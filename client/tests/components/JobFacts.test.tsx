@@ -263,5 +263,57 @@ describe("JobFacts", () => {
     expect(document.activeElement).toBe(a);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
-});
 
+  // Owner, 2026-11-25: once the job has a brief, its questions are asked in place of the catalog's.
+  describe("with the job's brief", () => {
+    const brief = { version: "0123456789abcdef", questions: [
+      { kind: "custom" as const, id: "how_often_moved", question: "How often is the lamp moved?",
+        choices: ["Once a day", "A few times a day", "Once a week or less"] },
+      { kind: "catalog" as const, key: "hours" as const },
+    ] };
+    /** A server that stores a brief question's answer under `custom`, as the route does. */
+    function briefServer() {
+      const stored: Record<string, unknown> = { custom: {} };
+      return vi.fn(async (_url: string, init: RequestInit) => {
+        const body = JSON.parse(String(init.body));
+        if ("custom" in body) stored.custom = { ...(stored.custom as object), [body.custom]: body.code };
+        else stored[body.key] = body.code;
+        return new Response(JSON.stringify({ ok: true, jobFacts: { ...stored, updatedAtIso: "2026-11-25T10:00:00.000Z" } }), { status: 200 });
+      });
+    }
+
+    it("asks the brief's own question with Not sure, saves the choice's index, then the catalog question it reads", async () => {
+      const fetchMock = briefServer();
+      vi.stubGlobal("fetch", fetchMock);
+      render(<JobFacts token="tok" taskFamily="Material handling" reading={{ kind: "pick_and_place", object: "lamp", others: [] }} brief={brief} />);
+      expect(screen.getByText("How often is the lamp moved?")).toBeVisible();
+      expect(screen.getByText("1 of 2")).toBeVisible();
+      expect(screen.getAllByRole("button").map(button => button.textContent)).toEqual(["Once a day", "A few times a day",
+        "Once a week or less", "Not sure", "Skip"]);
+      expect(screen.queryByText("Where does the robot pick up the load?")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "A few times a day" }));
+      expect(await screen.findByText("How many hours a day does this job run?")).toBeVisible();
+      expect(bodyOf(fetchMock, 0)).toEqual({ custom: "how_often_moved", code: 1 });
+      fireEvent.click(screen.getByRole("button", { name: "Two shifts" }));
+      expect(await screen.findByText(/Thanks\. Your answers help companies decide\./)).toBeVisible();
+      expect(bodyOf(fetchMock, 1)).toEqual({ key: "hours", code: "two_shifts" });
+    });
+
+    it("saves Not sure as unsure, and shows a stored answer when the walk is changed", async () => {
+      const fetchMock = briefServer();
+      vi.stubGlobal("fetch", fetchMock);
+      const facts = { hours: "one_shift", custom: { how_often_moved: 2 }, updatedAtIso: "2026-11-25T10:00:00.000Z" };
+      render(<JobFacts token="tok" facts={facts as never} brief={brief} />);
+      fireEvent.click(screen.getByRole("button", { name: "Change" }));
+      expect(screen.getByRole("button", { name: "Once a week or less" })).toHaveAttribute("aria-pressed", "true");
+      fireEvent.click(screen.getByRole("button", { name: "Not sure" }));
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      expect(bodyOf(fetchMock, 0)).toEqual({ custom: "how_often_moved", code: "unsure" });
+    });
+
+    it("asks the catalog's questions when the brief asks none", () => {
+      render(<JobFacts token="tok" taskFamily="Palletizing" brief={{ version: "0123456789abcdef", questions: [] }} />);
+      expect(screen.getByText("How heavy is the heaviest loaded item?")).toBeVisible();
+    });
+  });
+});

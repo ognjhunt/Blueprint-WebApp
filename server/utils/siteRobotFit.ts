@@ -343,7 +343,8 @@ function estimatesOf(raw: unknown): VideoEstimates | null {
   };
 }
 
-function usableReading(value: unknown): Record<string, unknown> | null {
+/** A stored link reading (`site_video_evidence`) only while it was analysed and its footage usable; else null. */
+export function usableReading(value: unknown): Record<string, unknown> | null {
   const evidence = value as Record<string, unknown> | null | undefined;
   return evidence?.status === "analysed" && (evidence.footage_status === "usable" || evidence.footage_status === "partially_usable")
     ? evidence : null;

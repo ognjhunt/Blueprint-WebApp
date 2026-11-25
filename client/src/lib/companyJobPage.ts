@@ -5,7 +5,8 @@
  * of job, in place of a long list of what the packet does not show.
  *
  * Every line is fixed wording or the site's own answer; the only free words are the video reading's name for the job's
- * object, which the server passes through the site's known identity first (`server/utils/companyJobPage.ts`).
+ * object and, where the job has a brief (`client/src/lib/jobBrief.ts`), its labels, quotes and choices, which the server
+ * passes through the site's known identity and the model pass first (`server/utils/companyJobPage.ts`).
  */
 import { JOB_FACT_KEYS, JOB_FACT_SHORT_LABELS, jobFactKeysFor, jobFactLabel, sanitizeJobFacts, type JobFactKey, type JobReading,
   type ReaderJobKind } from "./jobFacts";
@@ -90,35 +91,46 @@ export function publicJobKind(input: { taskFamily: string; categoryTitle: string
 
 /** One line of the fit summary: the site's own answer, "Not sure", or "Not stated". */
 export interface FitSummaryRow {
-  key: JobFactKey | "object";
+  /** The catalog question, the object, or a row of the job's brief by its id (`brief:<id>`, `client/src/lib/jobBrief.ts`). */
+  key: JobFactKey | "object" | `brief:${string}`;
   label: string;
   /** The site's answer in words; for the object row, the video reading's name. Null when not stated. */
   value: string | null;
   state: "stated" | "unsure" | "not_stated" | "from_video";
   /** The site did not answer, and Blueprint's estimate of it is in the object facts below. */
   estimateBelow?: boolean;
+  /**
+   * Where a row of the job's brief takes its value from (`jobBriefFitSummary`): the site's answer, Blueprint's estimate
+   * from the video reading (said "estimated from the video"), or the site's own sentence. Absent on the catalog's rows.
+   */
+  source?: "site" | "video_estimate" | "site_sentence";
 }
 
 export const NOT_STATED = "Not stated";
 export const NOT_SURE = "Not sure";
 export const ESTIMATE_BELOW = "Blueprint's estimate is below";
 
+/** The row naming the job's object from the video reading, with the other items it suggests; null without a name. */
+export function fitObjectRow(reading: Pick<JobReading, "object" | "others"> | null | undefined): FitSummaryRow | null {
+  if (!reading?.object) return null;
+  const others = reading.others.length ? ` (the video suggests ${reading.others.join(", ")} too)` : "";
+  return { key: "object", label: "Object", value: `${reading.object}${others}`, state: "from_video" };
+}
+
 /**
  * The facts a company decides "worth a conversation" on, in a fixed order it can scan like a load post: the object
  * from the video, then each question the site's page asked (chosen the same way, `jobFactKeysFor`), with any other
  * answer the site gave after them. A question the site skipped says "Not stated" rather than disappearing, since rate
- * and hours are also the baseline a success rule needs.
+ * and hours are also the baseline a success rule needs. These are the catalog's rows: a job whose brief can be shown
+ * gets its brief's rows instead (`jobBriefFitSummary`), and this is its fallback.
  */
 export function fitSummary(facts: unknown, taskFamily: string, reading: Pick<JobReading, "kind" | "object" | "others"> | null,
   estimated: ReadonlySet<JobFactKey> = new Set()): FitSummaryRow[] {
   const answers = sanitizeJobFacts(facts);
   const asked = jobFactKeysFor(taskFamily, reading);
   const extra = JOB_FACT_KEYS.filter(key => !asked.includes(key) && answers?.[key] && answers[key] !== "unsure");
-  const rows: FitSummaryRow[] = [];
-  if (reading?.object) {
-    const others = reading.others.length ? ` (the video suggests ${reading.others.join(", ")} too)` : "";
-    rows.push({ key: "object", label: "Object", value: `${reading.object}${others}`, state: "from_video" });
-  }
+  const object = fitObjectRow(reading);
+  const rows: FitSummaryRow[] = object ? [object] : [];
   for (const key of [...asked, ...extra]) {
     const code = answers?.[key];
     const label = JOB_FACT_SHORT_LABELS[key];

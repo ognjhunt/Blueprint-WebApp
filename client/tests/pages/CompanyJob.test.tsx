@@ -260,6 +260,26 @@ describe("the company's page for one job", () => {
     expect(screen.getByText(/You answered “Need more details” on November 12, 2026\./)).toBeInTheDocument();
   });
 
+  // Owner, 2026-11-25: rows chosen for this job by its brief, each saying where its value comes from.
+  it("marks a brief's estimate as estimated from the video and its quote as the site's words", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ fitSummary: [
+      { key: "object", label: "Object", value: "bedside lamp", state: "from_video" },
+      { key: "brief:lamp_size_weight", label: "Lamp size and weight", value: "About 45 cm on its longest side, about 1 to 3 kg",
+        state: "from_video", source: "video_estimate" },
+      { key: "brief:table_to_shelf", label: "From table to shelf", value: "from the round bedside table to the glass shelf",
+        state: "stated", source: "site_sentence" },
+      { key: "brief:how_often_moved", label: "How often it is moved", value: null, state: "not_stated", source: "site" }] }) }) });
+    render(<CompanyJob />);
+    const glance = within(await screen.findByLabelText("The site's answers"));
+    expect(glance.getByText("Object").nextElementSibling).toHaveTextContent(/^bedside lamp \(from the video\)$/);
+    expect(glance.getByText("Lamp size and weight").nextElementSibling)
+      .toHaveTextContent(/^About 45 cm on its longest side, about 1 to 3 kg \(estimated from the video\)$/);
+    expect(glance.getByText("From table to shelf").nextElementSibling)
+      .toHaveTextContent(/^from the round bedside table to the glass shelf \(the site's words\)$/);
+    // A question the site skipped is named on the one skipped line, in the brief's own words.
+    expect(glance.getByText(/How often it is moved/).closest("p")).toHaveTextContent("Not stated yet: How often it is moved");
+  });
+
   it("says the video is being prepared and the simulation is not finished until each exists", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ video: { state: "preparing" },
       simulation: { state: "not_finished" } }) }) });

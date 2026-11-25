@@ -4,6 +4,8 @@ import { readJobFacts } from "../utils/jobFacts";
 import { JOB_DESCRIPTION_MAX_LENGTH, JOB_DESCRIPTION_TOO_LONG } from "../../client/src/lib/jobDescriptionLimit";
 import { SITE_REPLY_ONLY_CONTACT_DETAILS } from "../../client/src/lib/companiesRead";
 import { jobReadingOf } from "../utils/siteRobotFit";
+import { jobBriefOfRecord, requestJobBrief, siteJobBriefOf } from "../utils/jobBrief";
+import { siteJobBriefPayload } from "../../client/src/lib/jobBrief";
 import { loadFirstLookWords } from "../utils/firstLookTable";
 import { INTRODUCTION_FAILED, INTRODUCTION_REFUSAL_SENTENCES, INTRODUCTION_STATEMENT_CHANGED, isIntroductionStatementVersion,
   isIntroductionRefusalReason, type IntroductionRefusalReason } from "../../client/src/lib/siteIntroductions";
@@ -1438,6 +1440,11 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       optionalByDeadline(siteAdvisoryWork, deadlineAtMs), optionalByDeadline(firstLookWork, deadlineAtMs),
       optionalByDeadline(outlookWork, deadlineAtMs)]);
     const outlook = outlookRead.value;
+    // The job's brief (`jobBrief.ts`): its questions replace the catalog's on the site's page while it is current and
+    // used; a job with a reading and none gets one written in the background, never waited for.
+    const ownerRecord = payload.scope === "owner" && request && !request.captureRights.consent_revoked ? request.answerSource : null;
+    if (ownerRecord && jobBriefOfRecord(ownerRecord, brief).wanted) requestJobBrief(payload.requestId);
+    const siteBrief = ownerRecord ? siteJobBriefOf(ownerRecord, brief) : null;
     return res.status(200).json({
       ok: true,
       scope: payload.scope,
@@ -1483,6 +1490,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       // What the video reading says the job is and handles: the quick questions choose themselves by its kind and name
       // its object ("How heavy is the cake batter?").
       jobReading: payload.scope === "owner" && request && !request.captureRights.consent_revoked ? jobReadingOf(request.answerSource) : null,
+      // The job brief's questions, for the owner only, in place of the catalog's while the brief is used.
+      jobBrief: siteBrief ? siteJobBriefPayload(siteBrief) : null,
       // The first look as the Pipeline's published table words it (conditional rows said plainly), for the owner only.
       firstLookTable,
       // The job's outlook (`jobOutlook`): the one decision the page shows its screen from, for the owner only.

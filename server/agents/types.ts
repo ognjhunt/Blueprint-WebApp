@@ -40,7 +40,9 @@ export type AgentTaskKind =
   | "company_website_check"
   /** Finds the names and contact details left in a site's or a company's own words before the other side reads them
    * (tasks/free-text-redaction.ts). */
-  | "free_text_redaction";
+  | "free_text_redaction"
+  /** Chooses one job's "At a glance" rows for deployment companies and where each value comes from (tasks/job-brief.ts). */
+  | "job_brief";
 
 export type AgentRunStatus =
   | "queued"

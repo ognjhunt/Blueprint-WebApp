@@ -64,6 +64,8 @@ export const LANE_DATA_CLASSES: Record<AgentTaskKind, DataClassRow> = {
     source: "tasks/company-website-check.ts: a deployment company's own public home page and its host, nothing the applicant typed" },
   free_text_redaction: { classes: ["site_job_text", "personal_info"],
     source: "tasks/free-text-redaction.ts: one piece of a site's or a deployment company's own words, after the deterministic pass, to find the names and contact details left in it" },
+  job_brief: { classes: ["site_job_text", "job_records"],
+    source: "tasks/job-brief.ts: the site's sentence and success rule after the deterministic pass, its quick answers, and Blueprint's reading of its video as text (kind, object, estimates)" },
 };
 
 /**
