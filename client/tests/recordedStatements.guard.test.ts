@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 import {
   RECORDING_RIGHTS_STATEMENT, RECORDING_RIGHTS_STATEMENT_SHORT, RECORDING_RIGHTS_STATEMENT_V4, RECORDING_RIGHTS_STATEMENT_V6, RECORDING_RIGHTS_STATEMENT_VERSIONS,
 } from "@/lib/recordingRightsStatement";
-import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATEMENT_2026_11_12, COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION, COMPANY_RESPONSE_STATEMENT_2026_11_23, COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION } from "@/lib/companyResponses";
+import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATEMENT_2026_11_12, COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION, COMPANY_RESPONSE_STATEMENT_2026_11_23, COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION, COMPANY_RESPONSE_STATEMENT_2026_11_23_2, COMPANY_RESPONSE_STATEMENT_2026_11_23_2_VERSION } from "@/lib/companyResponses";
 import { INTRODUCTION_REQUEST_STATEMENT, INTRODUCTION_REQUEST_STATEMENT_VERSION, INTRODUCTION_REQUEST_STATEMENT_2026_11_12,
   INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION, INTRODUCTION_REQUEST_STATEMENT_VERSIONS, introduceSentence } from "@/lib/siteIntroductions";
 import { DESCRIPTION_AUTHORITY_STATEMENTS, DESCRIPTION_AUTHORITY_VERSIONS } from "@/lib/siteSubmissionAuthority";
@@ -55,7 +55,9 @@ const CONSTANT_STATEMENTS = [
   // Owner, 2026-11-23: a company applies, and the site sees its name and website with the answer and accepts.
   { name: "company response (applicants)", version: "company-response-2026-11-23", actual: COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION === "company-response-2026-11-23" ? COMPANY_RESPONSE_STATEMENT_2026_11_23 : "", text: "The site sees your company's name and website with your answer. If you apply or answer Tested it: can do and the site accepts, we give the site your contact details, and give you theirs." },
   // Owner, 2026-11-23 ("yes build it this way"): an application may carry an estimate, shown as one before a site visit.
-  { name: "company response (estimate)", version: "company-response-2026-11-23.2", actual: COMPANY_RESPONSE_STATEMENT_VERSION === "company-response-2026-11-23.2" ? COMPANY_RESPONSE_STATEMENT : "", text: "The site sees your company's name and website with your answer, and any estimate you give, as an estimate before a site visit, not a quote. If you apply or answer Tested it: can do and the site accepts, we give the site your contact details, and give you theirs." },
+  { name: "company response (estimate)", version: "company-response-2026-11-23.2", actual: COMPANY_RESPONSE_STATEMENT_2026_11_23_2_VERSION === "company-response-2026-11-23.2" ? COMPANY_RESPONSE_STATEMENT_2026_11_23_2 : "", text: "The site sees your company's name and website with your answer, and any estimate you give, as an estimate before a site visit, not a quote. If you apply or answer Tested it: can do and the site accepts, we give the site your contact details, and give you theirs." },
+  // Owner, 2026-11-25 ("update the answer line too"): the form no longer offers Tested it: can do.
+  { name: "company response (apply only)", version: "company-response-2026-11-25.1", actual: COMPANY_RESPONSE_STATEMENT_VERSION === "company-response-2026-11-25.1" ? COMPANY_RESPONSE_STATEMENT : "", text: "The site sees your company's name and website with your answer, and any estimate you give, as an estimate before a site visit, not a quote. If you apply and the site accepts, we give the site your contact details, and give you theirs." },
   // The site's agreement beside "Introduce us" (planner, 2026-11-12, 18:25Z): the recorded text is the template.
   { name: "introduction request", version: "introduction-request-2026-11-12",
     actual: INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION === "introduction-request-2026-11-12" ? INTRODUCTION_REQUEST_STATEMENT_2026_11_12 : "",
