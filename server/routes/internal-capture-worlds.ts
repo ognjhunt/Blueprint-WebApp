@@ -41,7 +41,7 @@ import {
   WEBSITE_JOB_SPEND_CAP_REACHED,
   websiteJobSpendUnreadableAlert,
 } from "../utils/websiteSceneSponsorship";
-import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand, websiteSceneExecution } from "../utils/taskEvaluationSceneIntake";
+import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand, sponsoredSceneTask, websiteSceneExecution } from "../utils/taskEvaluationSceneIntake";
 import { isNavigationStrategy, navigationIntakeTask } from "../utils/navigationSceneIntake";
 
 import { isCaptureOwnerPath, type CaptureOwnerBody } from "../utils/captureOwnerRawBody";
@@ -300,7 +300,7 @@ const sponsoredSceneRequest = z.object({
   schema_version: z.literal("task_evaluation_scene_intake_request.v1"),
   submission_id: z.string(), owner: z.object({ user_id: z.string(), organization_id: z.string() }).strict(),
   source: z.object({ kind: z.enum(["gaussian_splat", "mesh"]), binding_id: z.string(), content_digest: z.string() }).strict(),
-  task: z.union([sceneIntakeCommand.shape.task, navigationIntakeTask]), execution: websiteSceneExecution,
+  task: z.union([sponsoredSceneTask, navigationIntakeTask]), execution: websiteSceneExecution,
   consent: sceneIntakeCommand.shape.consent.extend({ task_confirmed: z.boolean(), rights_reference: z.string(),
     accepted_by: z.string(), accepted_at_epoch: z.number().finite().positive() }).strict(),
 }).strict();
