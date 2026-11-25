@@ -9,12 +9,12 @@ import { PRIVACY_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
  * The sharing promises (owner, 2026-11-12), written out here so this page's digest pins its own words. They match the
  * Terms word for word (`client/tests/pages/privacy-promise-consistency.test.ts`).
  */
-export const SHARING_SENTENCE = "Starting a job means that, once it has its video, we share it with robot deployment companies we've approved, so they can decide without a visit whether they can do it. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.";
+export const SHARING_SENTENCE = "Starting a job means that, once it has its video, we share it with robot deployment companies we've approved, so they can decide without a visit whether they can do it. We share your description of the job, your video without its sound, the simulation we build from it, and what counts as the job done.";
 export const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.";
 export const COMPANY_USE_SENTENCE = "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.";
 export const WITHDRAWAL_SENTENCE = "You can withdraw your job at any time from its page. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.";
 export const OLDER_JOB_SENTENCE = "A job started before November 12, 2026 is shared with companies only after you agree to share it on the job's page.";
-export const COMPANY_APPLICATION_SENTENCE = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
+export const COMPANY_APPLICATION_SENTENCE = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied (or answered Tested it: can do, an answer we no longer offer). Answers you gave before November 23, 2026 stay under an alias.";
 
 export const privacyPolicySections = [
   {
@@ -252,8 +252,8 @@ export default function Privacy() {
         <p>
           We share personal information with the providers below, only for the function listed and under contract.
           We also share each job with the robot deployment companies we approve. They receive the site&rsquo;s
-          description of the job, its video without its sound, the simulation, what counts as the job done and our first
-          look, only to decide whether they can do the job. They are not our providers. A site sees a company&rsquo;s name
+          description of the job, its video without its sound, the simulation and what counts as the job done, only to
+          decide whether they can do the job. They are not our providers. A site sees a company&rsquo;s name
           and website with each answer the company gives (an answer given before November 23, 2026 stays under an
           alias). A site&rsquo;s name, address and contact details go to a company only when the site accepts it, and the
           site then receives the company&rsquo;s contact details.

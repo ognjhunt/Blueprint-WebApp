@@ -9,7 +9,8 @@
  * - a company's name reaches a site only through an introduction (since Terms and Privacy 2026-11-23.2: with its website,
  *   beside each answer given under the answer line `company-response-2026-11-23`; its contact details only when the site
  *   accepts it, and an earlier answer stays under an alias);
- * - a site can withdraw, and the job then leaves every company's view at once.
+ * - a site can withdraw, and the job then leaves every company's view at once;
+ * - since Terms and Privacy 2026-11-25.2, our first look stays with the site: a company is not sent it.
  * A change to any of these needs a new Terms and Privacy version, and this test changed with it on purpose.
  */
 import { describe, expect, it } from "vitest";
@@ -21,7 +22,7 @@ import { termsSections } from "@/pages/Terms";
 import { siteAssessment } from "@/lib/evaluationPricing";
 import { FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { AGREEING_ALSO_LINE } from "@/lib/siteStartConsent";
-import { COMPANY_RESPONSE_LABELS } from "@/lib/companyResponses";
+import { COMPANY_RESPONSE_LABELS, FIT_RESPONSE_STATES, INTRODUCIBLE_RESPONSE_STATES } from "@/lib/companyResponses";
 
 const termsText = termsSections.flatMap(section => [...(section.paragraphs ?? []), ...(section.items ?? [])]).join("\n");
 const privacyText = [...privacyPolicySections.map(section => section.body), ...capturePrivacyAnnex.map(row => row[1]),
@@ -48,13 +49,17 @@ function annexRow(label: string): string {
 // its answer; the Privacy Policy keeps 2026-11-23.2, and every promise below stays word for word on both pages.
 // Terms 2026-11-23.4 (owner, 2026-11-23): one sentence in section 6, Ownership, on a model in a simulation that comes from
 // a public library; the Privacy Policy keeps 2026-11-23.2, and every promise below stays word for word on both pages.
+// Terms and Privacy 2026-11-25.2 (owner, 2026-11-25: "approve terms"): our first look leaves what a site's job shares with
+// companies (it stays in the packet the site gets), and a company answers Apply, Not a fit or Need more details; the
+// company's sentence keeps a stored "Tested it: can do" in a short clause, since one can still be accepted. Every other
+// promise stays word for word. The sharing promise now names one item fewer: nothing a company receives was added.
 const PROMISES = {
-  sharing: "Starting a job means that, once it has its video, we share it with robot deployment companies we've approved, so they can decide without a visit whether they can do it. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.",
+  sharing: "Starting a job means that, once it has its video, we share it with robot deployment companies we've approved, so they can decide without a visit whether they can do it. We share your description of the job, your video without its sound, the simulation we build from it, and what counts as the job done.",
   contacts: "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.",
   companyUse: "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.",
   withdrawal: "You can withdraw your job at any time from its page. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.",
   olderJob: "A job started before November 12, 2026 is shared with companies only after you agree to share it on the job's page.",
-  companyApplication: "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.",
+  companyApplication: "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied (or answered Tested it: can do, an answer we no longer offer). Answers you gave before November 23, 2026 stay under an alias.",
 };
 
 describe("the sharing promises, in the Terms and the Privacy Policy, word for word", () => {
@@ -149,6 +154,17 @@ describe("a model from a public library", () => {
   });
 });
 
+// Terms and Privacy 2026-11-25.2: our first look stays with the site. Neither page says a company receives it, and the
+// Terms still say the job packet the site gets holds it.
+describe("our first look", () => {
+  it("is not among what a company receives, and stays in the site's job packet", () => {
+    expect(`${termsText}\n${privacyText}`).not.toMatch(/first look at which robots fit|and our first\s+look/);
+    expect(PROMISES.sharing).not.toMatch(/first look/);
+    expect(termsText).toContain("our first look at which kinds of robot most likely fit");
+    expect(privacyText).not.toMatch(/first look/i);
+  });
+});
+
 describe("withdrawal", () => {
   it("closes every company's view at once, and says what cannot be taken back", () => {
     expect(annexRow("Withdrawal")).toBe(PROMISES.withdrawal);
@@ -160,19 +176,24 @@ describe("withdrawal", () => {
 // 2026-11-23.2 a site makes the introduction by accepting a company.
 describe("what an introduction gives, and the answers a company can give", () => {
   it("says the address goes when the site accepts a company, in the Terms and the Privacy Policy", () => {
-    expect(termsText).toContain("When you accept a company that applied or answered Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details.");
+    expect(termsText).toContain("When you accept a company that applied, we give it your name, your address and your contact details, and give you its name and contact details.");
     expect(privacyText).toContain("When a site accepts your application, we give you the site's name, address and contact details.");
     expect(termsText).not.toMatch(/we give it your name and contact details/);
   });
 
-  // Terms 2026-11-21.1: the answers by the labels a company picks (`COMPANY_RESPONSE_LABELS`), the two tested answers
-  // once the simulation can be downloaded, in the Service section and the deployment companies' section. Terms
-  // 2026-11-23.2: the answer that was Interested is labelled Apply.
-  it("lists the five answers by their labels", () => {
-    expect(termsText.split("can answer Apply, Not a fit or Need more details.").length - 1).toBe(1);
+  // Terms 2026-11-21.1: the answers by the labels a company picks (`COMPANY_RESPONSE_LABELS`), in the Service section and
+  // the deployment companies' section. Terms 2026-11-23.2: the answer that was Interested is labelled Apply. Terms
+  // 2026-11-25.2: the form offers no tested answer (`FIT_RESPONSE_STATES`), so the Terms name the three it offers and no
+  // longer offer "Tested it: can do" or "Tested it: cannot yet"; only the company's sentence names a stored "Tested it: can
+  // do", which a site can still accept (`INTRODUCIBLE_RESPONSE_STATES`).
+  it("lists the three answers a company can give by their labels, and no tested answer as one it can give", () => {
+    expect(termsText.split("can answer Apply, Not a fit or Need more details. The site sees each answer.").length - 1).toBe(1);
     expect(termsText.split("can answer each one: Apply, Not a fit or Need more details.").length - 1).toBe(1);
-    expect(termsText.split("can also answer Tested it: can do or Tested it: cannot yet.").length - 1).toBe(2);
-    for (const label of Object.values(COMPANY_RESPONSE_LABELS)) expect(termsText).toContain(label);
+    for (const state of FIT_RESPONSE_STATES) expect(termsText).toContain(COMPANY_RESPONSE_LABELS[state]);
+    expect(`${termsText}\n${privacyText}`).not.toMatch(/can also answer|Tested it: cannot yet/);
+    expect(INTRODUCIBLE_RESPONSE_STATES).toContain("tested_can_do");
+    expect(termsText.split("Tested it: can do").length - 1).toBe(1);
+    expect(termsText).toContain(`after you applied (or answered ${COMPANY_RESPONSE_LABELS.tested_can_do}, an answer we no longer offer).`);
     expect(termsText).not.toMatch(/would need something|interested, not a fit|Interested|Introduce us/);
   });
 });

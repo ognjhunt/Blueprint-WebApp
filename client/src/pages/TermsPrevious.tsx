@@ -4,10 +4,10 @@ import { PreviousLegalVersionNote } from "@/components/site/LegalVersionNotes";
 import { PREVIOUS_TERMS_URL, PREVIOUS_TERMS_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 /**
- * FROZEN: the Terms of Service of version 2026-11-23.3, in force from 2026-11-23 until the next version replaced it
- * (owner, 2026-11-23: a model in a simulation that comes from a public library stays under that library's license;
- * Blueprint does not own it, and the Terms do not restrict it). Its sections are copied word for word from `Terms.tsx`
- * as it stood at 2026-11-23.3. Do not edit the sections: they are the agreement as it stood. Change Terms.tsx instead.
+ * FROZEN: the Terms of Service of version 2026-11-23.4, in force from 2026-11-23 until the next version replaced it
+ * (owner, 2026-11-25: our first look stays with the site and is not shared with deployment companies, and a company
+ * answers Apply, Not a fit or Need more details). Its sections are copied word for word from `Terms.tsx` as it stood at
+ * 2026-11-23.4. Do not edit the sections: they are the agreement as it stood. Change Terms.tsx instead.
  */
 
 type Section = { title: string; paragraphs?: readonly string[]; items?: readonly string[] };
@@ -18,9 +18,11 @@ const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street address
 const COMPANY_USE_SENTENCE = "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.";
 const WITHDRAWAL_SENTENCE = "You can withdraw your job at any time from its page. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.";
 const OLDER_JOB_SENTENCE = "A job started before November 12, 2026 is shared with companies only after you agree to share it on the job's page.";
-/** What a site could do when a company it was introduced to drops out (owner, 2026-11-21), as 2026-11-23.3 said it. */
+/** What a site could do when a company it was introduced to drops out (owner, 2026-11-21), as 2026-11-23.4 said it. */
 const REPLACEMENT_SENTENCE = "If a company you were introduced to drops out, you can accept another company that applied or answered Tested it: can do.";
 const COMPANY_APPLICATION_SENTENCE = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
+/** A model in a simulation that comes from a public library (owner, 2026-11-23), as 2026-11-23.4 said it. */
+const LIBRARY_MODEL_SENTENCE = "A model in a simulation that comes from a public library stays under that library's license, named in the simulation's README: Blueprint does not own it, and these Terms do not restrict it.";
 
 export const previousTermsSections: readonly Section[] = [
   {
@@ -80,7 +82,7 @@ export const previousTermsSections: readonly Section[] = [
   {
     title: "6. Ownership",
     paragraphs: [
-      "You keep ownership of the content you give us. Blueprint owns the Service, our software, and the simulations, their files and the reports we create, subject to the rights these Terms give you, including a site's right to withdraw its job. If you send us feedback, we may use it without obligation to you.",
+      `You keep ownership of the content you give us. Blueprint owns the Service, our software, and the simulations, their files and the reports we create, subject to the rights these Terms give you, including a site's right to withdraw its job. ${LIBRARY_MODEL_SENTENCE} If you send us feedback, we may use it without obligation to you.`,
     ],
   },
   {

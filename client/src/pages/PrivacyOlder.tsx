@@ -6,10 +6,10 @@ import { COMPANY } from "@/data/company";
 import { PREVIOUS_PRIVACY_URL, PREVIOUS_PRIVACY_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 /**
- * FROZEN: the Privacy Policy of version 2026-11-21.1, in force from 2026-11-21 until the next version replaced it
- * (owner, 2026-11-23: a deployment company sees the city, state and country of a job). Its sections are copied word for
- * word from `Privacy.tsx` as it stood at 2026-11-21.1. Do not edit the sections: they are the policy as it stood.
- * Change Privacy.tsx instead.
+ * FROZEN: the Privacy Policy of version 2026-11-23.1, in force from 2026-11-23 until version 2026-11-23.2 replaced it
+ * the same day (owner, 2026-11-23: a deployment company applies to a job, and a site sees its name and website and
+ * accepts the companies it wants to meet). Its sections are copied word for word from `Privacy.tsx` as it stood at
+ * 2026-11-23.1. Do not edit the sections: they are the policy as it stood. Change Privacy.tsx instead.
  */
 const SHARING_SENTENCE = "Starting a job means that, once it has its video, we share it with robot deployment companies we've approved, so they can decide without a visit whether they can do it. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.";
 const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.";
@@ -53,7 +53,7 @@ const capturePrivacyAnnex = [
   ["People in job footage", "We do not remove people from job footage or blur them. Blueprint and the listed processing providers, World Labs included, receive the footage, with its sound removed, or frames from it as recorded, which can show people. For a job started under a version of this policy published before November 17, 2026, we still blur faces in the frames we send to World Labs to rebuild the work area. Companies see your video as you filmed it, without its sound. You must have authority to submit the footage, tell people in the work area that you are recording and sharing the video with Blueprint and with the robot deployment companies we approve, and obtain any permission the law requires from people who can be seen or heard."],
   ["Sound", "Phone videos can record sound, including conversations; Blueprint's browser recorder films without it. We keep an uploaded original as received, remove the sound before any automated review, before sending footage to an AI or 3D-processing provider and before a deployment company sees it, and do not analyze speech. Avoid filming conversations, and turn sound off where your camera allows."],
   ["Screens and paperwork", "Avoid them when filming where practical: companies see your video as you filmed it."],
-  ["Location", "Used to tie the job to the right site. A deployment company sees the country of the job, not the address you typed."],
+  ["Location", "Used to tie the job to the right site. A deployment company sees the city, state and country of the job, not the address you typed."],
   ["Deployment companies", `${SHARING_SENTENCE} ${CONTACT_DETAILS_SENTENCE} ${OLDER_JOB_SENTENCE}`],
   ["Withdrawal", WITHDRAWAL_SENTENCE],
   ["After an introduction", "We ask the site and the deployment company what happened, up to three times (14, 45 and 90 days after the introduction), and record their answers on the job. If the site and the company also agree to share a pilot's records with us, that agreement sets what we receive, who may see it and how it may be used."],

@@ -20,7 +20,7 @@
  * so the refusal is tested on the server, not on the page.
  */
 import express from "express";
-import { COMPANY_APPLICATION_VERSION, LIBRARY_MODEL_TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
+import { NO_TESTED_ANSWER_VERSION } from "../../client/src/lib/legalAcceptance";
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -391,7 +391,7 @@ describe("description-only owner can explicitly authorize future footage", () =>
       expect(record.public_task_listing).toMatchObject(LISTING);
       expect(record.public_task_listing.approvedAtIso).toBe(record.request.consent_attestation.recorded_at_iso);
       expect(record.summary_shared_notice).toEqual({ owed: true });
-      expect(record.terms_acceptance).toMatchObject({ accepted_terms: true, terms_version: LIBRARY_MODEL_TERMS_VERSION, privacy_version: COMPANY_APPLICATION_VERSION });
+      expect(record.terms_acceptance).toMatchObject({ accepted_terms: true, terms_version: NO_TESTED_ANSWER_VERSION, privacy_version: NO_TESTED_ANSWER_VERSION });
     });
   });
   it.each(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3"])("an older job (%s) taking v4 records v4, keeps the older grant and is shared", async older => {

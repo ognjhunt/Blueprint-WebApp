@@ -9,7 +9,7 @@
  */
 import express from "express";
 import { CITY_STATE_PRIVACY_VERSION, COMPANY_APPLICATION_VERSION, COMPANY_ESTIMATE_TERMS_VERSION, LAUNCH_COPY_VERSION, LIBRARY_MODEL_TERMS_VERSION,
-  NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
+  NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, NO_TESTED_ANSWER_VERSION } from "../../client/src/lib/legalAcceptance";
 import { createHash } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -420,6 +420,27 @@ describe("the library-model Terms ask no approved company to agree again", () =>
   it("a company that was already asked again is still asked", () => {
     expect(companyMaySeeJobs(record("2026-11-12.1", COMPANY_APPLICATION_VERSION) as never)).toBe(false);
     expect(companyMaySeeJobs(record(LIBRARY_MODEL_TERMS_VERSION, "2026-11-02.1") as never)).toBe(false);
+  });
+});
+
+describe("the 2026-11-25.2 Terms and Privacy ask no approved company to agree again", () => {
+  // Owner, 2026-11-25 ("approve terms"): Terms and Privacy 2026-11-25.2 say our first look stays with the site and a company
+  // answers Apply, Not a fit or Need more details; a stored "Tested it: can do" can still be accepted, and the company's
+  // sentence still names it. It only narrows what a company receives and is offered, and asks nothing new of it, so every
+  // acceptance that let a company see jobs before still does, and nothing is asked again.
+  const record = (termsVersion: string, privacyVersion: string) => ({ status: "approved", partnerRole: "deployment",
+    termsAcceptedByUid: "uid-company", termsAcceptance: { ...currentTermsAcceptance(), terms_version: termsVersion, privacy_version: privacyVersion } });
+  it("a company holding any acceptance that counted under Terms 2026-11-23.4 and Privacy 2026-11-23.2 keeps seeing jobs", () => {
+    for (const terms of ["2026-11-12.2", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION, COMPANY_APPLICATION_VERSION,
+      COMPANY_ESTIMATE_TERMS_VERSION, LIBRARY_MODEL_TERMS_VERSION, NO_TESTED_ANSWER_VERSION])
+      for (const privacy of ["2026-11-12.2", "2026-11-13.1", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION, CITY_STATE_PRIVACY_VERSION,
+        COMPANY_APPLICATION_VERSION, NO_TESTED_ANSWER_VERSION])
+        expect(companyMaySeeJobs(record(terms, privacy) as never), `${terms} ${privacy}`).toBe(true);
+  });
+  it("a company that was already asked again is still asked, and an acceptance of the version published ahead still asks", () => {
+    expect(companyMaySeeJobs(record("2026-11-12.1", NO_TESTED_ANSWER_VERSION) as never)).toBe(false);
+    expect(companyMaySeeJobs(record(NO_TESTED_ANSWER_VERSION, "2026-11-02.1") as never)).toBe(false);
+    expect(companyMaySeeJobs(record("2026-11-25.1", "2026-11-25.1") as never)).toBe(false);
   });
 });
 

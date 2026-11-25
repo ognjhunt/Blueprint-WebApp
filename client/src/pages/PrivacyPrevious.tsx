@@ -6,17 +6,17 @@ import { COMPANY } from "@/data/company";
 import { PREVIOUS_PRIVACY_URL, PREVIOUS_PRIVACY_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 /**
- * FROZEN: the Privacy Policy of version 2026-11-23.1, in force from 2026-11-23 until version 2026-11-23.2 replaced it
- * the same day (owner, 2026-11-23: a deployment company applies to a job, and a site sees its name and website and
- * accepts the companies it wants to meet). Its sections are copied word for word from `Privacy.tsx` as it stood at
- * 2026-11-23.1. Do not edit the sections: they are the policy as it stood. Change Privacy.tsx instead.
+ * FROZEN: the Privacy Policy of version 2026-11-23.2, in force from 2026-11-23 until the next version replaced it
+ * (owner, 2026-11-25: our first look stays with the site and is not shared with deployment companies, and a company
+ * answers Apply, Not a fit or Need more details). Its sections are copied word for word from `Privacy.tsx` as it stood
+ * at 2026-11-23.2. Do not edit the sections: they are the policy as it stood. Change Privacy.tsx instead.
  */
 const SHARING_SENTENCE = "Starting a job means that, once it has its video, we share it with robot deployment companies we've approved, so they can decide without a visit whether they can do it. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.";
 const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.";
 const COMPANY_USE_SENTENCE = "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.";
 const WITHDRAWAL_SENTENCE = "You can withdraw your job at any time from its page. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.";
 const OLDER_JOB_SENTENCE = "A job started before November 12, 2026 is shared with companies only after you agree to share it on the job's page.";
-const COMPANY_ALIAS_SENTENCE = "A site sees your answer and the reason you give, under an alias, with your company's name and contact details taken out. It sees your company's name and your contact details only when it asks for an introduction after you answered Interested or Tested it: can do.";
+const COMPANY_APPLICATION_SENTENCE = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
 
 const privacyPolicySections = [
   {
@@ -62,7 +62,7 @@ const capturePrivacyAnnex = [
 const rolePrivacyAnnex = [
   {
     title: "Deployment companies",
-    body: `Your account holds your company's name, the contact details you give us and your answers about jobs. ${COMPANY_ALIAS_SENTENCE} When a site asks for an introduction, we give you the site's name, address and contact details.`,
+    body: `Your account holds your company's name, the contact details you give us and your answers about jobs. ${COMPANY_APPLICATION_SENTENCE} When a site accepts your application, we give you the site's name, address and contact details.`,
   },
   {
     title: "Sites",
@@ -255,9 +255,10 @@ export default function PrivacyPrevious() {
           We share personal information with the providers below, only for the function listed and under contract.
           We also share each job with the robot deployment companies we approve. They receive the site&rsquo;s
           description of the job, its video without its sound, the simulation, what counts as the job done and our first
-          look, only to decide whether they can do the job. They are not our providers. A site&rsquo;s name, address and
-          contact details go to a company only when the site asks for an introduction to it, and the site then receives
-          the company&rsquo;s name and contact details.
+          look, only to decide whether they can do the job. They are not our providers. A site sees a company&rsquo;s name
+          and website with each answer the company gives (an answer given before November 23, 2026 stays under an
+          alias). A site&rsquo;s name, address and contact details go to a company only when the site accepts it, and the
+          site then receives the company&rsquo;s contact details.
           We may also disclose information when the law requires it, to protect people&rsquo;s safety or our rights, or
           as part of a merger or sale of the business, in which case this policy continues to apply to it.
         </p>

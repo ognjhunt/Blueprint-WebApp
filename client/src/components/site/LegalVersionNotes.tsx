@@ -6,8 +6,10 @@ import {
   BYGONE_TERMS_VERSION,
   EARLIER_PRIVACY_VERSION,
   EARLIER_TERMS_VERSION,
+  EXPIRED_TERMS_VERSION,
   FORMER_PRIVACY_VERSION,
   FORMER_TERMS_VERSION,
+  LAPSED_PRIVACY_VERSION,
   LAPSED_TERMS_VERSION,
   OLDER_PRIVACY_VERSION,
   OLDER_TERMS_VERSION,
@@ -62,27 +64,31 @@ const documents = {
  */
 const pastVersions: Record<LegalDocument, ReadonlyArray<{ version: string; url?: string; replacedSameDay?: true }>> = {
   terms: [
+    // 2026-11-23.4 took effect on November 23 and was replaced on November 25.
+    { version: PREVIOUS_TERMS_VERSION, url: PREVIOUS_TERMS_URL },
     // 2026-11-23.3 was replaced by 2026-11-23.4 on the day it took effect.
-    { version: PREVIOUS_TERMS_VERSION, url: PREVIOUS_TERMS_URL, replacedSameDay: true },
-    // 2026-11-23.2 was replaced by 2026-11-23.3 on the day it took effect.
     { version: OLDER_TERMS_VERSION, replacedSameDay: true },
-    { version: FORMER_TERMS_VERSION },
+    // 2026-11-23.2 was replaced by 2026-11-23.3 on the day it took effect.
+    { version: FORMER_TERMS_VERSION, replacedSameDay: true },
     { version: PRIOR_TERMS_VERSION },
     { version: PAST_TERMS_VERSION },
     { version: BYGONE_TERMS_VERSION },
+    { version: LAPSED_TERMS_VERSION },
     // 2026-11-12.1 was replaced by 2026-11-12.2 on the day it took effect.
-    { version: LAPSED_TERMS_VERSION, replacedSameDay: true },
+    { version: EXPIRED_TERMS_VERSION, replacedSameDay: true },
     { version: EARLIER_TERMS_VERSION },
   ],
   privacy: [
+    // 2026-11-23.2 took effect on November 23 and was replaced on November 25.
+    { version: PREVIOUS_PRIVACY_VERSION, url: PREVIOUS_PRIVACY_URL },
     // 2026-11-23.1 was replaced by 2026-11-23.2 on the day it took effect.
-    { version: PREVIOUS_PRIVACY_VERSION, url: PREVIOUS_PRIVACY_URL, replacedSameDay: true },
-    { version: OLDER_PRIVACY_VERSION },
+    { version: OLDER_PRIVACY_VERSION, replacedSameDay: true },
     { version: FORMER_PRIVACY_VERSION },
     { version: PRIOR_PRIVACY_VERSION },
     { version: PAST_PRIVACY_VERSION },
-    // 2026-11-12.2 has the same words as 2026-11-12.1, in force from the same day: one entry.
     { version: BYGONE_PRIVACY_VERSION },
+    // 2026-11-12.2 has the same words as 2026-11-12.1, in force from the same day: one entry.
+    { version: LAPSED_PRIVACY_VERSION },
     { version: EARLIER_PRIVACY_VERSION },
   ],
 };
