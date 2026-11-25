@@ -145,9 +145,11 @@ beforeAll(async () => {
   const { default: testJobs } = await import("../routes/internal-test-jobs");
   const { default: testCompany } = await import("../routes/internal-test-company");
   const { default: worlds } = await import("../routes/site-worlds");
+  const { default: outcomes } = await import("../routes/job-outcomes");
   const app = express();
   app.set("trust proxy", 1);
   app.use(express.json({ limit: "2mb" }));
+  app.use("/api/job-outcomes", outcomes);
   app.use("/api/inbound-request", intake);
   app.use("/api/self-capture/uploads", uploads);
   app.use("/api/site-task-brief", brief);
@@ -430,6 +432,58 @@ describe("the internal test company on an internal test job, end to end", () => 
     expect(rows(jobId).filter(row => row.kind === "company_simulation_ready").map(row => row.status)).toEqual(["sent"]);
     expect(emailsTo(INBOX).map(message => message.subject)).toEqual(["The simulation of the site is ready"]);
     expect(emailsTo(NORTH.email)).toEqual([]);
+  });
+
+  it("asks both sides what happened after the introduction, at the inbox only, records a press, and bills nothing", async () => {
+    seedRealJob();
+    expect((await ensureTestCompany()).status).toBe(201);
+    const { jobId } = await createTestJob();
+    // Nothing to ask before the introduction.
+    expect(await signedPost("/api/internal/pipeline/test-company/outcome-questions", { job_id: jobId }))
+      .toMatchObject({ status: 409, body: { code: "internal_test_company_not_introduced" } });
+    expect((await signedPost("/api/internal/pipeline/test-company/answer", { job_id: jobId, state: "interested",
+      inputs: "Blueprint's own test answer, from the internal route." })).status).toBe(200);
+    expect((await signedPost("/api/internal/pipeline/test-company/accept", { job_id: jobId })).status).toBe(200);
+    await deliver();
+    const eventPath = `billableEvents/introduction-${jobId}-${TEST_COMPANY_ID}`;
+    const event = structuredClone(doc(eventPath));
+    const events = () => [...state.docs.keys()].filter(key => key.startsWith("billableEvents/")).sort();
+    const eventsBefore = events();
+    seams.sendEmail.mockClear();
+
+    expect((await signedPost("/api/internal/pipeline/test-company/outcome-questions", { job_id: jobId }, { sign: false })).status).toBe(401);
+    expect(await signedPost("/api/internal/pipeline/test-company/outcome-questions", { job_id: REAL_JOB }))
+      .toMatchObject({ status: 409, body: { code: "not_an_internal_test_job" } });
+    expect((await signedPost("/api/internal/pipeline/test-company/outcome-questions", { job_id: jobId, day: 7 })).status).toBe(400);
+    const asked = await signedPost("/api/internal/pipeline/test-company/outcome-questions", { job_id: jobId });
+    expect(asked.status, JSON.stringify(asked.body)).toBe(200);
+    expect(asked.body).toMatchObject({ ok: true, day: 14, queued: [`job-outcome-question:${jobId}:${TEST_COMPANY_ID}:site:d14`,
+      `job-outcome-question:${jobId}:${TEST_COMPANY_ID}:company:d14`] });
+    await deliver();
+    expect(rows(jobId).filter(row => row.kind === "job_outcome_question").map(row => row.status)).toEqual(["sent", "sent"]);
+    expect(outwardEmails().map(message => [message.to, message.subject]).sort()).toEqual([
+      [INBOX, "How did it go with Blueprint internal test company?"], [INBOX, "How did it go with Blueprint internal test site?"]]);
+
+    // The company presses "Not going ahead", then a reason, on its confirm page: one answer, recorded on the introduction.
+    const link = (asked.body.answers.company as Array<{ state: string; url: string }>).find(item => item.state === "not_going_ahead")!;
+    const path = new URL(link.url).pathname;
+    expect((await fetch(`${base}${path}`)).status).toBe(200);
+    const pressed = await fetch(`${base}${path}?reason=timing`, { method: "POST", redirect: "manual" });
+    expect(pressed.status).toBe(303);
+    expect(doc(`inboundRequests/${jobId}/introductions/${TEST_COMPANY_ID}`).latestOutcomeBySide)
+      .toEqual({ company: { state: "not_going_ahead", atIso: expect.any(String), reason: "timing" } });
+    // Never billable: the test event is as it was, and no event was added.
+    expect(doc(eventPath)).toEqual(event);
+    expect(events()).toEqual(eventsBefore);
+    const { isMadeBillableEvent } = await import("../utils/billableEvents");
+    expect(isMadeBillableEvent(doc(eventPath))).toBe(false);
+    // The next date asks the site side only: the company said "Not going ahead". (The sweep's own rule for the pair is
+    // pinned in `job-outcomes.test.ts`.)
+    expect(await signedPost("/api/internal/pipeline/test-company/outcome-questions", { job_id: jobId, day: 45 }))
+      .toMatchObject({ status: 200, body: { queued: [`job-outcome-question:${jobId}:${TEST_COMPANY_ID}:site:d45`] } });
+    await deliver();
+    expect(outwardEmails().every(message => message.to === INBOX)).toBe(true);
+    expect(outwardEmails()).toHaveLength(3);
   });
 
   it("a site's reply to the test company's question reaches the inbox", async () => {

@@ -9,7 +9,8 @@
  *   job has no site contact. Nothing about the pair goes to anyone else (`internalTestRowMayBeDelivered`, read by the
  *   outbox before every send).
  * - Its introductions are test events, never billable (`billableEvents.ts`, `TEST_NO_CHARGE_STATUS`): the owner's
- *   totals and the CSV leave them out (`ownerTotals.ts`).
+ *   totals and the CSV leave them out (`ownerTotals.ts`). The outcome questions after one go to the inbox for both sides
+ *   (`jobOutcomeGate.ts`); an answer is never billable either.
  *
  * How it is recognised:
  * - The marker is the access record's top-level `internal_test_company` field (`{ created_at_iso, created_by }`). It is
@@ -53,11 +54,11 @@ export interface InternalTestCompanyMarker {
 
 /**
  * The outbox kinds the pair uses: the new-job email, a clarification and the simulation-ready notice (to the test
- * company), the site's notice of the answer, and both introduction emails. A test job's row of any other kind is
- * cancelled, as before.
+ * company), the site's notice of the answer, both introduction emails, and the outcome questions after the introduction
+ * (to both sides, both the inbox). A test job's row of any other kind is cancelled, as before.
  */
 export const INTERNAL_TEST_DELIVERABLE_KINDS: ReadonlySet<string> = new Set(["robot_team_new_task", "job_clarification",
-  "company_simulation_ready", "company_answered", "introduction_made_company", "introduction_made_site"]);
+  "company_simulation_ready", "company_answered", "introduction_made_company", "introduction_made_site", "job_outcome_question"]);
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

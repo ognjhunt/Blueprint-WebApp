@@ -220,13 +220,13 @@ describe("the one job predicate, for the internal test company", () => {
 describe("the outbox's rule for a test job's row", () => {
   it("only a kind the pair uses, only to exactly the configured inbox", () => {
     for (const kind of ["robot_team_new_task", "job_clarification", "company_simulation_ready", "company_answered",
-      "introduction_made_company", "introduction_made_site"]) {
+      "introduction_made_company", "introduction_made_site", "job_outcome_question"]) {
       expect(internalTestRowMayBeDelivered({ kind, to: INBOX }), kind).toBe(true);
       expect(internalTestRowMayBeDelivered({ kind, to: ` ${INBOX.toUpperCase()}` }), kind).toBe(true);
       expect(internalTestRowMayBeDelivered({ kind, to: "someone@example.com" }), kind).toBe(false);
       expect(internalTestRowMayBeDelivered({ kind, to: `${INBOX}.example.com` }), kind).toBe(false);
     }
-    for (const kind of ["task_received", "job_sent", "site_action_needed", "job_outcome_question", "site_reply_reminder",
+    for (const kind of ["task_received", "job_sent", "site_action_needed", "site_reply_reminder",
       "job_withdrawn_company", "robot_team_access_approved", "scene_ready"])
       expect(internalTestRowMayBeDelivered({ kind, to: INBOX }), kind).toBe(false);
     vi.stubEnv(SETTING, "");

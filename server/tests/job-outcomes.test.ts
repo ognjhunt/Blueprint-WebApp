@@ -5,6 +5,7 @@
  * outbox enqueue against the fake Firestore; listing (`teamJobAccess`) is stubbed per job, withdrawal
  * is the real rule.
  */
+import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import express from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -191,7 +192,9 @@ describe("the two emails", () => {
     const answers = (body: string) => body.split("\n\n").slice(1);
     for (const row of [site, company]) {
       expect(lines(row.body)[1]).toBe("");
-      expect(answers(row.body).map(paragraph => paragraph.split(":\n")[0])).toEqual(["Still talking", "Quote given", "Going ahead", "Installed", "Not going ahead"]);
+      // Owner, 2026-11-25: each answer is a step either side can see for itself (`OUTCOME_STATES`).
+      expect(answers(row.body).map(paragraph => paragraph.split(":\n")[0])).toEqual(["No contact yet", "We met",
+        "Site visit booked or done", "Pilot or deployment agreed", "Not going ahead"]);
       for (const paragraph of answers(row.body)) expect(paragraph).toMatch(/^[A-Za-z ]+:\nhttps:\/\/app\.example\/api\/job-outcomes\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
     }
     const forbiddenInSite = [PLANT.contactName, PLANT.companyEmail, PLANT.website, PLANT.siteEmail, PLANT.sitePhone, PLANT.address,
@@ -312,6 +315,119 @@ describe("recording an answer", () => {
   });
 });
 
+describe("the answers offered since 2026-11-25, and their recording", () => {
+  const token = (by: "site" | "company", state: any, issuedDay = 14) =>
+    createJobOutcomeToken({ requestId: "req-1", companyId: "co-1", by, state, nowMs: at(issuedDay).getTime() });
+
+  it("records a reason with Not going ahead only, from the closed list, and the latest answer of each side", async () => {
+    seedJob(); seedIntro();
+    expect(await recordOutcomeAnswer(token("company", "met"), at(14), { reason: "cost" }))
+      .toEqual({ ok: true, state: "met", recorded: true });
+    expect(await recordOutcomeAnswer(token("site", "not_going_ahead"), at(15), { reason: "timing" }))
+      .toEqual({ ok: true, state: "not_going_ahead", recorded: true, notGoingAheadReason: "timing" });
+    expect(intro().outcomes.map(({ link: _link, ...row }: Record<string, unknown>) => row)).toEqual([
+      { by: "company", state: "met", atIso: at(14).toISOString() },
+      { by: "site", state: "not_going_ahead", atIso: at(15).toISOString(), reason: "timing" }]);
+    expect(intro().latestOutcomeBySide).toEqual({ company: { state: "met", atIso: at(14).toISOString(), reason: null },
+      site: { state: "not_going_ahead", atIso: at(15).toISOString(), reason: "timing" } });
+    // "Not going ahead" is final for the side that said it; the other side's later answers still go in.
+    expect(await recordOutcomeAnswer(token("site", "met", 45), at(45))).toMatchObject({ recorded: false, finalAlready: "not_going_ahead" });
+    expect(await recordOutcomeAnswer(token("company", "site_visit", 45), at(45))).toMatchObject({ recorded: true });
+    expect(await recordOutcomeAnswer(token("company", "pilot_agreed", 90), at(90))).toMatchObject({ recorded: true });
+    expect(intro().latestOutcomeBySide.company).toEqual({ state: "pilot_agreed", atIso: at(90).toISOString(), reason: null });
+    expect(latestOutcome(intro())).toMatchObject({ site: { state: "not_going_ahead", reason: "timing" }, company: { state: "pilot_agreed" } });
+  });
+
+  it("records no reason it does not offer, and still records an answer from a link sent before the list changed", async () => {
+    seedJob(); seedIntro();
+    expect(await recordOutcomeAnswer(token("company", "not_going_ahead"), at(14), { reason: "<script>" }))
+      .toEqual({ ok: true, state: "not_going_ahead", recorded: true });
+    expect(intro().outcomes[0].reason).toBeUndefined();
+    expect(await recordOutcomeAnswer(token("site", "quote_given"), at(15))).toMatchObject({ recorded: true });
+    expect(intro().latestOutcomeBySide.site).toEqual({ state: "quote_given", atIso: at(15).toISOString(), reason: null });
+    // Questions end on a side's own "Not going ahead" (or the earlier "Installed"), never on "Pilot or deployment agreed".
+    expect(dueOutcomeQuestionDay({ requestedAtIso: new Date(START).toISOString(),
+      outcomes: [{ by: "site", state: "pilot_agreed", atIso: at(20).toISOString() }] }, at(45).getTime(), "site")).toBe(45);
+  });
+
+  it("touches no billable event: an answer is never one", async () => {
+    seedJob(); seedIntro();
+    const event = { kind: "introduction", requestId: "req-1", companyId: "co-1", atIso: new Date(START).toISOString(), priceUsd: null,
+      status: "recorded_no_price", madeAtIso: new Date(START).toISOString() };
+    sharedFakeFirestoreState.docs.set("billableEvents/introduction-req-1-co-1", event);
+    const before = [...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("billableEvents/"));
+    for (const state of ["no_contact_yet", "met", "site_visit", "pilot_agreed"] as const)
+      await recordOutcomeAnswer(token("company", state, 14), at(14 + ["no_contact_yet", "met", "site_visit", "pilot_agreed"].indexOf(state)));
+    await recordOutcomeAnswer(token("site", "not_going_ahead"), at(20), { reason: "cost" });
+    await sweepOutcomeQuestions({ now: at(45) });
+    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("billableEvents/"))).toEqual(before);
+    expect(sharedFakeFirestoreState.docs.get("billableEvents/introduction-req-1-co-1")).toEqual(event);
+    expect(JSON.stringify(intro())).not.toMatch(/price|billable|charge/i);
+  });
+});
+
+describe("the internal test company's introduction on an internal test job (owner, 2026-11-25)", () => {
+  const INBOX = "internal-test-inbox@example.com";
+  const TEST_COMPANY = createHash("sha256").update(INBOX).digest("hex");
+  const testCompanyRecord = { email: INBOX, status: "approved", partnerRole: "deployment", company: "Blueprint internal test company",
+    internal_test_company: { created_at_iso: "2026-11-25T00:00:00.000Z", created_by: "pipeline_sync_signature" } };
+  const testJob = { internal_test: { label: "rigid pick", footage_id: "f1", created_by: "pipeline_sync_signature",
+    created_at_iso: "2026-11-25T00:00:00.000Z" } };
+  const testSides = { siteShared: { name: "Blueprint internal test site", email: INBOX },
+    companyShared: { company: "Blueprint internal test company", contactName: "Blueprint internal test company", email: INBOX } };
+  beforeEach(() => {
+    vi.stubEnv("BLUEPRINT_INTERNAL_TEST_COMPANY_EMAIL", INBOX);
+    sharedFakeFirestoreState.docs.set(`robotTeamAccess/${TEST_COMPANY}`, testCompanyRecord);
+  });
+
+  it("asks both sides at the internal test inbox, and nothing about any other company on a test job", async () => {
+    seedJob("req-t", testJob); seedIntro("req-t", TEST_COMPANY, testSides);
+    // A real company forged onto the test job is never asked about; a side whose address is not the inbox is not asked.
+    seedIntro("req-t", "co-real");
+    seedJob("req-u", testJob); seedIntro("req-u", TEST_COMPANY, { ...testSides, siteShared: { name: "Blueprint internal test site",
+      email: PLANT.siteEmail } });
+    expect((await sweepOutcomeQuestions({ now: at(14) })).queued).toBe(3);
+    expect(outbox().map(row => [row.id, row.to]).sort()).toEqual([
+      [`job-outcome-question:req-t:${TEST_COMPANY}:company:d14`, INBOX], [`job-outcome-question:req-t:${TEST_COMPANY}:site:d14`, INBOX],
+      [`job-outcome-question:req-u:${TEST_COMPANY}:company:d14`, INBOX]].sort());
+    const entry = (companyId: string, side: "site" | "company") => ({ kind: "job_outcome_question", requestId: "req-t",
+      idempotencyKey: outcomeQuestionKey("req-t", companyId, side, 14) });
+    expect(await outcomeQuestionIsCurrent(entry(TEST_COMPANY, "site"))).toBe(true);
+    expect(await outcomeQuestionIsCurrent(entry(TEST_COMPANY, "company"))).toBe(true);
+    expect(await outcomeQuestionIsCurrent(entry("co-real", "site"))).toBe(false);
+    // Without the setting nothing is the test company, and nothing is asked.
+    vi.stubEnv("BLUEPRINT_INTERNAL_TEST_COMPANY_EMAIL", "");
+    expect(await outcomeQuestionIsCurrent(entry(TEST_COMPANY, "site"))).toBe(false);
+  });
+
+  it("asks a date's question at once through the signed door's helper, once, and only for the pair", async () => {
+    const { queueInternalTestOutcomeQuestions } = await import("../utils/jobOutcomes");
+    seedJob("req-t", testJob);
+    expect(await queueInternalTestOutcomeQuestions("req-t", 14, at(1))).toEqual({ ok: false, reason: "not_introduced" });
+    seedIntro("req-t", TEST_COMPANY, testSides);
+    const asked = await queueInternalTestOutcomeQuestions("req-t", 14, at(1));
+    expect(asked).toMatchObject({ ok: true, queued: [`job-outcome-question:req-t:${TEST_COMPANY}:site:d14`,
+      `job-outcome-question:req-t:${TEST_COMPANY}:company:d14`] });
+    if (!asked.ok) throw new Error("not asked");
+    expect(asked.answers.company!.map(link => link.label)).toEqual(["No contact yet", "We met", "Site visit booked or done",
+      "Pilot or deployment agreed", "Not going ahead"]);
+    // The links are the email's own: one press records that side's answer.
+    const companyRow = outbox().find(row => row.id.endsWith(":company:d14"))!;
+    for (const link of asked.answers.company!) expect(companyRow.body).toContain(link.url);
+    const notGoingAhead = asked.answers.company!.find(link => link.state === "not_going_ahead")!.url.split("/api/job-outcomes/")[1];
+    expect(await recordOutcomeAnswer(notGoingAhead, at(2), { reason: "not_a_fit" })).toMatchObject({ recorded: true });
+    expect(intro("req-t", TEST_COMPANY).latestOutcomeBySide).toEqual({ company: { state: "not_going_ahead", atIso: at(2).toISOString(),
+      reason: "not_a_fit" } });
+    // Asked once per side and date; the side that said "Not going ahead" is asked nothing more.
+    expect(await queueInternalTestOutcomeQuestions("req-t", 14, at(3))).toMatchObject({ ok: true, queued: [] });
+    expect(await queueInternalTestOutcomeQuestions("req-t", 45, at(3))).toMatchObject({ ok: true,
+      queued: [`job-outcome-question:req-t:${TEST_COMPANY}:site:d45`] });
+    // Never a real job.
+    seedJob("req-1"); seedIntro("req-1", TEST_COMPANY, testSides);
+    expect(await queueInternalTestOutcomeQuestions("req-1", 14)).toEqual({ ok: false, reason: "not_a_test_job" });
+  });
+});
+
 describe("the outbox's check before it sends", () => {
   it("passes other kinds, and an outcome question only while it is still owed", async () => {
     expect(await outcomeQuestionIsCurrent({ kind: "job_sent", requestId: "req-1" })).toBe(true);
@@ -386,6 +502,29 @@ describe("GET and POST /api/job-outcomes/:token", () => {
       expect(post.status).toBe(404);
     }
     expect(intro().outcomes).toEqual([]);
+  });
+
+  it("asks for one reason on a Not going ahead link, each one press, and records the reason pressed", async () => {
+    seedJob(); seedIntro();
+    const token = createJobOutcomeToken({ requestId: "req-1", companyId: "co-1", by: "site", state: "not_going_ahead" });
+    const html = await (await fetch(`${baseUrl}/api/job-outcomes/${token}`)).text();
+    expect(html).toContain("What is the main reason? Press one.");
+    for (const [reason, label] of [["cost", "Cost"], ["not_a_fit", "Not a fit for the job"], ["timing", "Timing"],
+      ["chose_another", "Chose another option"], ["other", "Another reason"]])
+      expect(html).toContain(`<form method="post" action="/api/job-outcomes/${token}?reason=${reason}" style="margin:0 0 8px"><button type="submit">${label}</button></form>`);
+    expect(html).toContain(`<form method="post" action="/api/job-outcomes/${token}" style="margin:0 0 8px"><button type="submit">Rather not say</button></form>`);
+    expect(html).not.toContain("Record this answer");
+    expect(intro().outcomes).toEqual([]);
+    const post = await fetch(`${baseUrl}/api/job-outcomes/${token}?reason=chose_another`, { method: "POST", redirect: "manual" });
+    expect(post.status).toBe(303);
+    expect(post.headers.get("location")).toBe("/job-outcome/thanks?answer=not_going_ahead&reason=chose_another");
+    expect(intro().outcomes).toMatchObject([{ by: "site", state: "not_going_ahead", reason: "chose_another" }]);
+    // "Rather not say", or a value it does not offer, records the answer without a reason.
+    const company = createJobOutcomeToken({ requestId: "req-1", companyId: "co-1", by: "company", state: "not_going_ahead" });
+    const bogus = await fetch(`${baseUrl}/api/job-outcomes/${company}?reason=price_too_high`, { method: "POST", redirect: "manual" });
+    expect(bogus.headers.get("location")).toBe("/job-outcome/thanks?answer=not_going_ahead");
+    expect(intro().outcomes[1]).toMatchObject({ by: "company", state: "not_going_ahead" });
+    expect(intro().outcomes[1].reason).toBeUndefined();
   });
 
   it("builds the same email text the sweep queues", () => {
