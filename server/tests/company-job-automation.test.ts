@@ -784,7 +784,18 @@ describe("the company's page for one job (E3)", () => {
     expect(await refusal({ state: "maybe" })).toBe("Choose a response.");
     expect(await refusal({ state: "interested", statementVersion: "company-response-2026-11-12" }))
       .toBe("The wording on this page has changed. Reload the page, read it, then send your response again.");
+    expect(await refusal({ state: "interested", statementVersion: "company-response-2026-11-23" }))
+      .toBe("The wording on this page has changed. Reload the page, read it, then send your response again.");
     expect(await refusal({ state: "interested", details: { nickname: "x" } })).toBe("Your response could not be read. Reload the page and send it again.");
+  });
+
+  // Owner, 2026-11-25 ("update the answer line too"): a form opened before the release shows the 2026-11-23.2 line, which
+  // shares exactly what the new line does; its answer is accepted and recorded under the line the company read.
+  it("accepts an answer sent from a form that showed the 2026-11-23.2 line, and records that line", async () => {
+    const response = await answer(SOUTH, { state: "interested", statementVersion: "company-response-2026-11-23.2" });
+    expect(response.status).toBe(200);
+    expect((state.docs.get(`inboundRequests/${ID}/robotTeamInterest/${sha(SOUTH.email)}`) as Record<string, any>).statementVersion)
+      .toBe("company-response-2026-11-23.2");
   });
 
   it("closes a reply window with no email when the question was answered or changed first", async () => {
@@ -1683,10 +1694,12 @@ describe("review findings (must-fix and should-fix)", () => {
     expect(state.docs.get("automationState/companyAutoSendCursor")).toMatchObject({ after: null });
   });
 
-  it("must-fix 5: the consent line names both answers, and the company's email states its own stored answer", async () => {
+  // The line named both answers until 2026-11-25; the form now offers Apply alone (owner: "update the answer line too"),
+  // and a tested answer given before is still introduced and still named in the company's own email.
+  it("must-fix 5: the consent line names applying, and the company's email states its own stored answer", async () => {
     expect(COMPANY_RESPONSE_STATEMENT).toBe("The site sees your company's name and website with your answer, and any estimate you "
-      + "give, as an estimate before a site visit, not a quote. If you apply or answer Tested it: can do and the site accepts, we "
-      + "give the site your contact details, and give you theirs.");
+      + "give, as an estimate before a site visit, not a quote. If you apply and the site accepts, we give the site your contact "
+      + "details, and give you theirs.");
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
     expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(200);
     await interested(SOUTH);

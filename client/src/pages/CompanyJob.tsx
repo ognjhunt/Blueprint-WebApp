@@ -9,7 +9,8 @@ import { companyApplicationHref, companyJobReturnPath, companyJobSignInHref } fr
 import { CHARGE_MODELS, CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATE_LIMITS, ESTIMATE_UNITS, INTRODUCIBLE_RESPONSE_STATES, SIMILAR_JOBS, SIMILAR_JOBS_LABELS,
   VISIT_NOTE_LIMIT, isApplicationEstimate, type ApplicationEstimate, type ChargeModel, type SimilarJobs } from "@/lib/companyResponses";
 import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, COMPANY_START_WINDOWS, FIT_RESPONSE_STATES,
-  companyQuestionOverdue, companyQuestionWaiting, companyResponseNeedsNote, type CompanyReplyDetails, type CompanyResponseState, type CompanyStartWindow } from "@/lib/companyResponses";
+  COMPANY_ESTIMATE_STATEMENT_VERSIONS, companyQuestionOverdue, companyQuestionWaiting, companyResponseNeedsNote, type CompanyReplyDetails, type CompanyResponseState,
+  type CompanyStartWindow } from "@/lib/companyResponses";
 import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
 import { CompanyTermsPrompt } from "@/components/site/CompanyTermsPrompt";
 import { RobotTeamEarlyAccess } from "@/components/site/RobotTeamEarlyAccess";
@@ -541,7 +542,8 @@ function CompanyAnswerForm({ jobId, user, page }: { jobId: string; user: User; p
   return <section id="answer-this-job" aria-label={formLabel} tabIndex={-1}>
     <h2>Your response</h2>
     {mine && <p className="ms-field-hint">{mine.state === "interested" ? "You applied" : `You answered “${COMPANY_RESPONSE_LABELS[mine.state]}”`}{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
-      {(mine.state === "interested" || mine.state === "tested_can_do") && mine.statementVersion !== page.responseStatement.version
+      {(mine.state === "interested" || mine.state === "tested_can_do")
+        && !COMPANY_ESTIMATE_STATEMENT_VERSIONS.includes(mine.statementVersion ?? "")
         ? ` ${mine.state === "interested" ? "Send it again" : "Apply"} below so the site sees your company's name, website and any estimate with it.` : ""}</p>}
     {page.pendingQuestion && <p className="ms-field-hint" role="status">{Date.parse(page.pendingQuestion.replyByIso) <= Date.now()
       ? companyQuestionOverdue(dateInWords(page.pendingQuestion.replyByIso), page.pendingQuestion.reminded)

@@ -18,7 +18,7 @@ import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { csrfProtection } from "../middleware/csrf";
 import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
 import { ESTIMATE_RULE, VISIT_NOTE_LIMIT } from "../../client/src/lib/companyResponses";
-import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, INTRODUCIBLE_RESPONSE_STATES, companyResponseNeedsNote, type CompanyResponseState } from "../../client/src/lib/companyResponses";
+import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_FORM_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATES, INTRODUCIBLE_RESPONSE_STATES, companyResponseNeedsNote, type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { companyAnswerDetailsSchema, recordCompanyAnswer } from "../utils/companyAnswer";
 import { hasInternalTestCompanyMarker, isInternalTestCompanyRow, loadIsInternalTestCompany } from "../utils/internalTestCompany";
 import { recordCompanyJobView } from "../utils/companyJobViews";
@@ -41,7 +41,7 @@ const interestSchema = z.object({ state: z.enum(COMPANY_RESPONSE_STATES),
   inputs: z.string().trim().max(2000),
   details: companyAnswerDetailsSchema.optional(),
   // The line the company saw under the form (E5); stored on the answer.
-  statementVersion: z.literal(COMPANY_RESPONSE_STATEMENT_VERSION) }).strict();
+  statementVersion: z.enum(COMPANY_RESPONSE_FORM_STATEMENT_VERSIONS) }).strict();
 /** A response the form cannot send as it is: unknown fields, or a page that is out of date. */
 export const RESPONSE_UNREADABLE = "Your response could not be read. Reload the page and send it again.";
 /**

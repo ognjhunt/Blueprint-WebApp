@@ -262,6 +262,24 @@ describe("the company's page for one job", () => {
     expect(screen.getByText(/You answered “Need more details” on November 12, 2026\./)).toBeInTheDocument();
   });
 
+  // Owner, 2026-11-25 ("update the answer line too"): an application under the 2026-11-23.2 line already shares the
+  // company's name, website and estimate, so it is not asked to send again; one under the 2026-11-23 line still is.
+  it("asks no company to send again whose application already shares its name and estimate", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+      myAnswer: { state: "interested", inputs: "We do this every day.", updatedAtIso: "2026-11-24T10:00:00.000Z",
+        statementVersion: "company-response-2026-11-23.2" } }) }) });
+    const { unmount } = render(<CompanyJob />);
+    expect(await screen.findByText("You applied on November 24, 2026.")).toBeInTheDocument();
+    expect(screen.queryByText(/Send it again below/)).toBeNull();
+    unmount();
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+      myAnswer: { state: "interested", inputs: "We do this every day.", updatedAtIso: "2026-11-23T10:00:00.000Z",
+        statementVersion: "company-response-2026-11-23" } }) }) });
+    render(<CompanyJob />);
+    expect(await screen.findByText(/Send it again below so the site sees your company's name, website and any estimate with it\./))
+      .toBeInTheDocument();
+  });
+
   // Owner, 2026-11-25: the form offers no tested answer, and one given before reads as it was given.
   it("names a tested answer given before, leaves the form unchosen, and asks an older one to apply again", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({

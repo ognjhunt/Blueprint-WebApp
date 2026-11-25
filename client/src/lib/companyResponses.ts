@@ -189,10 +189,20 @@ export const RESPONSE_PRIVACY_LINE = "The site is told your response, not your c
  * answer given under the 2026-11-12 line keeps its alias. Both lines say the site is told the answer, and both agree to
  * an introduction after the site accepts, so an answer under either may be accepted (`COMPANY_RESPONSE_STATEMENT_VERSIONS`).
  */
-export const COMPANY_RESPONSE_STATEMENT_VERSION = "company-response-2026-11-23.2";
+export const COMPANY_RESPONSE_STATEMENT_VERSION = "company-response-2026-11-25.1";
+/**
+ * 2026-11-25 (owner: "update the answer line too"): the form no longer offers Tested it: can do (Terms 2026-11-25.2), so
+ * the line names applying alone. It shares exactly what the 2026-11-23.2 line shared: an answer under either is shown
+ * with the company's name, website and estimate, and may be accepted.
+ */
 export const COMPANY_RESPONSE_STATEMENT = "The site sees your company's name and website with your answer, and any estimate you "
-  + "give, as an estimate before a site visit, not a quote. If you apply or answer Tested it: can do and the site accepts, we "
-  + "give the site your contact details, and give you theirs.";
+  + "give, as an estimate before a site visit, not a quote. If you apply and the site accepts, we give the site your contact "
+  + "details, and give you theirs.";
+/** The line of 2026-11-23, later the same day, kept as the record of what an answer given under it agreed to. */
+export const COMPANY_RESPONSE_STATEMENT_2026_11_23_2_VERSION = "company-response-2026-11-23.2";
+export const COMPANY_RESPONSE_STATEMENT_2026_11_23_2 = "The site sees your company's name and website with your answer, and any "
+  + "estimate you give, as an estimate before a site visit, not a quote. If you apply or answer Tested it: can do and the site "
+  + "accepts, we give the site your contact details, and give you theirs.";
 /**
  * 2026-11-23, later the same day (owner: "yes build it this way"): an application may carry how the company charges and an
  * optional estimate range. The current line says the site sees the estimate, as one before a site visit and not a quote;
@@ -207,12 +217,20 @@ export const COMPANY_RESPONSE_STATEMENT_2026_11_12 = "The site is told your answ
   + "site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.";
 /** Lines under which an answer tells the site the answer and agrees to an introduction once the site accepts. */
 export const COMPANY_RESPONSE_STATEMENT_VERSIONS: readonly string[] = [COMPANY_RESPONSE_STATEMENT_VERSION,
-  COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION, COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION];
+  COMPANY_RESPONSE_STATEMENT_2026_11_23_2_VERSION, COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION,
+  COMPANY_RESPONSE_STATEMENT_2026_11_12_VERSION];
 /** Lines under which the site also sees the company's name and website with the answer. */
 export const COMPANY_NAME_STATEMENT_VERSIONS: readonly string[] = [COMPANY_RESPONSE_STATEMENT_VERSION,
-  COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION];
+  COMPANY_RESPONSE_STATEMENT_2026_11_23_2_VERSION, COMPANY_RESPONSE_STATEMENT_2026_11_23_VERSION];
 /** Lines under which the site also sees the estimate an application gives. */
-export const COMPANY_ESTIMATE_STATEMENT_VERSIONS: readonly string[] = [COMPANY_RESPONSE_STATEMENT_VERSION];
+export const COMPANY_ESTIMATE_STATEMENT_VERSIONS: readonly string[] = [COMPANY_RESPONSE_STATEMENT_VERSION,
+  COMPANY_RESPONSE_STATEMENT_2026_11_23_2_VERSION];
+/**
+ * The lines a company's answer form may send: the current one, and the one a form opened before 2026-11-25 shows, which
+ * shares the same and is recorded as what that company read.
+ */
+export const COMPANY_RESPONSE_FORM_STATEMENT_VERSIONS = [COMPANY_RESPONSE_STATEMENT_VERSION,
+  COMPANY_RESPONSE_STATEMENT_2026_11_23_2_VERSION] as const;
 
 /** What a company sees before it has accepted the current Terms and Privacy Policy: nothing of any job, only this. */
 export const TERMS_PROMPT = "Before you see jobs, read and agree to our Terms and Privacy Policy.";
