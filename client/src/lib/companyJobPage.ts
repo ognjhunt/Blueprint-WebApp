@@ -249,23 +249,12 @@ export const SIMULATION_STATUS = {
   unknown: "The simulation of the site is not finished yet.",
 } as const;
 
-/** Where the first look stands, when it has nothing to show yet. */
-export const FIRST_LOOK_STATUS = {
-  no_video: "Our first look comes once the site's video arrives.",
-  reading: "The video is being read. Our first look follows.",
-  unknown: "Our first look is not ready yet.",
-} as const;
-
-/** Said for a job whose site has not said what counts as done. */
-export const NO_SUCCESS_RULE = "The site has not said what counts as done yet.";
-
 /**
  * Said beside the download when the Pipeline says the package is the site's room without the job's object
- * (`object_included: false`). The two tested answers stay: a company can test in the site's room with a stand-in of its
- * own, sized from the facts about the object, and a tested answer says what it tested.
+ * (`object_included: false`): what the download holds, and nothing more. No answer asks what a company tested (owner,
+ * 2026-11-25: the tested answers are gone).
  */
-export const SIMULATION_WITHOUT_OBJECT = "This simulation is the site's room without the job's object in it. To test the job, "
-  + "add a stand-in of your own, sized from the facts about the object below, and say what you tested in your answer.";
+export const SIMULATION_WITHOUT_OBJECT = "This simulation is the site's room without the job's object in it.";
 
 /** Said while the facts about the job's object are being checked for names and contact details before they are shown. */
 export const PACKET_FACTS_PENDING = "The facts about the object are being checked for names and contact details. They appear here once that is done.";
@@ -282,7 +271,6 @@ export const JOB_PAGE_HEADINGS = {
   measured: "Measured",
   estimated: "Estimated",
   video: "The video",
-  firstLook: "First look",
   visit: "What a visit must confirm",
 } as const;
 

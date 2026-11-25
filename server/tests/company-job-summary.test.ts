@@ -39,7 +39,7 @@ const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
     { key: "brief:what", label: "What it is", value: "\u201cthe blue cartons from line 3\u201d", state: "stated", source: "site_sentence" },
     { key: "size", label: "Size", value: null, state: "not_stated" },
     { key: "timing", label: "When", value: null, state: "unsure" }],
-  firstLookStatus: null, simulationStatus: null,
+  simulationStatus: null,
   visitMustConfirm: ["How pallets arrive, where they are staged and how full ones leave.", "Power and network at the cell."],
   aboutSite: [SITE_IDENTITY_RULE, "Answers questions from companies here, usually within 3 hours."],
   publishedAtIso: "2026-11-12T10:00:00.000Z", sentence: "Stack 12 kg cartons onto the pallet. Call [removed]",
@@ -49,8 +49,6 @@ const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   thumbnailUrl: THUMBNAIL_URL, thumbnailSource: "company_clip_frame",
   simulation: { state: "ready", viewerUrl: VIEWER_URL },
   simulationDownload: { state: "ready", url: DOWNLOAD_URL, sizeBytes: 170_400_000, fileName: "simulation-1a2b3c4d.zip" },
-  firstLook: null, firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 11.6 kg.", robot: "Universal Robots UR10e" }],
-  firstLookMore: "And 27 more.",
   packetFacts: { object: ["Starts: about 54 cm above the floor."], measured: ["Registration residual: 8 cm."],
     estimated: ["Weight: about 3.1 kg (0.34 to 28 kg). An estimate, not weighed."] },
   myAnswer: { state: "interested", inputs: "We palletize these for a grocer.", updatedAtIso: "2026-11-13T10:00:00.000Z",
@@ -63,7 +61,7 @@ const lines = (page: CompanyJobPage) => pdfTextLines(companyJobSummaryPdf(page, 
 const textOf = (page: CompanyJobPage) => lines(page).join("\n");
 
 describe("the job summary holds what the job page shows, in its words and its order", () => {
-  it("the title line, the identity line, the media's state with the way back, the site's words, At a glance, the object, the first look and the visit", () => {
+  it("the title line, the identity line, the media's state with the way back, the site's words, At a glance, the object and the visit", () => {
     const shown = lines(item());
     const at = (line: string) => {
       const index = shown.indexOf(line);
@@ -97,9 +95,6 @@ describe("the job summary holds what the job page shows, in its words and its or
       at("Measured"),
       at("\u2022 Registration residual: 8 cm."),
       at("Estimated"),
-      at("First look"),
-      at("\u2022 Universal Robots UR10e: Fits if the item weighs under 11.6 kg."),
-      at("And 27 more."),
       at("What a visit must confirm"),
       at("\u2022 How pallets arrive, where they are staged and how full ones leave."),
       at(NOTHING_TESTED_AT_SITE),
@@ -134,27 +129,33 @@ describe("the job summary holds what the job page shows, in its words and its or
     expect(room.replace(/\n/g, " ")).toContain(SIMULATION_WITHOUT_OBJECT);
   });
 
-  it("says what the page says when the site's words cannot be shown yet, the facts are being checked, and there is no first look", () => {
-    const text = textOf(item({ sentence: "", successRule: undefined, successRulePending: true, packetFacts: null, packetFactsPending: true,
-      firstLookRows: [], firstLookMore: null, firstLook: null }));
+  it("says what the page says when the site's words cannot be shown yet and the facts are being checked", () => {
+    const text = textOf(item({ sentence: "", successRule: undefined, successRulePending: true, packetFacts: null, packetFactsPending: true }));
     expect(text).toContain("The site's description can't be shown right now.");
+    expect(text).toContain("What counts as done");
     expect(text).toContain(SUCCESS_RULE_CANT_BE_SHOWN);
     expect(text.replace(/\n/g, " ")).toContain(PACKET_FACTS_PENDING);
-    expect(text).not.toContain("First look");
-    expect(textOf(item({ successRule: undefined }))).toContain("The site has not said what counts as done yet.");
+    // A site that has not said what counts as done: no heading and no line saying so, as on the page (owner, 2026-11-25).
+    const unsaid = textOf(item({ successRule: undefined }));
+    expect(unsaid).not.toContain("What counts as done");
+    expect(unsaid).not.toMatch(/has not said what counts as done/);
     // The identity line is always there, even if the page's list were to lose it.
     expect(textOf(item({ aboutSite: [] }))).toContain(SITE_IDENTITY_RULE);
   });
 
-  it("shows the first look's card as its lead, how sure it is and its limits", () => {
+  // Owner, 2026-11-25: the first look stays on the site's own pages, and the tested answers are gone. A payload of before
+  // that still carries a first look puts none of it in the summary, and nothing asks what the company tested.
+  it("holds no first look, even from a payload that still carries one, and asks nothing about a test", () => {
     const robot = { name: "UR20", manufacturer: "Universal Robots", verdictLabel: "Fits on paper", checks: [], specs: [], evidence: [] };
-    const card = { headline: "x", familyLabel: "Palletizing", facts: [], pick: robot as never, runnerUp: null,
+    const card = { headline: "Most likely to fit: UR20", familyLabel: "Palletizing", facts: [], pick: robot as never, runnerUp: null,
       confidence: { level: "fair" as const, reason: "We estimated the weight from the video." }, unknowns: [], note: "" };
-    const text = textOf(item({ firstLook: card }));
-    expect(text).toContain("The robot most likely to fit: UR20, by Universal Robots.");
-    expect(text).toContain("How sure are we? Fairly sure. We estimated the weight from the video.");
-    expect(textOf(item({ firstLook: { ...card, pick: { ...robot, verdictLabel: "Does not fit" } as never } })))
-      .toContain("The closest robot: UR20, by Universal Robots. No robot clearly fits.");
+    const before = { ...item({ simulationDownload: { state: "ready", url: DOWNLOAD_URL, sizeBytes: 1, fileName: "simulation-1.zip", objectIncluded: false } }),
+      firstLook: card, firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 11.6 kg.", robot: "Universal Robots UR10e" }],
+      firstLookMore: "And 27 more.", firstLookStatus: "Our first look is not ready yet." } as CompanyJobPage;
+    const text = textOf(before).replace(/\n/g, " ");
+    expect(text).not.toMatch(/first look|Universal Robots|UR20|Fits if the item|And 27 more|most likely to fit|closest robot|How sure are we/i);
+    expect(text).toContain(SIMULATION_WITHOUT_OBJECT);
+    expect(text).not.toMatch(/what you tested|stand-in|Tested it/i);
   });
 
   it("replaces a text its fonts cannot draw with one line pointing to the page, never the text with a gap", () => {

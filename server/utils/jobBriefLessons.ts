@@ -325,23 +325,36 @@ async function endRun(jobId: string, companyId: string, token: string, kind: Rea
 }
 
 const inFlight = new Map<string, Promise<JobBriefLesson | null>>();
+/** Answers saved again while their run was under way: read once more when it ends (Codex review, 2026-11-25). */
+const askedAgain = new Set<string>();
 
 /**
  * Learn from one company's answer on one job: read, claim, hold, run, check and count. The lesson kept, or null when
  * there is none or none could be learnt now. Never throws: a lesson is a signal, and the company's answer is saved
- * either way.
+ * either way. A request while a run for the same answer is under way joins it, and the answer is read once more when
+ * that run ends, so words the company changed meanwhile are learnt too (the run read the earlier ones); the same words
+ * read again are not run again (`learnOnce` compares the digest of what was read).
  */
 export async function ensureJobBriefLesson(jobId: string, companyId: string): Promise<JobBriefLesson | null> {
   if (!db || !/^[A-Za-z0-9_-]{1,200}$/.test(jobId) || !/^[A-Za-z0-9_-]{1,200}$/.test(companyId)) return null;
   const key = `${jobId}/${companyId}`;
-  let work = inFlight.get(key);
-  if (!work) {
-    work = learnOnce(jobId, companyId).catch(error => {
-      logger.warn({ err: error, jobId }, "A company's answer could not be turned into a lesson for the job brief");
-      return null;
-    }).finally(() => inFlight.delete(key));
-    inFlight.set(key, work);
+  const running = inFlight.get(key);
+  if (running) {
+    askedAgain.add(key);
+    return running;
   }
+  const work = (async () => {
+    let lesson: JobBriefLesson | null = null;
+    do {
+      askedAgain.delete(key);
+      lesson = await learnOnce(jobId, companyId).catch(error => {
+        logger.warn({ err: error, jobId }, "A company's answer could not be turned into a lesson for the job brief");
+        return null;
+      });
+    } while (askedAgain.has(key));
+    return lesson;
+  })().finally(() => { inFlight.delete(key); askedAgain.delete(key); });
+  inFlight.set(key, work);
   return work;
 }
 
@@ -403,5 +416,6 @@ async function learnOnce(jobId: string, companyId: string): Promise<JobBriefLess
 
 export function resetJobBriefLessonsForTests() {
   inFlight.clear();
+  askedAgain.clear();
   writerOverride = null;
 }

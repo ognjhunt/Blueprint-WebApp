@@ -122,13 +122,11 @@ test("a signed-in company opens a job from the library, watches the video and an
       fitSummary: [{ key: "weight", label: "Weight", value: "5 to 15 kg (11 to 33 lb)", state: "stated" },
         { key: "perHour", label: "Times an hour", value: null, state: "not_stated" },
         { key: "hours", label: "Hours a day", value: "Two shifts", state: "stated" }],
-      firstLookStatus: null, simulationStatus: "The simulation is being built from the site's video.",
+      simulationStatus: "The simulation is being built from the site's video.",
       visitMustConfirm: ["How pallets arrive, where they are staged and how full ones leave."],
       aboutSite: ["The site's name, street address and contact details come only with an introduction the site asks for."],
       video: { state: "ready", url: videoUrl, width: 640, height: 360, durationSeconds: 1 },
-      simulation: { state: "not_finished" }, firstLook: null,
-      firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 20 kg.", robot: "Universal Robots UR20" }],
-      packetFacts: null,
+      simulation: { state: "not_finished" }, packetFacts: null,
       myAnswer: null, responseStatement: { version: "company-response-2026-11-12", text: statement } } } });
     // The job summary (owner, 2026-11-25): the page's words as a PDF, behind the page's own checks.
     if (url.pathname === `/api/site-worlds/jobs/${JOB}/summary.pdf`) {
@@ -161,6 +159,9 @@ test("a signed-in company opens a job from the library, watches the video and an
   // A skipped question is named on one line under the answers, not given a row (owner, 2026-11-25).
   await expect(glance.getByText("Not stated yet: Times an hour")).toBeVisible();
   await expect(page.getByText("The simulation is being built from the site's video.")).toBeVisible();
+  // Cut to whether to apply (owner, 2026-11-25): no first look, and no "What counts as done" box the site left empty.
+  await expect(page.getByRole("region", { name: "First look" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "What counts as done" })).toHaveCount(0);
   // The visit list is the same for every job of its kind: folded to one line until opened (owner, 2026-11-25).
   await expect(page.getByRole("list", { name: "What a visit must confirm" })).toBeHidden();
   await page.getByText("What a visit must confirm", { exact: true }).click();
@@ -188,6 +189,8 @@ test("a signed-in company opens a job from the library, watches the video and an
   const form = page.getByRole("form", { name: "Your response" });
   await expect(form).toBeInViewport();
   await expect(form.getByText(statement, { exact: true })).toBeVisible();
+  await expect(form.getByRole("radio")).toHaveCount(3);
+  await expect(form.getByLabel(/Tested it/)).toHaveCount(0);
   await form.getByLabel("Apply").check();
   await form.getByRole("textbox", { name: "Note to the site" }).fill("We palletize cartons like these today.");
   await form.getByRole("button", { name: "Send" }).click();

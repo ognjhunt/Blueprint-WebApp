@@ -6,19 +6,18 @@
  * It is written from the page's own payload (`loadCompanyJobPage`) and nothing else, so it carries exactly the words the
  * page shows, already screened for the site's identity, in the page's own words (`client/src/lib/companyJobPage.ts`):
  * the title, the country and the day it was shared, the line about the site's identity, where the video and the
- * simulation stand with a link back to the page, the site's words and what counts as done, At a glance, the facts about
- * the object, the first look, and what a visit must confirm. Never the video, a frame or the thumbnail (the site keeps
- * custody of its video: it is played on the page only), never a media ticket, the company's own answer or anyone's
- * contact details, and no price.
+ * simulation stand with a link back to the page, the site's words and what counts as done when the site said it, At a
+ * glance, the facts about the object, and what a visit must confirm. No first look: it stays on the site's own pages, as
+ * on the company's page (owner, 2026-11-25), and no line asks the company what it tested. Never the video, a frame or
+ * the thumbnail (the site keeps custody of its video: it is played on the page only), never a media ticket, the
+ * company's own answer or anyone's contact details, and no price.
  */
 import { jobTitleForDisplay, type CompanyJobPage } from "../../client/src/types/taskBrowse";
-import { JOB_PAGE_HEADINGS, JOB_SUMMARY_FOOTER, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_STATED_YET, NO_SUCCESS_RULE,
+import { JOB_PAGE_HEADINGS, JOB_SUMMARY_FOOTER, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_STATED_YET,
   PACKET_FACTS_PENDING, SIMULATION_DOWNLOAD_HINT, SIMULATION_NOT_FINISHED, SIMULATION_WITHOUT_OBJECT, SITE_ANSWERS_HINT,
   SITE_DESCRIPTION_CANT_BE_SHOWN, SITE_IDENTITY_RULE, VIDEO_PREPARING, fitRowMarks, fitRowValue, fitRowsShown,
   sharedOnInWords } from "../../client/src/lib/companyJobPage";
 import { SUCCESS_RULE_CANT_BE_SHOWN } from "../../client/src/lib/companiesRead";
-import { JOB_CARD_CLOSEST_LABEL, JOB_CARD_LIMITS, JOB_CARD_NO_CLEAR_FIT, JOB_CARD_PICK_LABEL, SURENESS_QUESTION,
-  SURENESS_WORDS } from "../../client/src/lib/siteAnswer";
 import { pdfCanShow, renderPdf, type PdfBlock } from "./simplePdf";
 
 /** The heading over where the video and the simulation stand, which the page shows at its top as buttons. */
@@ -64,8 +63,11 @@ export function companyJobSummaryBlocks(page: CompanyJobPage, jobUrl: string): P
   // The site's own words.
   blocks.push({ kind: "heading", text: JOB_PAGE_HEADINGS.job });
   paragraph(page.sentence || SITE_DESCRIPTION_CANT_BE_SHOWN, page.sentence ? "quote" : undefined);
-  blocks.push({ kind: "subheading", text: JOB_PAGE_HEADINGS.done });
-  paragraph(page.successRule || (page.successRulePending ? SUCCESS_RULE_CANT_BE_SHOWN : NO_SUCCESS_RULE));
+  // What counts as done, only when the site said it, or while its rule is being prepared, as the page shows it.
+  if (page.successRule || page.successRulePending) {
+    blocks.push({ kind: "subheading", text: JOB_PAGE_HEADINGS.done });
+    paragraph(page.successRule || SUCCESS_RULE_CANT_BE_SHOWN);
+  }
 
   // At a glance: each answer and "Not sure" as a row with its marks, the skipped questions on one line.
   blocks.push({ kind: "heading", text: JOB_PAGE_HEADINGS.glance });
@@ -87,26 +89,6 @@ export function companyJobSummaryBlocks(page: CompanyJobPage, jobUrl: string): P
         blocks.push({ kind: "bullets", items: page.packetFacts[section].map(shown) });
       }
     } else paragraph(PACKET_FACTS_PENDING);
-  }
-
-  // The first look, once there is one: robots on paper, and the card's lead and how sure it is.
-  if (page.firstLookRows.length || page.firstLook) {
-    blocks.push({ kind: "heading", text: JOB_PAGE_HEADINGS.firstLook });
-    if (page.firstLookRows.length) blocks.push({ kind: "bullets",
-      items: page.firstLookRows.map(row => shown(row.robot ? `${row.robot}: ${row.text}` : row.text)) });
-    if (page.firstLookMore) paragraph(page.firstLookMore, "hint");
-    const card = page.firstLook;
-    if (card) {
-      const pick = card.pick;
-      const fits = pick ? /^Fits/.test(pick.verdictLabel) : false;
-      const lead = pick ? `${fits ? JOB_CARD_PICK_LABEL : JOB_CARD_CLOSEST_LABEL}: ${pick.name}, by ${pick.manufacturer}.${fits ? "" : ` ${JOB_CARD_NO_CLEAR_FIT}`}`
-        : card.headline;
-      if (lead) paragraph(lead);
-      if (card.familyLabel) paragraph(`Kind of job: ${card.familyLabel}`);
-      if (card.sceneNote) paragraph(card.sceneNote);
-      paragraph(`${SURENESS_QUESTION} ${SURENESS_WORDS[card.confidence.level]}.${card.confidence.reason ? ` ${card.confidence.reason}` : ""}`);
-      paragraph(JOB_CARD_LIMITS, "hint");
-    }
   }
 
   // What a first visit must still confirm, and that nothing here was tested at the site.

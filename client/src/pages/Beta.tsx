@@ -1,7 +1,7 @@
 import { BareBack, BareButton, BareGroup, BareRows, BareScreen } from "@/components/bare/Bare";
 import { SEO } from "@/components/SEO";
 import { COMPANY } from "@/data/company";
-import { EVERYDAY_ANSWERS, FREE_FOR_SITES, INTRODUCIBLE_ANSWERS, JOBS_THAT_FIT, QUESTIONS_SEO_DESCRIPTION, START_JOB, TESTED_ANSWERS } from "@/lib/publicCopy";
+import { EVERYDAY_ANSWERS, FREE_FOR_SITES, INTRODUCIBLE_ANSWERS, JOBS_THAT_FIT, QUESTIONS_SEO_DESCRIPTION, START_JOB } from "@/lib/publicCopy";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 /**
@@ -30,8 +30,8 @@ export default function Beta() {
             { key: "limits", label: "Simulation", value: "A simulation helps companies review your job. It does not certify performance or safety." },
           ]} />
           <BareRows title="Deployment companies" rows={[
-            { key: "responses", label: "Responses", value: `A company can choose ${EVERYDAY_ANSWERS}. Once the simulation can be downloaded, it can also choose ${TESTED_ANSWERS}. We can't promise any will say yes.` },
-            { key: "meet", label: "Applicants", value: `You see each company's name and website with its answer. Press Accept beside a company that ${INTRODUCIBLE_ANSWERS} to meet it. We email the company your email address and the place you gave us, and email you theirs.` },
+            { key: "responses", label: "Responses", value: `A company can choose ${EVERYDAY_ANSWERS}. We can't promise any will say yes.` },
+            { key: "meet", label: "Applicants", value: `You see each company's name and website with its answer. To meet a company that ${INTRODUCIBLE_ANSWERS}, press Accept beside it. We email the company your email address and the place you gave us, and email you theirs.` },
             { key: "company", label: "Setting it up", value: "You agree any work and its terms with the company directly." },
           ]} />
           <BareRows title="Your video" rows={[

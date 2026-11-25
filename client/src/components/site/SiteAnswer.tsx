@@ -22,7 +22,7 @@ import {
 import type { FirstLookWords } from "@/lib/firstLookWords";
 import { PROGRESS_FAILED, PROGRESS_MARK, PROGRESS_UNDO, jobTrackerSteps } from "@/lib/jobTracker";
 import { CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATES_NOT_CHECKED, SIMILAR_JOBS_LABELS, estimateInWords } from "@/lib/companyResponses";
-import { COMPANY_START_LABELS, REPLY_DATE_PASSED, replyByLine, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, elapsedSince, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, companyNotApprovedNow, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
+import { COMPANY_START_LABELS, REPLY_DATE_PASSED, replyByLine, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, companyNotApprovedNow, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
   NO_REASON_SHOWN, sentToCompany, type SiteCompanyActivity, type SiteCompanyEntry } from "@/lib/companyResponses";
 import { COMPANIES_READ_LIMIT, COMPANIES_READ_LINE, COMPANIES_READ_PENDING, COMPANIES_READ_SENTENCE_LABEL, COMPANIES_READ_SUCCESS_LABEL, COMPANIES_READ_TITLE,
   COMPANY_WORDS_BEING_PREPARED, COMPANY_WORDS_LIMIT, replyAsReadLine, replyLimitLine, replyPendingLine, type CompaniesReadSiteWords, type CompaniesReadText } from "@/lib/companiesRead";
@@ -522,19 +522,19 @@ function CompanyEntries({ token, activity, onIntroduced, posted }: { token: stri
     } catch { setErrors(current => ({ ...current, [alias]: { message: INTRODUCTION_FAILED, atIso } })); }
     finally { setBusy(null); }
   }
-  // "Introduce us" is offered beside each answer the server says can be introduced (`interested`, or `tested_can_do`,
-  // E9), with no limit per job (owner, 2026-11-12).
-  const timeToAnswer = elapsedSince(activity.startedAtIso, activity.firstAnswerAtIso);
+  // "Introduce us" is offered beside each answer the server says can be introduced (`interested`, or a stored
+  // `tested_can_do`, E9), with no limit per job (owner, 2026-11-12).
   const replies = activity.entries.filter(entry => entry.kind === "answered").length;
   const views = activity.views ?? 0;
+  // Where the job stands, in two counts. Not how long the first response took: it decides nothing for the site (owner,
+  // 2026-11-25: the site's screen is cut to whom it meets).
   return <>
-    {(posted || timeToAnswer || replies > 0) && <div className="site-company-summary">
+    {(posted || replies > 0) && <div className="site-company-summary">
       <p className="site-company-metrics">
         {/* `views` counts the distinct approved companies that opened the job (`companyJobViews.ts`). */}
         {activity.views !== null && <span>Viewed by {views} {views === 1 ? "company" : "companies"}</span>}
         <span>{replies} {replies === 1 ? "response" : "responses"}</span>
       </p>
-      {timeToAnswer && <p className="bare-helper">Time to first response: {timeToAnswer}.</p>}
     </div>}
     <CompareApplicants entries={answered} estimateNotes={estimateNotes} />
     {activity.entries.length > 0 && <ul className="site-job-company-entries" aria-label="Company responses">

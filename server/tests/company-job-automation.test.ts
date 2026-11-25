@@ -521,8 +521,10 @@ describe("the company's page for one job (E3)", () => {
     expect(item.visitMustConfirm).toEqual([...VISIT_MUST_CONFIRM.palletizing]);
     expect(item.aboutSite).toEqual([SITE_IDENTITY_RULE]);
     expect(item).not.toHaveProperty("notShown");
-    // A viewer and a first look exist in this fixture, so neither box needs a status.
+    // A viewer exists in this fixture, so the simulation needs no status.
     expect(item).toMatchObject({ simulationStatus: null });
+    // The first look stays on the site's own pages (owner, 2026-11-25): none of it is in the company's payload.
+    for (const key of ["firstLook", "firstLookRows", "firstLookMore", "firstLookStatus"]) expect(item).not.toHaveProperty(key);
   });
 
   it("keeps the site's name out of the title and the fit summary when the video reading echoes it", async () => {
@@ -1567,9 +1569,10 @@ describe("the job summary: the page's words as a PDF, under the page's checks", 
     expect(item.visitMustConfirm).toEqual(VISIT_MUST_CONFIRM.palletizing);
     for (const part of [item.headline, "United States", "Shared November 12, 2026", "What counts as done",
       "Every carton ends up on the pallet, label facing out.", "At a glance", "Weight 5 to 15 kg (11 to 33 lb)", "Not stated yet:",
-      "First look", ...item.firstLookRows.map((row: { robot: string; text: string }) => `${row.robot}: ${row.text}`),
       "What a visit must confirm", ...item.visitMustConfirm, NOTHING_TESTED_AT_SITE, SITE_IDENTITY_RULE, JOB_SUMMARY_FOOTER])
       expect(text.replace(/\n/g, " ")).toContain(part);
+    // No first look, as on the page: it stays on the site's own pages (owner, 2026-11-25).
+    expect(text).not.toMatch(/first look/i);
     expect(text.replace(/\n/g, " ")).toContain("Stack 12 kg cartons onto the pallet, 2 shifts, 24/7. Call [removed] or email [removed], see [removed]");
     // The way back to the page for the video and the simulation: the page's address, as a link.
     expect(pdfLinks(read.bytes)).toEqual([`https://tryblueprint.io/jobs/${ID}`]);
