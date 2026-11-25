@@ -285,19 +285,26 @@ export function firstAnswerTimestamp(prior: Data | undefined, answeredAtIso: str
 }
 
 /**
- * When the company first applied on the job (Apply, or Tested it: can do), for the owner's marketplace numbers
- * (2026-11-25, `marketplaceNumbers.ts`): kept once set, even if the answer changes later; else this answer's time when
- * it is an application. An answer recorded before this existed holds none: when its one write was an application, that
- * write's time is it; when it already stood as an application after an edit, the time is not known, and none is made up.
+ * That the company applied on the job (Apply, or Tested it: can do), and when, for the owner's marketplace numbers
+ * (2026-11-25, `marketplaceNumbers.ts`). Kept once set, whatever the answer changes to later:
+ * - `firstAppliedAtIso`: the time it first applied, when that is known: this answer's time when it is the first
+ *   application, or an older answer's one write when that write was the application.
+ * - `appliedAtOrBeforeIso`: it applied, but the exact time is not known: an answer recorded before these fields existed
+ *   that already stood as an application after an edit. It applied at or after its first answer and at or before its
+ *   last write before this one (this write's time when that one is not on record). No time is made up from it.
+ * An older answer that applied and changed away before these fields existed cannot be told from one that never applied.
  */
-export function firstApplicationTimestamp(prior: Data | undefined, state: CompanyResponseState, answeredAtIso: string): string | null {
+export function firstApplicationFields(prior: Data | undefined, state: CompanyResponseState, answeredAtIso: string):
+  { firstAppliedAtIso?: string; appliedAtOrBeforeIso?: string } {
   const kept = instant(prior?.firstAppliedAtIso);
-  if (kept) return kept;
+  if (kept) return { firstAppliedAtIso: kept };
+  const bound = instant(prior?.appliedAtOrBeforeIso);
+  if (bound) return { appliedAtOrBeforeIso: bound };
   if (prior && INTRODUCIBLE_RESPONSE_STATES.includes(prior.state)) {
-    const first = instant(prior.firstAnsweredAtIso);
-    return first && first === instant(prior.updatedAtIso) ? first : null;
+    const first = instant(prior.firstAnsweredAtIso), last = instant(prior.updatedAtIso);
+    return first && first === last ? { firstAppliedAtIso: first } : { appliedAtOrBeforeIso: last ?? answeredAtIso };
   }
-  return INTRODUCIBLE_RESPONSE_STATES.includes(state) ? answeredAtIso : null;
+  return INTRODUCIBLE_RESPONSE_STATES.includes(state) ? { firstAppliedAtIso: answeredAtIso } : {};
 }
 
 function firstRecordedAnswer(responses: readonly { data: Data }[]): string | null {

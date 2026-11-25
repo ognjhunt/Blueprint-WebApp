@@ -19,8 +19,9 @@
  *   staff from its email; at the time it was first given (`firstAnsweredAtIso`). An answer from before package C1 is
  *   not one. When any answer on the job lacks its first time, the job's first response time is not known.
  * - An application ("Apply"): an answer of Apply or Tested it: can do, the two a site can accept. It counts once given,
- *   even if changed since (`firstAppliedAtIso`, a field added 2026-11-25). An older answer standing as an application
- *   has its time only when it was never edited; otherwise its time is not known, and no time is made up.
+ *   even if changed since (`firstAppliedAtIso`, or `appliedAtOrBeforeIso` when only a bound is known; fields added
+ *   2026-11-25). An older answer standing as an application has its time only when it was never edited; otherwise its
+ *   time is not known unless its bounds meet, and no time is made up.
  * - An introduction: made when the company's email with the site's details was sent (its billable event's `madeAtIso`;
  *   on an internal test job, the test event's). One the site asked for that is not made yet is counted apart.
  * - Outcomes: what is recorded on an introduction that was made (`OUTCOME_READERS`, one row per kind; add a row to
@@ -30,13 +31,17 @@
  *   row whose figure cannot be read, is left out of the spread and counted apart.
  * - Simulation use: the counters `simulationUse.ts` keeps since it went live. A job with none reads "No data yet".
  *
- * ## Bounded reads
+ * ## Every record, a page at a time
  *
- * One range query on the share time (Firestore's automatic single-field index), newest first, at most
- * `MARKETPLACE_JOB_LIMIT` jobs; with test jobs, one ordered query on the marker's creation time, at most
- * `MARKETPLACE_TEST_JOB_LIMIT`. Per job: its answers, introductions, billable events and counters, each at most
- * `MARKETPLACE_RECORDS_PER_JOB`, and its ledgers as the cap reads them (`transactionJobLedgerReader`, with its own
- * limits). The video times in one `getAll`. Jobs are read `READ_CONCURRENCY` at a time. Any limit reached is said.
+ * The whole window is read, never a first page taken as the whole (`server/AGENTS.md`), so no number leans toward the
+ * newest jobs: one range query on the share time (Firestore's automatic single-field index), newest first, paged with a
+ * cursor on the last document (its share time, then its id) until the window ends; with test jobs, every test job by
+ * the marker's creation time, paged the same way. Per job: its answers, introductions, billable events and counters,
+ * each paged in document-id order to the end, and its ledgers as the cap reads them (`transactionJobLedgerReader`, with
+ * its own limits). Each page is at most `MARKETPLACE_PAGE_SIZE` documents; the video times are one `getAll` per page of
+ * jobs; jobs are read `READ_CONCURRENCY` at a time. One safety ceiling stops a runaway read:
+ * `MARKETPLACE_JOB_CEILING` jobs per query and `MARKETPLACE_RECORD_CEILING` records of one kind per job. Reaching one
+ * is said on the page; no real window comes near either.
  *
  * No site name, address or contact, and no company name, leaves here: job ids, times and counts only.
  */
@@ -46,7 +51,7 @@ import { EARLIER_OUTCOME_STATES, OUTCOME_STATES, OUTCOME_STATE_LABELS } from "..
 import type { MarketplaceDuration, MarketplaceJobRow, MarketplaceJobSpend, MarketplaceLaneSpend, MarketplaceNumbers,
   MarketplaceOutcomeRow, MarketplaceShare, MarketplaceStep, MarketplaceUsdSpread, MarketplaceUse, MarketplaceWindow }
   from "../../client/src/types/marketplaceNumbers";
-import { isMadeBillableEvent, readJobBillableEventStates, TEST_NO_CHARGE_STATUS } from "./billableEvents";
+import { isMadeBillableEvent, jobBillableEventStatesQuery, TEST_NO_CHARGE_STATUS } from "./billableEvents";
 import { INTERNAL_TEST_FIELD, isInternalTestJob } from "./internalTestJob";
 import { isSiteJobRecord, videoReceivedAtIso } from "./jobConsoleData";
 import { COMPANY_RESPONSES_COLLECTION, COMPANY_SENDS_COLLECTION, INTRODUCTIONS_COLLECTION } from "./jobCompanies";
@@ -62,9 +67,11 @@ type Store = FirebaseFirestore.Firestore;
 const JOBS = "inboundRequests";
 /** The automatic send's marker on the job (`AUTO_SEND_FIELD` in `jobAutoSend.ts`). */
 export const SHARED_FIELD = "company_auto_send";
-export const MARKETPLACE_JOB_LIMIT = 200;
-export const MARKETPLACE_TEST_JOB_LIMIT = 50;
-export const MARKETPLACE_RECORDS_PER_JOB = 500;
+/** Documents per page of every read. */
+export const MARKETPLACE_PAGE_SIZE = 200;
+/** Safety ceilings, far above any real window: jobs per query, and records of one kind per job. */
+export const MARKETPLACE_JOB_CEILING = 10_000;
+export const MARKETPLACE_RECORD_CEILING = 10_000;
 const READ_CONCURRENCY = 8;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -118,14 +125,18 @@ export function isResponse(answer: Data | undefined): boolean {
 
 /**
  * When the company first applied, as bounds in milliseconds (equal when known; -Infinity or Infinity where a bound is
- * not on record), or null when the answer is not an application. See `firstApplicationTimestamp` (`jobCompanies.ts`).
+ * not on record), or null when the answer is not an application. An answer that applied counts whatever it says now
+ * (`firstAppliedAtIso`, or `appliedAtOrBeforeIso` when only a bound is known: `firstApplicationFields`, `jobCompanies.ts`).
  */
 export function applicationBounds(answer: Data | undefined): { lo: number; hi: number } | null {
   if (!isResponse(answer)) return null;
   const applied = ms(answer!.firstAppliedAtIso);
   if (applied !== null) return { lo: applied, hi: applied };
+  const first = ms(answer!.firstAnsweredAtIso);
+  const atOrBefore = ms(answer!.appliedAtOrBeforeIso);
+  if (atOrBefore !== null) return { lo: first ?? -Infinity, hi: atOrBefore };
   if (!INTRODUCIBLE_RESPONSE_STATES.includes(answer!.state as CompanyResponseState)) return null;
-  const first = ms(answer!.firstAnsweredAtIso), updated = ms(answer!.updatedAtIso);
+  const updated = ms(answer!.updatedAtIso);
   if (first !== null && first === updated) return { lo: first, hi: first };
   return { lo: first ?? -Infinity, hi: updated ?? Infinity };
 }
@@ -327,6 +338,7 @@ const JOB_FIELDS = ["request.buyerType", "workspace_evaluation", INTERNAL_TEST_F
 const VIDEO_FIELDS = ["browser_stored_upload.completed_at_iso", "browser_pending_delivery.completed_at_iso", "site_capture_bundle.recorded_at_iso"];
 
 type SharedJob = { jobId: string; record: Data; sharedAtIso: string };
+type Doc = FirebaseFirestore.QueryDocumentSnapshot;
 
 async function mapLimit<T, R>(items: readonly T[], limit: number, work: (item: T) => Promise<R>): Promise<R[]> {
   const out = new Array<R>(items.length);
@@ -337,13 +349,46 @@ async function mapLimit<T, R>(items: readonly T[], limit: number, work: (item: T
   return out;
 }
 
-/** The window's shared jobs, newest first, within the read limits; each limit reached is said in `limits`. */
-async function sharedJobsSince(store: Store, sinceIso: string, nowIso: string, includeTests: boolean, limits: string[]): Promise<SharedJob[]> {
+/**
+ * Every document an ordered query matches, `MARKETPLACE_PAGE_SIZE` at a time, each page starting after the last
+ * document of the one before (its ordered values, then its id), until a page comes back short. `ceiling` stops a
+ * runaway read: `cut` says documents remain past it (one more is asked to tell).
+ */
+export async function readEveryPage(query: FirebaseFirestore.Query, ceiling: number): Promise<{ docs: Doc[]; cut: boolean }> {
+  const docs: Doc[] = [];
+  let after: Doc | null = null;
+  for (;;) {
+    const room = Math.min(MARKETPLACE_PAGE_SIZE, ceiling - docs.length);
+    const from = after ? query.startAfter(after) : query;
+    if (room <= 0) return { docs, cut: (await from.limit(1).get()).docs.length > 0 };
+    const page = await from.limit(room).get();
+    docs.push(...page.docs);
+    if (page.docs.length < room) return { docs, cut: false };
+    after = page.docs[page.docs.length - 1];
+  }
+}
+
+/** One loader's reads: its store, the safety ceilings, and the sentences that say a ceiling was reached. */
+type Reads = { store: Store; jobCeiling: number; recordCeiling: number; limits: string[] };
+const count = (value: number) => value.toLocaleString("en-US");
+
+/** Every record an ordered query on one job matches, a page at a time; the safety ceiling reached is said. */
+async function everyRecord(reads: Reads, query: FirebaseFirestore.Query): Promise<Array<{ id: string; data: Data }>> {
+  const read = await readEveryPage(query, reads.recordCeiling);
+  if (read.cut) reads.limits.push(`A job holds more than ${count(reads.recordCeiling)} records of one kind; `
+    + `only the first ${count(reads.recordCeiling)} were read.`);
+  return read.docs.map(doc => ({ id: doc.id, data: (doc.data() ?? {}) as Data }));
+}
+/** Every record of one kind on one job, in document-id order. */
+const records = (reads: Reads, query: FirebaseFirestore.Query) => everyRecord(reads, query.orderBy("__name__"));
+
+/** The window's shared jobs, newest first, every page of them; a safety ceiling reached is said. */
+async function sharedJobsSince(reads: Reads, sinceIso: string, nowIso: string, includeTests: boolean): Promise<SharedJob[]> {
+  const { store, jobCeiling, limits } = reads;
   const inWindow = (at: string | null): at is string => Boolean(at) && at! >= sinceIso && at! <= nowIso;
-  const real = await store.collection(JOBS).where(`${SHARED_FIELD}.sentAtIso`, ">=", sinceIso)
-    .orderBy(`${SHARED_FIELD}.sentAtIso`, "desc").limit(MARKETPLACE_JOB_LIMIT).select(...JOB_FIELDS).get();
-  if (real.docs.length >= MARKETPLACE_JOB_LIMIT)
-    limits.push(`Only the ${MARKETPLACE_JOB_LIMIT} jobs shared most recently were read; any shared earlier in this window are left out.`);
+  const real = await readEveryPage(store.collection(JOBS).where(`${SHARED_FIELD}.sentAtIso`, ">=", sinceIso)
+    .orderBy(`${SHARED_FIELD}.sentAtIso`, "desc").select(...JOB_FIELDS), jobCeiling);
+  if (real.cut) limits.push(`More than ${count(jobCeiling)} jobs were shared in this window; only the ${count(jobCeiling)} shared most recently were read.`);
   const jobs: SharedJob[] = [];
   for (const doc of real.docs) {
     const record = doc.data() ?? {};
@@ -351,29 +396,34 @@ async function sharedJobsSince(store: Store, sinceIso: string, nowIso: string, i
     if (isSiteJobRecord(record) && !isInternalTestJob(record) && inWindow(sharedAtIso)) jobs.push({ jobId: doc.id, record, sharedAtIso });
   }
   if (!includeTests) return jobs;
-  const tests = await store.collection(JOBS).orderBy(`${INTERNAL_TEST_FIELD}.created_at_iso`, "desc")
-    .limit(MARKETPLACE_TEST_JOB_LIMIT).select(...JOB_FIELDS).get();
-  if (tests.docs.length >= MARKETPLACE_TEST_JOB_LIMIT)
-    limits.push(`Only the ${MARKETPLACE_TEST_JOB_LIMIT} newest internal test jobs were read.`);
+  // A test job made before the window may be shared inside it, so every test job is read, a page at a time.
+  const tests = await readEveryPage(store.collection(JOBS).orderBy(`${INTERNAL_TEST_FIELD}.created_at_iso`, "desc")
+    .select(...JOB_FIELDS), jobCeiling);
+  if (tests.cut) limits.push(`More than ${count(jobCeiling)} internal test jobs exist; only the ${count(jobCeiling)} newest were read.`);
   const shared = await mapLimit(tests.docs, READ_CONCURRENCY, async doc => {
     const record = doc.data() ?? {};
     if (!isSiteJobRecord(record) || !isInternalTestJob(record)) return null;
     // Shared with Blueprint's internal test company: its standing send (`sendJobToInternalTestCompany`).
-    const sends = await store.collection(JOBS).doc(doc.id).collection(COMPANY_SENDS_COLLECTION)
-      .limit(MARKETPLACE_RECORDS_PER_JOB).select("sentAtIso", "voidedAtIso").get();
-    const at = sends.docs.map(send => send.data() ?? {}).filter(send => !text(send.voidedAtIso))
+    const sends = await records(reads, store.collection(JOBS).doc(doc.id).collection(COMPANY_SENDS_COLLECTION).select("sentAtIso", "voidedAtIso"));
+    const at = sends.map(send => send.data).filter(send => !text(send.voidedAtIso))
       .map(send => instant(send.sentAtIso)).filter((value): value is string => Boolean(value)).sort()[0] ?? null;
     return inWindow(at) ? { jobId: doc.id, record, sharedAtIso: at } : null;
   });
   return [...jobs, ...shared.filter((job): job is SharedJob => job !== null)];
 }
 
-/** When each job's video arrived: the earliest of its walkthrough's and its current capture's records, in one read. */
+/**
+ * When each job's video arrived: the earliest of its walkthrough's and its current capture's records, one `getAll` per
+ * page of jobs.
+ */
 async function videoTimes(store: Store, jobs: readonly SharedJob[]): Promise<Map<string, string | null>> {
   const captures = jobs.map(job => [...new Set([`walkthrough-${job.jobId}`, siteWalkthroughIdentity(job.jobId, job.record).captureId])]);
-  const refs = captures.flat().map(id => store.collection("captureUploadSessions").doc(id));
-  const sessions = refs.length ? await store.getAll(...refs, { fieldMask: VIDEO_FIELDS }) : [];
-  const byId = new Map(sessions.map(session => [session.id, session.exists ? session.data() : undefined]));
+  const byId = new Map<string, Data | undefined>();
+  for (let start = 0; start < jobs.length; start += MARKETPLACE_PAGE_SIZE) {
+    const refs = captures.slice(start, start + MARKETPLACE_PAGE_SIZE).flat().map(id => store.collection("captureUploadSessions").doc(id));
+    for (const session of await store.getAll(...refs, { fieldMask: VIDEO_FIELDS }))
+      byId.set(session.id, session.exists ? session.data() : undefined);
+  }
   return new Map(jobs.map((job, index) => [job.jobId, captures[index].map(id => videoReceivedAtIso(byId.get(id)))
     .filter((at): at is string => Boolean(instant(at))).sort()[0] ?? null]));
 }
@@ -404,20 +454,16 @@ export async function jobSpendFacts(store: Store, jobId: string, record: Data): 
   return Number.isFinite(spend.total_micros) ? { state: "counted", totalMicros: spend.total_micros, lanes } : { state: "unreadable", lanes };
 }
 
-async function readJob(store: Store, job: SharedJob, videoAtIso: string | null, limits: string[]): Promise<MarketplaceJobInput> {
+async function readJob(reads: Reads, job: SharedJob, videoAtIso: string | null): Promise<MarketplaceJobInput> {
+  const { store } = reads;
   const jobRef = store.collection(JOBS).doc(job.jobId);
-  const cut = <T>(rows: T[]) => {
-    if (rows.length >= MARKETPLACE_RECORDS_PER_JOB)
-      limits.push(`A job reached the read limit of ${MARKETPLACE_RECORDS_PER_JOB} records of one kind; any past it are left out.`);
-    return rows;
-  };
-  const capped = async (query: FirebaseFirestore.Query) => cut((await query.limit(MARKETPLACE_RECORDS_PER_JOB).get()).docs
-    .map(doc => ({ companyId: doc.id, data: (doc.data() ?? {}) as Data })));
+  const byCompany = (rows: Array<{ id: string; data: Data }>) => rows.map(row => ({ companyId: row.id, data: row.data }));
   const [answers, introductions, events, simulationUse, spend] = await Promise.all([
-    capped(jobRef.collection(COMPANY_RESPONSES_COLLECTION).select("state", "recordedBy", "firstAnsweredAtIso", "updatedAtIso", "firstAppliedAtIso")),
-    capped(jobRef.collection(INTRODUCTIONS_COLLECTION).select("cancelledAtIso", "outcomes", "progress")),
-    readJobBillableEventStates(store, job.jobId, MARKETPLACE_RECORDS_PER_JOB).then(cut),
-    capped(jobRef.collection(SIMULATION_USE_COLLECTION))
+    records(reads, jobRef.collection(COMPANY_RESPONSES_COLLECTION).select("state", "recordedBy", "firstAnsweredAtIso", "updatedAtIso",
+      "firstAppliedAtIso", "appliedAtOrBeforeIso")).then(byCompany),
+    records(reads, jobRef.collection(INTRODUCTIONS_COLLECTION).select("cancelledAtIso", "outcomes", "progress")).then(byCompany),
+    everyRecord(reads, jobBillableEventStatesQuery(store, job.jobId)).then(rows => rows.map(row => row.data)),
+    records(reads, jobRef.collection(SIMULATION_USE_COLLECTION))
       .then(rows => rows.map(row => simulationUseRowOf(row.data)).filter((row): row is SimulationUseRow => row !== null))
       .catch(() => null),
     jobSpendFacts(store, job.jobId, job.record).catch((): JobSpendFacts => ({ state: "unavailable" })),
@@ -426,17 +472,21 @@ async function readJob(store: Store, job: SharedJob, videoAtIso: string | null, 
     sharedAtIso: job.sharedAtIso, videoAtIso, answers, introductions, billableEvents: events, simulationUse, spend };
 }
 
-/** The window's numbers, read now. Throws when the store, the jobs or their answers cannot be read (the route's 503). */
+/**
+ * The window's numbers, read now. Throws when the store, the jobs or their answers cannot be read (the route's 503).
+ * `ceilings` lowers the safety ceilings, for tests only.
+ */
 export async function loadMarketplaceNumbers(options: { windowDays: MarketplaceWindow; includeTests: boolean; now?: Date;
-  store?: Store | null }): Promise<MarketplaceNumbers> {
+  store?: Store | null; ceilings?: { jobs?: number; records?: number } }): Promise<MarketplaceNumbers> {
   const store = options.store === undefined ? dbAdmin : options.store;
   if (!store) throw new Error("marketplace_numbers_store_unavailable");
   const now = options.now ?? new Date();
   const sinceIso = windowStartIso(now, options.windowDays);
-  const limits: string[] = [];
-  const jobs = await sharedJobsSince(store, sinceIso, now.toISOString(), options.includeTests, limits);
+  const reads: Reads = { store, jobCeiling: options.ceilings?.jobs ?? MARKETPLACE_JOB_CEILING,
+    recordCeiling: options.ceilings?.records ?? MARKETPLACE_RECORD_CEILING, limits: [] };
+  const jobs = await sharedJobsSince(reads, sinceIso, now.toISOString(), options.includeTests);
   const videos = await videoTimes(store, jobs);
-  const inputs = await mapLimit(jobs, READ_CONCURRENCY, job => readJob(store, job, videos.get(job.jobId) ?? null, limits));
+  const inputs = await mapLimit(jobs, READ_CONCURRENCY, job => readJob(reads, job, videos.get(job.jobId) ?? null));
   return marketplaceNumbersOf(inputs, { windowDays: options.windowDays, includeTests: options.includeTests, sinceIso,
-    generatedAtIso: now.toISOString(), limits });
+    generatedAtIso: now.toISOString(), limits: reads.limits });
 }

@@ -32,7 +32,7 @@ const empty: Numbers = {
   jobs: [],
 };
 const full: Numbers = {
-  ...empty, sharedJobs: 2, limits: ["Only the 200 jobs shared most recently were read; any shared earlier in this window are left out."],
+  ...empty, sharedJobs: 2, limits: ["More than 10,000 jobs were shared in this window; only the 10,000 shared most recently were read."],
   headline: {
     firstResponse: { measured: 2, medianMs: 5 * H + 12 * 60_000, p90Ms: 20 * H, waiting: 0, notMeasurable: 0 },
     firstApply: { measured: 1, medianMs: 26 * H, p90Ms: 26 * H, waiting: 1, notMeasurable: 0 },
@@ -92,7 +92,7 @@ describe("Marketplace numbers", () => {
     const secondary = screen.getByRole("group", { name: "Secondary numbers" });
     expect(headline.compareDocumentPosition(secondary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(secondary.compareDocumentPosition(screen.getByRole("table", { name: "Each job" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText(/Only the 200 jobs shared most recently were read/)).toBeInTheDocument();
+    expect(screen.getByText(/More than 10,000 jobs were shared in this window/)).toBeInTheDocument();
     const [, init] = fetchMock.mock.calls[0];
     expect(String(fetchMock.mock.calls[0][0])).toBe("/api/admin/jobs/marketplace-numbers?window=7&includeTests=0");
     expect((init as RequestInit).headers).toMatchObject({ Authorization: "Bearer token" });

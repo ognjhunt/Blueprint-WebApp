@@ -2,18 +2,19 @@
 /**
  * The owner's marketplace numbers (2026-11-25): the math (medians, the nearest-rank 90th percentile, shares), the
  * cohort window by the day a job was shared, the exclusions (internal test jobs, workspace evaluations, other buyers),
- * the empty states (nothing measured is null, never 0), and the bounded reads.
+ * the empty states (nothing measured is null, never 0), an application kept whatever the answer says now, and reads
+ * that page every record of the window in bounded pages.
  */
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: {}, dbAdmin: null }));
 
 import {
-  MARKETPLACE_JOB_LIMIT, MARKETPLACE_RECORDS_PER_JOB, OUTCOME_READERS, SHARED_FIELD, applicationBounds, firstApplyStep,
-  firstResponseStep, jobSpendFacts, loadMarketplaceNumbers, madeIntroductionCompanies, marketplaceNumbersOf, median,
-  percentile, windowStartIso, type MarketplaceJobInput,
+  MARKETPLACE_PAGE_SIZE, OUTCOME_READERS, SHARED_FIELD, applicationBounds, firstApplyStep, firstResponseStep, jobSpendFacts,
+  loadMarketplaceNumbers, madeIntroductionCompanies, marketplaceNumbersOf, median, percentile, readEveryPage, windowStartIso,
+  type MarketplaceJobInput,
 } from "../utils/marketplaceNumbers";
-import { firstApplicationTimestamp } from "../utils/jobCompanies";
+import { firstApplicationFields } from "../utils/jobCompanies";
 
 type Row = Record<string, any>;
 const C1 = "a".repeat(64), C2 = "b".repeat(64), C3 = "c".repeat(64);
@@ -23,39 +24,48 @@ const META = { windowDays: 7 as const, includeTests: false, sinceIso: "2026-11-1
 /* --------------------------------------------------------------------------------- a fake store */
 
 /**
- * A store keyed by full document path. Supports what the numbers read: equality and range filters, one ordering, a
- * limit, select, collection groups not at all (none is used), and getAll. Every query's limit is recorded, so a test
- * can check that no read is unbounded.
+ * A store keyed by full document path. Supports what the numbers read: equality and range filters, orderings (a field,
+ * then the document's path in the same direction, as Firestore orders ties; or `__name__`), a limit, a cursor after a
+ * document, select, and getAll. Every query's limit is recorded, so a test can check that every read is paged.
  */
 function fakeStore(docs: Record<string, Row>) {
-  const queries: Array<{ path: string; limit: number | null; filters: string[] }> = [];
+  const queries: Array<{ path: string; limit: number | null; filters: string[]; after: boolean }> = [];
   const read = (row: Row, field: string) => field.split(".").reduce<any>((value, key) => (value == null ? undefined : value[key]), row);
   const snap = (path: string) => ({ id: path.split("/").at(-1)!, exists: path in docs, data: () => docs[path], ref: refOf(path) });
   const refOf = (path: string): any => ({ id: path.split("/").at(-1), path, get: async () => snap(path),
     collection: (name: string) => collectionOf(`${path}/${name}`) });
-  type Q = { filters: Array<[string, string, unknown]>; order: [string, string] | null; limit: number | null };
+  type Q = { filters: Array<[string, string, unknown]>; orders: Array<[string, string]>; limit: number | null; after: string | null };
   const queryOf = (parent: string, q: Q): any => ({
     where: (field: string, op: string, value: unknown) => queryOf(parent, { ...q, filters: [...q.filters, [field, op, value]] }),
-    orderBy: (field: string, direction = "asc") => queryOf(parent, { ...q, order: [field, direction] }),
+    orderBy: (field: string, direction = "asc") => queryOf(parent, { ...q, orders: [...q.orders, [field, direction]] }),
     limit: (count: number) => queryOf(parent, { ...q, limit: count }),
+    startAfter: (doc: { ref: { path: string } }) => queryOf(parent, { ...q, after: doc.ref.path }),
     select: () => queryOf(parent, q),
     get: async () => {
-      queries.push({ path: parent, limit: q.limit, filters: q.filters.map(([field, op]) => `${field} ${op}`) });
+      queries.push({ path: parent, limit: q.limit, filters: q.filters.map(([field, op]) => `${field} ${op}`), after: q.after !== null });
       let paths = Object.keys(docs).filter(path => path.startsWith(`${parent}/`) && !path.slice(parent.length + 1).includes("/"))
         .filter(path => q.filters.every(([field, op, value]) => {
           const actual = read(docs[path], field);
           return op === "==" ? actual === value : op === ">=" ? actual !== undefined && String(actual) >= String(value) : false;
         }));
-      if (q.order) {
-        const [field, direction] = q.order;
-        paths = paths.filter(path => read(docs[path], field) !== undefined)
-          .sort((a, b) => String(read(docs[a], field)).localeCompare(String(read(docs[b], field))) * (direction === "desc" ? -1 : 1));
+      if (q.orders.length) {
+        const fields = q.orders.filter(([field]) => field !== "__name__");
+        paths = paths.filter(path => fields.every(([field]) => read(docs[path], field) !== undefined));
+        const last = q.orders[q.orders.length - 1][1] === "desc" ? -1 : 1;
+        paths.sort((a, b) => {
+          for (const [field, direction] of fields) {
+            const order = String(read(docs[a], field)).localeCompare(String(read(docs[b], field)));
+            if (order) return order * (direction === "desc" ? -1 : 1);
+          }
+          return a.localeCompare(b) * last;
+        });
       }
+      if (q.after !== null) paths = paths.slice(paths.indexOf(q.after) + 1);
       return { docs: paths.slice(0, q.limit ?? undefined).map(snap) };
     },
   });
   const collectionOf = (path: string): any => ({ doc: (id: string) => refOf(`${path}/${id}`),
-    ...queryOf(path, { filters: [], order: null, limit: null }) });
+    ...queryOf(path, { filters: [], orders: [], limit: null, after: null }) });
   const store: any = {
     collection: (name: string) => collectionOf(name),
     getAll: async (...args: any[]) => args.filter(arg => arg && arg.path).map(ref => snap(ref.path)),
@@ -111,17 +121,47 @@ describe("when a company applied", () => {
 
   it("is recorded at the source once, and never made up for an older answer edited since", () => {
     const at = "2026-11-25T10:00:00.000Z";
-    expect(firstApplicationTimestamp(undefined, "interested", at)).toBe(at);
-    expect(firstApplicationTimestamp(undefined, "declined", at)).toBeNull();
-    expect(firstApplicationTimestamp({ state: "interested", firstAppliedAtIso: "2026-11-24T00:00:00.000Z" }, "declined", at))
-      .toBe("2026-11-24T00:00:00.000Z");
-    expect(firstApplicationTimestamp({ state: "needs_something", firstAnsweredAtIso: "2026-11-24T00:00:00.000Z",
-      updatedAtIso: "2026-11-24T00:00:00.000Z" }, "interested", at)).toBe(at);
-    // An older answer that stood as an application: its one write is the time; after an edit it is not known.
-    expect(firstApplicationTimestamp({ state: "interested", firstAnsweredAtIso: "2026-11-23T00:00:00.000Z",
-      updatedAtIso: "2026-11-23T00:00:00.000Z" }, "interested", at)).toBe("2026-11-23T00:00:00.000Z");
-    expect(firstApplicationTimestamp({ state: "interested", firstAnsweredAtIso: "2026-11-23T00:00:00.000Z",
-      updatedAtIso: "2026-11-24T00:00:00.000Z" }, "interested", at)).toBeNull();
+    expect(firstApplicationFields(undefined, "interested", at)).toEqual({ firstAppliedAtIso: at });
+    expect(firstApplicationFields(undefined, "declined", at)).toEqual({});
+    expect(firstApplicationFields({ state: "interested", firstAppliedAtIso: "2026-11-24T00:00:00.000Z" }, "declined", at))
+      .toEqual({ firstAppliedAtIso: "2026-11-24T00:00:00.000Z" });
+    expect(firstApplicationFields({ state: "needs_something", firstAnsweredAtIso: "2026-11-24T00:00:00.000Z",
+      updatedAtIso: "2026-11-24T00:00:00.000Z" }, "interested", at)).toEqual({ firstAppliedAtIso: at });
+    // An older answer that stood as an application: its one write is the time; after an edit only a bound is known.
+    expect(firstApplicationFields({ state: "interested", firstAnsweredAtIso: "2026-11-23T00:00:00.000Z",
+      updatedAtIso: "2026-11-23T00:00:00.000Z" }, "interested", at)).toEqual({ firstAppliedAtIso: "2026-11-23T00:00:00.000Z" });
+    expect(firstApplicationFields({ state: "interested", firstAnsweredAtIso: "2026-11-23T00:00:00.000Z",
+      updatedAtIso: "2026-11-24T00:00:00.000Z" }, "interested", at)).toEqual({ appliedAtOrBeforeIso: "2026-11-24T00:00:00.000Z" });
+    // With no last write on record, it applied at or before this one.
+    expect(firstApplicationFields({ state: "interested" }, "declined", at)).toEqual({ appliedAtOrBeforeIso: at });
+  });
+
+  it("an older edited application keeps counting after it changes to Not a fit, Need more details, then Apply again", () => {
+    const first = "2026-11-20T10:00:00.000Z", edited = "2026-11-21T10:00:00.000Z";
+    const legacy = { state: "interested", recordedBy: "company", firstAnsweredAtIso: first, updatedAtIso: edited };
+    // As `recordCompanyAnswer` writes the row: the new answer, its first answer time kept, and what it applied.
+    const write = (prior: Row, state: string, updatedAtIso: string): Row => ({ state, recordedBy: "company",
+      firstAnsweredAtIso: prior.firstAnsweredAtIso, updatedAtIso, ...firstApplicationFields(prior, state as never, updatedAtIso) });
+    const declined = write(legacy, "declined", "2026-11-25T10:00:00.000Z");
+    expect(declined).toMatchObject({ state: "declined", appliedAtOrBeforeIso: edited });
+    expect(declined.firstAppliedAtIso).toBeUndefined();
+    const needs = write(declined, "needs_something", "2026-11-26T10:00:00.000Z");
+    const again = write(needs, "interested", "2026-11-27T10:00:00.000Z");
+    for (const answer of [declined, needs, again]) {
+      expect(applicationBounds(answer)).toEqual({ lo: Date.parse(first), hi: Date.parse(edited) });
+      // The time of the first Apply stays not known: its bounds do not meet, and the later Apply is not taken for it.
+      expect(firstApplyStep([answer], Date.parse("2026-11-20T08:00:00.000Z"))).toEqual({ state: "time_unknown" });
+    }
+    expect(again.firstAppliedAtIso).toBeUndefined();
+    // It still counts as an application, and as one that became an introduction.
+    const numbers = marketplaceNumbersOf([input("j1", { answers: [{ companyId: C1, data: declined }],
+      billableEvents: [{ companyId: C1, status: "recorded_no_price", madeAtIso: "2026-11-22T00:00:00.000Z" }] })], META);
+    expect(numbers.headline.jobsWithApply).toEqual({ count: 1, of: 1, share: 1 });
+    expect(numbers.headline.applicationsIntroduced).toEqual({ count: 1, of: 1, share: 1 });
+    expect(numbers.jobs[0]).toMatchObject({ applications: 1, firstApply: { state: "time_unknown" } });
+    // Bounds that meet settle the time.
+    expect(firstApplyStep([{ ...declined, appliedAtOrBeforeIso: first }], Date.parse("2026-11-20T08:00:00.000Z")))
+      .toEqual({ state: "at", atIso: first, afterVideoMs: 2 * 3_600_000 });
   });
 });
 
@@ -267,12 +307,15 @@ describe("the reads", () => {
     expect(numbers.jobs[0]).toMatchObject({ videoAtIso: "2026-11-20T07:00:00.000Z",
       firstApply: { state: "at", atIso: "2026-11-20T10:00:00.000Z", afterVideoMs: 3 * 3_600_000 } });
     expect(numbers.limits).toEqual([]);
-    // No unbounded read: every query has a limit (the cap's own ledger queries by job are equality filters on one job).
+    // No unbounded read: every query has a limit (the cap's own ledger queries by job are equality filters on one job),
+    // and every read of the numbers' own is a page of at most `MARKETPLACE_PAGE_SIZE`.
     const unbounded = queries.filter(query => query.limit === null && !query.filters.some(filter => / ==$/.test(filter)));
     expect(unbounded).toEqual([]);
-    expect(queries.find(query => query.path === "inboundRequests")).toMatchObject({ limit: MARKETPLACE_JOB_LIMIT,
+    expect(queries.find(query => query.path === "inboundRequests")).toMatchObject({ limit: MARKETPLACE_PAGE_SIZE,
       filters: [`${SHARED_FIELD}.sentAtIso >=`] });
-    expect(queries.filter(query => query.path.endsWith("/robotTeamInterest")).every(query => query.limit === MARKETPLACE_RECORDS_PER_JOB)).toBe(true);
+    const own = queries.filter(query => /\/(robotTeamInterest|introductions|simulationUse|companySends)$|^billableEvents$|^inboundRequests$/.test(query.path));
+    expect(own.length).toBeGreaterThan(4);
+    expect(own.every(query => query.limit !== null && query.limit <= MARKETPLACE_PAGE_SIZE)).toBe(true);
 
     const withTests = await loadMarketplaceNumbers({ windowDays: 7, includeTests: true, now: NOW, store });
     expect(withTests.jobs.map(job => [job.jobId, job.internalTest])).toEqual([["test", { label: "mug to tray" }], ["in", null]]);
@@ -305,14 +348,73 @@ describe("the reads", () => {
     expect(JSON.stringify(numbers)).not.toContain("never read back");
   });
 
-  it("says when the read limit was reached", async () => {
+  it("counts every job of a window that holds more than one page of them, ties on the share time across pages included", async () => {
+    const total = MARKETPLACE_PAGE_SIZE * 2 + 50;
     const docs: Record<string, Row> = {};
-    for (let index = 0; index < MARKETPLACE_JOB_LIMIT + 1; index += 1)
-      docs[`inboundRequests/job-${String(index).padStart(3, "0")}`] = siteJob(`2026-11-2${index % 5}T00:00:00.000Z`);
-    const { store } = fakeStore(docs);
+    // Five share times only, so jobs sharing one time run across each page boundary; every other job has an Apply.
+    for (let index = 0; index < total; index += 1) {
+      const id = `job-${String(index).padStart(3, "0")}`;
+      docs[`inboundRequests/${id}`] = siteJob(`2026-11-2${index % 5}T00:00:00.000Z`);
+      if (index % 2 === 0) docs[`inboundRequests/${id}/robotTeamInterest/${C1}`] = answer("interested", `2026-11-2${index % 5}T01:00:00.000Z`);
+    }
+    const { store, queries } = fakeStore(docs);
     const numbers = await loadMarketplaceNumbers({ windowDays: 7, includeTests: false, now: NOW, store });
-    expect(numbers.sharedJobs).toBe(MARKETPLACE_JOB_LIMIT);
-    expect(numbers.limits).toEqual([expect.stringContaining(`Only the ${MARKETPLACE_JOB_LIMIT} jobs shared most recently were read`)]);
+    expect(numbers.sharedJobs).toBe(total);
+    expect(new Set(numbers.jobs.map(job => job.jobId)).size).toBe(total);
+    expect(numbers.headline.jobsWithApply).toEqual({ count: total / 2, of: total, share: 0.5 });
+    expect(numbers.limits).toEqual([]);
+    // Three pages of jobs, each after the last document of the one before.
+    const pages = queries.filter(query => query.path === "inboundRequests");
+    expect(pages.map(page => [page.limit, page.after])).toEqual([[MARKETPLACE_PAGE_SIZE, false], [MARKETPLACE_PAGE_SIZE, true], [MARKETPLACE_PAGE_SIZE, true]]);
+  });
+
+  it("counts every record of a job that holds more than one page of them", async () => {
+    const companies = MARKETPLACE_PAGE_SIZE + 50;
+    const company = (index: number) => index.toString(16).padStart(64, "0");
+    const docs: Record<string, Row> = { "inboundRequests/in": siteJob("2026-11-20T09:00:00.000Z") };
+    for (let index = 0; index < companies; index += 1) {
+      const id = company(index);
+      docs[`inboundRequests/in/robotTeamInterest/${id}`] = answer(index % 2 ? "declined" : "interested", "2026-11-20T10:00:00.000Z");
+      docs[`inboundRequests/in/introductions/${id}`] = { requestedAtIso: "2026-11-21T00:00:00.000Z" };
+      docs[`billableEvents/introduction-in-${id}`] = { requestId: "in", companyId: id, status: "recorded_no_price",
+        madeAtIso: "2026-11-21T00:01:00.000Z" };
+      docs[`inboundRequests/in/simulationUse/${id}-viewer_open`] = { companyId: id, kind: "viewer_open", count: 1 };
+    }
+    const { store, queries } = fakeStore(docs);
+    const numbers = await loadMarketplaceNumbers({ windowDays: 7, includeTests: false, now: NOW, store });
+    expect(numbers.jobs[0]).toMatchObject({ responses: companies, applications: companies / 2, introductions: companies,
+      simulationOpens: companies });
+    expect(numbers.answers.notAFit).toEqual({ count: companies / 2, of: companies, share: 0.5 });
+    expect(numbers.headline.applicationsIntroduced).toEqual({ count: companies / 2, of: companies / 2, share: 1 });
+    expect(numbers.limits).toEqual([]);
+    for (const path of ["inboundRequests/in/robotTeamInterest", "inboundRequests/in/introductions", "inboundRequests/in/simulationUse", "billableEvents"])
+      expect(queries.filter(query => query.path === path).map(query => query.after)).toEqual([false, true]);
+  });
+
+  it("stops at a safety ceiling only when records remain past it, and says so on the page", async () => {
+    const docs: Record<string, Row> = {};
+    for (let index = 0; index < 4; index += 1) docs[`inboundRequests/job-${index}`] = siteJob(`2026-11-2${index}T00:00:00.000Z`);
+    for (const id of [C1, C2, C3]) docs[`inboundRequests/job-3/robotTeamInterest/${id}`] = answer("declined", "2026-11-23T01:00:00.000Z");
+    const { store } = fakeStore(docs);
+    const cut = await loadMarketplaceNumbers({ windowDays: 7, includeTests: false, now: NOW, store, ceilings: { jobs: 3, records: 2 } });
+    expect(cut.sharedJobs).toBe(3);
+    expect(cut.jobs.map(job => job.jobId)).toEqual(["job-3", "job-2", "job-1"]);
+    expect(cut.limits).toEqual(["More than 3 jobs were shared in this window; only the 3 shared most recently were read.",
+      "A job holds more than 2 records of one kind; only the first 2 were read."]);
+    // At the ceiling with nothing past it, nothing is said.
+    const exact = await loadMarketplaceNumbers({ windowDays: 7, includeTests: false, now: NOW, store, ceilings: { jobs: 4, records: 3 } });
+    expect(exact.sharedJobs).toBe(4);
+    expect(exact.limits).toEqual([]);
+  });
+
+  it("pages a query to its end", async () => {
+    const docs: Record<string, Row> = {};
+    for (let index = 0; index < MARKETPLACE_PAGE_SIZE + 1; index += 1) docs[`things/t-${String(index).padStart(3, "0")}`] = { n: index };
+    const { store } = fakeStore(docs);
+    const all = await readEveryPage(store.collection("things").orderBy("__name__"), 10_000);
+    expect(all.cut).toBe(false);
+    expect(all.docs.map(doc => doc.id)).toEqual(Object.keys(docs).map(path => path.split("/")[1]));
+    expect(await readEveryPage(store.collection("things").orderBy("__name__"), 5)).toMatchObject({ cut: true });
   });
 
   it("counts a job's spend on every ledger the cap counts, the model lanes by lane; none with no ledger row", async () => {

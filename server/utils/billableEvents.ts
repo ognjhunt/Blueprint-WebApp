@@ -84,14 +84,13 @@ export async function listJobBillableEvents(requestId: string): Promise<Array<Bi
 }
 
 /**
- * One job's events for the owner's marketplace numbers (`marketplaceNumbers.ts`): the company, status, made time and
- * test marker only, at most `limit` of them. Read only.
+ * One job's events for the owner's marketplace numbers (`marketplaceNumbers.ts`), which pages it to the end: the
+ * company, status, made time and test marker only, in document-id order (an equality filter on one field, so the
+ * automatic single-field index serves it). Read only.
  */
-export async function readJobBillableEventStates(store: FirebaseFirestore.Firestore, requestId: string, limit: number):
-  Promise<Array<Record<string, any>>> {
-  const rows = await store.collection(BILLABLE_EVENTS_COLLECTION).where("requestId", "==", requestId)
-    .select("companyId", "status", "madeAtIso", "testEvent").limit(limit).get();
-  return rows.docs.map(doc => doc.data() ?? {});
+export function jobBillableEventStatesQuery(store: FirebaseFirestore.Firestore, requestId: string): FirebaseFirestore.Query {
+  return store.collection(BILLABLE_EVENTS_COLLECTION).where("requestId", "==", requestId)
+    .select("companyId", "status", "madeAtIso", "testEvent").orderBy("__name__");
 }
 
 /**
