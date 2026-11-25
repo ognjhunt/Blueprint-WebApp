@@ -276,7 +276,8 @@ describe("the company's page for one job", () => {
       .toHaveTextContent(/^About 45 cm on its longest side, about 1 to 3 kg \(estimated from the video\)$/);
     expect(glance.getByText("From table to shelf").nextElementSibling)
       .toHaveTextContent(/^from the round bedside table to the glass shelf \(the site's words\)$/);
-    expect(glance.getByText("How often it is moved").nextElementSibling).toHaveTextContent(/^Not stated$/);
+    // A question the site skipped is named on the one skipped line, in the brief's own words.
+    expect(glance.getByText(/How often it is moved/).closest("p")).toHaveTextContent("Not stated yet: How often it is moved");
   });
 
   it("says the video is being prepared and the simulation is not finished until each exists", async () => {
