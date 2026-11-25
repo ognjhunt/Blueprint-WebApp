@@ -180,7 +180,8 @@ describe("an admin downloads a job's simulation package from the job console", (
     expect(admin.bytes.equals(company.bytes)).toBe(true);
     for (const header of ["content-type", "content-disposition", "content-length", "accept-ranges", "cache-control", "x-content-type-options"])
       expect(admin.headers.get(header), header).toBe(company.headers.get(header));
-    expect(admin.headers.get("content-disposition")).toBe('attachment; filename="simulation.zip"');
+    // Named by the package's version (owner, 2026-11-25), as the company's download is.
+    expect(admin.headers.get("content-disposition")).toBe(`attachment; filename="simulation-${ZIP_DIGEST.slice(7, 15)}.zip"`);
     expect(admin.headers.get("cache-control")).toBe("private, no-store");
     // An ops account passes the same gate.
     expect((await adminDownload(OPS)).status).toBe(200);
@@ -330,6 +331,9 @@ describe("the console's job detail offers the download only when a package is re
     expect(await url()).toBeNull();
     storePackage();
     expect(await url()).toBe(`/api/admin/jobs/${ID}/simulation.zip`);
+    // The console saves it under the job's id and the package's version (owner, 2026-11-25).
+    expect(JSON.parse((await adminDetail()).body).simulationPackage).toMatchObject({ sizeBytes: ZIP_BYTES.length,
+      fileName: `simulation-${ID}-${ZIP_DIGEST.slice(7, 15)}.zip` });
     patchJob({ capture_withdrawal: { requested_at_iso: "2026-11-16T12:00:00.000Z" } });
     expect(await url()).toBeNull();
     state.docs.set(`inboundRequests/${ID}`, job());

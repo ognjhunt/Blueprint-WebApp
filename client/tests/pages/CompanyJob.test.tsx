@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { COMPANY_APPLICATION_VERSION, LIBRARY_MODEL_TERMS_VERSION } from "@/lib/legalAcceptance";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompanyJobPage } from "@/types/taskBrowse";
@@ -11,14 +11,17 @@ import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, estimat
  */
 const auth = vi.hoisted(() => ({ loading: false, currentUser: { uid: "u1", email: "team@example.test" } as null | { uid: string; email: string } }));
 vi.mock("@/contexts/AuthContext", () => ({ useOptionalAuth: () => auth }));
-vi.mock("@/lib/firebaseAuthHeaders", () => ({ withFirebaseAuthHeaders: async (_user: unknown, headers: Record<string, string> = {}) => headers }));
+// The account's sign-in as a marker header, so a test can see which requests carry it.
+vi.mock("@/lib/firebaseAuthHeaders", () => ({ withFirebaseAuthHeaders: async (user: unknown, headers: Record<string, string> = {}) =>
+  user ? { ...headers, Authorization: "Bearer test-token" } : headers }));
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 vi.mock("wouter", () => ({ useParams: () => ({ jobId: "job-1" }) }));
 const linkSignIn = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/companySignInLink", async (actual) => ({ ...(await actual<typeof import("@/lib/companySignInLink")>()),
   signInWithCompanyLink: linkSignIn }));
 
-const { default: CompanyJob, SITE_ANSWERS_HINT, typedEstimate, ESTIMATE_INVALID, DECLINED_COMPANY_LINE } = await import("@/pages/CompanyJob");
+const { default: CompanyJob, SITE_ANSWERS_HINT, typedEstimate, ESTIMATE_INVALID, DECLINED_COMPANY_LINE, SAVED_FILE_URL_REVOKE_DELAY_MS } = await import("@/pages/CompanyJob");
+const { JOB_SUMMARY_DOWNLOAD_LABEL, JOB_SUMMARY_UNAVAILABLE } = await import("@/lib/companyJobPage");
 
 const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   schemaVersion: "company_job_page.v1", id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
@@ -454,9 +457,14 @@ describe("the company's page for one job", () => {
 
   it("offers only Apply, Not a fit and Need more details, even once the job has a simulation package", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ simulation: { state: "not_finished" },
-      simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?x=1" } }) }) });
+      simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?x=1", sizeBytes: 170_400_000,
+        fileName: "simulation-1a2b3c4d.zip" } }) }) });
     render(<CompanyJob />);
-    expect(await screen.findByRole("link", { name: "Download the simulation" })).toHaveAttribute("href", "/api/company-media/jobs/job-1/simulation.zip?x=1");
+    // Sized, and saved under the package's version (owner, 2026-11-25).
+    const download = await screen.findByRole("link", { name: "Download the simulation (170 MB)" });
+    expect(download).toHaveAttribute("href", "/api/company-media/jobs/job-1/simulation.zip?x=1");
+    expect(download).toHaveAttribute("download", "simulation-1a2b3c4d.zip");
+    expect(download.closest(".company-job-actions")).not.toBeNull();
     // No viewer, no view button.
     expect(screen.queryByRole("link", { name: "View the simulation" })).toBeNull();
     expect(screen.getByText("A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.")).toBeInTheDocument();
@@ -521,6 +529,65 @@ describe("the company's page for one job", () => {
 });
 
 // Owner, 2026-11-23: a new-job email's link signs a signed-out company in on the way to the job.
+describe("the job summary download (owner, 2026-11-25)", () => {
+  const pdf = () => new Blob(["%PDF-1.4 fixture"], { type: "application/pdf" });
+  function saving() {
+    const createObjectURL = vi.fn(() => "blob:summary");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL, revokeObjectURL }));
+    const clicked = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    return { createObjectURL, revokeObjectURL, clicked };
+  }
+
+  it("sits in the top row and saves the PDF, fetched with the account's sign-in, as job-summary-<short job ref>.pdf", async () => {
+    const { createObjectURL, revokeObjectURL, clicked } = saving();
+    try {
+      fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ id: "capture-6f0c2a1e-3b7d" }) }) });
+      render(<CompanyJob />);
+      const button = await screen.findByRole("button", { name: JOB_SUMMARY_DOWNLOAD_LABEL });
+      expect(button.closest(".company-job-actions")).not.toBeNull();
+      fetchMock.mockResolvedValueOnce({ ok: true, status: 200, blob: async () => pdf() });
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      // The save runs to its end inside act: fetched, saved, and the button free again.
+      await act(async () => { fireEvent.click(button); });
+      await vi.waitFor(() => expect(clicked).toHaveBeenCalledTimes(1));
+      const [path, init] = fetchMock.mock.calls.at(-1) as [string, RequestInit];
+      expect(path).toBe("/api/site-worlds/jobs/capture-6f0c2a1e-3b7d/summary.pdf");
+      expect(init.headers).toMatchObject({ Authorization: "Bearer test-token" });
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      const anchor = clicked.mock.contexts[0] as HTMLAnchorElement;
+      expect(anchor.download).toBe("job-summary-6f0c2a1e.pdf");
+      expect(anchor.href).toBe("blob:summary");
+      // The save gets time to start before its address is let go.
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(SAVED_FILE_URL_REVOKE_DELAY_MS);
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:summary");
+      await vi.waitFor(() => expect(button).toBeEnabled());
+      expect(screen.queryByRole("alert")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+      clicked.mockRestore();
+    }
+  });
+
+  it("says so when the summary cannot be made, and reloads the page when the job is refused, which then says why", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });
+    render(<CompanyJob />);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({ error: "The job summary could not be made just now. Try again." }) });
+    fireEvent.click(await screen.findByRole("button", { name: JOB_SUMMARY_DOWNLOAD_LABEL }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(JOB_SUMMARY_UNAVAILABLE);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // The site withdrew: the summary is refused as the page is, and the page, loaded again, says the job is gone.
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ error: "This job is not available." }) });
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ access: { status: "approved", signedIn: true,
+      emailVerified: true, allowed: true, staff: false } }) });
+    fireEvent.click(screen.getByRole("button", { name: JOB_SUMMARY_DOWNLOAD_LABEL }));
+    expect(await screen.findByRole("heading", { name: "This job is no longer available" })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([path]) => path)).toEqual(["/api/site-worlds/jobs/job-1", "/api/site-worlds/jobs/job-1/summary.pdf",
+      "/api/site-worlds/jobs/job-1/summary.pdf", "/api/site-worlds/jobs/job-1"]);
+  });
+});
+
 describe("opening a job from its email", () => {
   beforeEach(() => { linkSignIn.mockReset(); window.history.replaceState(null, "", "/jobs/job-1?link=emailed-token&from=q%3Dx"); });
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { EVIDENCE_LEVEL_LABELS, JOB_CARD_LIMITS, SURENESS_STEPS, evidenceScopeLabel, type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
+import { EVIDENCE_LEVEL_LABELS, JOB_CARD_CLOSEST_LABEL, JOB_CARD_LIMITS, JOB_CARD_NO_CLEAR_FIT, JOB_CARD_PICK_LABEL, SURENESS_STEPS, evidenceScopeLabel,
+  type AnswerBasis, type AnswerEvidence } from "@/lib/siteAnswer";
 import { BareBack, BareBig, BareFine, BareNotice, BareGroup, BareLead, BareLinks, BareRows, BareSureness, BareTicks } from "@/components/bare/Bare";
 import { liftUpTo, ticksOf } from "./SiteAnswer";
 import type { JobCardAnswerRobot, JobCardAnswerSummary } from "@/types/taskBrowse";
@@ -87,8 +88,8 @@ export function JobCardAnswer({ answer, titled = true }: { answer: JobCardAnswer
   return <section className="bare-screen site-card-answer" aria-label={JOB_CARD_ANSWER_TITLE} ref={root} tabIndex={-1}>
     {titled && <h3 className="bare-label">{JOB_CARD_ANSWER_TITLE}</h3>}
     {pick ? <BareGroup>
-      <p className="bare-label">{fits ? "The robot most likely to fit" : "The closest robot"}</p>
-      <BareBig as="p" sub={`by ${pick.manufacturer}${fits ? "" : ". No robot clearly fits."}${answer.familyLabel ? ` · Kind of job: ${answer.familyLabel}` : ""}`}>{pick.name}</BareBig>
+      <p className="bare-label">{fits ? JOB_CARD_PICK_LABEL : JOB_CARD_CLOSEST_LABEL}</p>
+      <BareBig as="p" sub={`by ${pick.manufacturer}${fits ? "" : `. ${JOB_CARD_NO_CLEAR_FIT}`}${answer.familyLabel ? ` · Kind of job: ${answer.familyLabel}` : ""}`}>{pick.name}</BareBig>
     </BareGroup> : <BareGroup><BareLead>{answer.headline}</BareLead></BareGroup>}
     {pick && <BareGroup><BareTicks label="Why" items={ticksOf(pick.checks ?? [], pick.evidence[0])} /></BareGroup>}
     {answer.sceneNote && <BareGroup><BareNotice>{answer.sceneNote}</BareNotice></BareGroup>}

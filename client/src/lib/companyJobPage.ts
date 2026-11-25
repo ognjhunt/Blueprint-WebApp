@@ -109,6 +109,31 @@ export interface FitSummaryRow {
 export const NOT_STATED = "Not stated";
 export const NOT_SURE = "Not sure";
 export const ESTIMATE_BELOW = "Blueprint's estimate is below";
+/** The one line under the At a glance rows that names the questions the site skipped. */
+export const NOT_STATED_YET = `${NOT_STATED} yet:`;
+
+/** A row's value as the job page and the job summary show it: the answer, else "Not sure" or "Not stated". */
+export function fitRowValue(row: FitSummaryRow): string {
+  return row.value ?? (row.state === "unsure" ? NOT_SURE : NOT_STATED);
+}
+
+/** The marks after a row's value, each with its own leading space or dot: where it came from, and an estimate below. */
+export function fitRowMarks(row: FitSummaryRow): string[] {
+  const marks: string[] = [];
+  if (row.state === "from_video") marks.push(row.source === "video_estimate" ? " (estimated from the video)" : " (from the video)");
+  if (row.source === "site_sentence") marks.push(" (the site's words)");
+  if (row.estimateBelow) marks.push(` · ${ESTIMATE_BELOW}`);
+  return marks;
+}
+
+/**
+ * The At a glance rows split as the job page and the job summary show them: each answer and each "Not sure" as a row,
+ * and the questions the site skipped named on one line (`NOT_STATED_YET`), unless Blueprint estimated one.
+ */
+export function fitRowsShown(rows: readonly FitSummaryRow[]): { shown: FitSummaryRow[]; skipped: FitSummaryRow[] } {
+  const skipped = rows.filter(row => row.state === "not_stated" && !row.estimateBelow);
+  return { shown: rows.filter(row => !skipped.includes(row)), skipped };
+}
 
 /** The row naming the job's object from the video reading, with the other items it suggests; null without a name. */
 export function fitObjectRow(reading: Pick<JobReading, "object" | "others"> | null | undefined): FitSummaryRow | null {
@@ -236,6 +261,67 @@ export const PACKET_FACTS_PENDING = "The facts about the object are being checke
 
 /** About the site, without anything that identifies it. */
 export const SITE_IDENTITY_RULE = "The site's name, street address and contact details come only with an introduction the site asks for.";
+
+/** The headings of the company's job page, which the job summary repeats. */
+export const JOB_PAGE_HEADINGS = {
+  job: "The job, in the site's words",
+  done: "What counts as done",
+  glance: "At a glance",
+  object: "The object, and how sure we are",
+  measured: "Measured",
+  estimated: "Estimated",
+  video: "The video",
+  visit: "What a visit must confirm",
+} as const;
+
+/** Said in place of the site's sentence while it cannot be shown. */
+export const SITE_DESCRIPTION_CANT_BE_SHOWN = "The site's description can't be shown right now.";
+/** Under the site's quick answers: they are its own statements. */
+export const SITE_ANSWERS_HINT = "The site's own answers. Blueprint has not checked them.";
+/** Said while the sound-free copy of the site's video is not ready. */
+export const VIDEO_PREPARING = "The video is being prepared.";
+export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finished yet.";
+/** Under the simulation's buttons once its download is ready. */
+export const SIMULATION_DOWNLOAD_HINT = "A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.";
+
+/** The day the job was shared, as the page's title line says it ("Shared November 12, 2026"); "" without a date. */
+export function sharedOnInWords(iso: string): string {
+  const date = new Date(iso);
+  return iso && !Number.isNaN(date.getTime())
+    ? `Shared ${date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })}` : "";
+}
+
+/**
+ * The simulation's download button, with the package's size in whole megabytes (1,000,000 bytes, as the job console
+ * counts them) when the page knows it: "Download the simulation (170 MB)". A package under half a megabyte says so.
+ */
+export const SIMULATION_DOWNLOAD_LABEL = "Download the simulation";
+export function simulationDownloadLabel(sizeBytes?: number | null): string {
+  if (typeof sizeBytes !== "number" || !Number.isFinite(sizeBytes) || sizeBytes <= 0) return SIMULATION_DOWNLOAD_LABEL;
+  const megabytes = Math.round(sizeBytes / 1_000_000);
+  return `${SIMULATION_DOWNLOAD_LABEL} (${megabytes < 1 ? "under 1" : megabytes} MB)`;
+}
+
+/**
+ * The job summary (owner, 2026-11-25: "isnt the whole job packet available to download?"): a PDF of what the job page
+ * shows in words, for a company to forward inside its own team (`server/utils/companyJobSummary.ts`). The video stays
+ * on the page, and so does the simulation, which has its own download.
+ */
+export const JOB_SUMMARY_DOWNLOAD_LABEL = "Download the job summary (PDF)";
+export const JOB_SUMMARY_FOOTER = "From Blueprint. The site's own answers are not checked by Blueprint.";
+export const JOB_SUMMARY_UNAVAILABLE = "The job summary could not be downloaded. Try again.";
+
+/**
+ * A job's short reference for a file name: the first eight letters or digits of its id after any word prefix
+ * ("capture-", "itest-"). The id is Blueprint's own and already in the job page's address, so it names nothing of the site.
+ */
+export function shortJobRef(jobId: string): string {
+  return jobId.replace(/^[A-Za-z]+[-_]/, "").replace(/[^A-Za-z0-9]/g, "").slice(0, 8).toLowerCase() || "job";
+}
+/** The name the job summary is saved under: `job-summary-<short job ref>.pdf`. */
+export function jobSummaryFileName(jobId: string): string {
+  return `job-summary-${shortJobRef(jobId)}.pdf`;
+}
 
 /** "Answers questions from companies here, usually within 3 hours." from the median of the site's answer times. */
 export function answerSpeedInWords(hours: number | null): string | null {
