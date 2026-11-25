@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "wouter";
-import { ArrowLeft, ArrowDown, Download, MapPin } from "lucide-react";
+import { ArrowLeft, ArrowDown, Download, Eye, MapPin } from "lucide-react";
 import type { User } from "firebase/auth";
 import { useOptionalAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
@@ -209,13 +209,17 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   }, [user, jobId]);
   const videoUrl = page?.video.state === "ready" ? page.video.url : null;
   const downloadUrl = page?.simulationDownload?.state === "ready" ? page.simulationDownload.url : null;
+  // The viewer's ticket is inside its `content` address: read there, so a page with only the viewer still refreshes it.
+  const viewerContentUrl = page?.simulation.state === "ready"
+    ? new URL(page.simulation.viewerUrl, "https://blueprint.invalid").searchParams.get("content") : null;
   useEffect(() => {
     if (state !== "ready") return;
-    const delay = refreshFailures > 0 ? ticketRetryDelayMs(refreshFailures) : ticketRefreshDelayMs([videoUrl, downloadUrl]);
+    const delay = refreshFailures > 0 ? ticketRetryDelayMs(refreshFailures)
+      : ticketRefreshDelayMs([videoUrl, downloadUrl, viewerContentUrl]);
     if (delay === null) return;
     const timer = setTimeout(() => { void refreshTickets(); }, delay);
     return () => clearTimeout(timer);
-  }, [state, videoUrl, downloadUrl, refreshTickets, refreshFailures]);
+  }, [state, videoUrl, downloadUrl, viewerContentUrl, refreshTickets, refreshFailures]);
 
   if (state === "loading") return <div className="bare-screen company-job"><p role="status">Loading…</p></div>;
   if (state === "terms" && user) return <div className="bare-screen company-job"><CompanyTermsPrompt user={user} onAccepted={() => setRetry(retry + 1)} /></div>;
@@ -258,6 +262,8 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
     </div>
     <div className="company-job-actions">
       {user && <a className="ms-button" href="#answer-this-job">Apply or respond<ArrowDown size={16} aria-hidden="true" /></a>}
+      {/* Seen in the browser first, with no download (owner, 2026-11-25); the same viewer as the section below. */}
+      {page.simulation.state === "ready" && <a className="company-job-download" href={page.simulation.viewerUrl}><Eye size={16} aria-hidden="true" />View the simulation</a>}
       {page.simulationDownload?.state === "ready" && <a className="company-job-download" href={page.simulationDownload.url} download><Download size={16} aria-hidden="true" />Download the simulation</a>}
     </div>
 
