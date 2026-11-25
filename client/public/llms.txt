@@ -1,6 +1,6 @@
 # Blueprint
 
-> Post a job for robots. A site films one job that repeats. Blueprint turns the video into a job packet: the site's description, the video without sound, a first look at which robots could fit, and a simulation of the site when it is ready. Blueprint shares the packet with the deployment companies it approves, so they can say if they can do the job. A site's name, address and contact details go to a company only when the site asks for an introduction. Free for sites.
+> Post a job for robots. A site films one job that repeats. Blueprint turns the video into a job packet: the site's description, the video without sound, a first look at which robots could fit, and a simulation of the site when it is ready. Blueprint shares the description, the video and the simulation with the deployment companies it approves, so they can say if they can do the job. A site's name, address and contact details go to a company only when the site asks for an introduction. Free for sites.
 
 The job packet holds the site's own sentence for the job. Blueprint adds a first look at which robots could fit when there is enough detail, using published specifications and where the robots have been used. Blueprint uses video to build a simulation of the site when it can. The job can still go to companies while the simulation is being built.
 

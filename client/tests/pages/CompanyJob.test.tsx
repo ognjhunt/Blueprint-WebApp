@@ -6,7 +6,8 @@ import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, estimat
 
 /**
  * The company's page for one job (package E, E3 and E5): the site's sentence, its answers, the country, the video
- * (or "The video is being prepared."), the first look, the simulation link, and the answer form with the recorded line.
+ * (or "The video is being prepared."), the simulation link, and the answer form with the recorded line. No first look
+ * and no tested answer (owner, 2026-11-25: the page is cut to whether the company applies).
  */
 const auth = vi.hoisted(() => ({ loading: false, currentUser: { uid: "u1", email: "team@example.test" } as null | { uid: string; email: string } }));
 vi.mock("@/contexts/AuthContext", () => ({ useOptionalAuth: () => auth }));
@@ -70,7 +71,6 @@ describe("the company's page for one job", () => {
     expect(top).not.toHaveAttribute("target");
     expect(top.closest(".company-job-actions")).not.toBeNull();
     expect(screen.getAllByRole("link", { name: /View the simulation/ })).toHaveLength(1);
-    expect(screen.getByText("Fits.")).toBeInTheDocument();
     // What the video shows of the object and how sure each figure is, beside the site's own unchecked answers.
     expect(screen.getByText(SITE_ANSWERS_HINT)).toBeInTheDocument();
     expect(within(screen.getByRole("list", { name: "The object and where it goes" })).getByText("Starts: about 54 cm above the floor.")).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("the company's page for one job", () => {
     expect(screen.queryByText(/does not show/)).toBeNull();
     // The page ends with the form: nothing of the job sits after it (owner, 2026-11-25: what sat below it was missed).
     const respond = screen.getByRole("region", { name: "Your response" });
-    for (const part of ["The video", "First look", "The object and how sure we are", "A visit must confirm"])
+    for (const part of ["The video", "The object and how sure we are", "A visit must confirm"])
       expect(screen.getByRole("region", { name: part }).compareDocumentPosition(respond) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(respond.nextElementSibling).toBeNull();
     expect(screen.queryByRole("link", { name: /download/i })).toBeNull();
@@ -320,19 +320,29 @@ describe("the company's page for one job", () => {
     expect(screen.getByText("The simulation of the site is not finished yet.")).toBeInTheDocument();
   });
 
-  it("says where the simulation stands under its buttons, and shows no first look or object box with nothing in it", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ firstLookRows: [],
-      firstLookStatus: "The video is being read. Our first look follows.", simulation: { state: "not_finished" },
+  it("says where the simulation stands under its buttons, and shows no object box or success-rule box with nothing in it", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ simulation: { state: "not_finished" },
       simulationStatus: "The simulation is being built from the site's video.", packetFacts: null }) }) });
     render(<CompanyJob />);
     expect(within(await screen.findByRole("region", { name: "Simulation of the site" })).getByRole("status"))
       .toHaveTextContent("The simulation is being built from the site's video.");
     // Owner, 2026-11-25: "is all of this truly needed?" A box that only says it has nothing yet is left out.
-    expect(screen.queryByRole("region", { name: "First look" })).toBeNull();
     expect(screen.queryByRole("region", { name: "The object and how sure we are" })).toBeNull();
-    expect(screen.queryByText(/Our first look/)).toBeNull();
-    // No success rule from the site: the box says so rather than vanishing.
-    expect(screen.getByText("The site has not said what counts as done yet.")).toBeInTheDocument();
+    // No success rule from the site: no box at all, and no line saying the site has not said.
+    const job = screen.getByRole("region", { name: "The job" });
+    expect(within(job).getByText("Stack 12 kg cartons onto the pallet. Call [removed]")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "What counts as done" })).toBeNull();
+    expect(document.querySelector(".company-job-success")).toBeNull();
+    expect(screen.queryByText(/has not said what counts as done/)).toBeNull();
+  });
+
+  it("shows what counts as done when the site said it", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+      successRule: "Every carton is on the pallet, label out." }) }) });
+    render(<CompanyJob />);
+    const heading = await screen.findByRole("heading", { name: "What counts as done" });
+    expect(heading.nextElementSibling).toHaveTextContent("Every carton is on the pallet, label out.");
+    expect(screen.queryByText("What counts as done can't be shown right now.")).toBeNull();
   });
 
   it("names the questions the site skipped on one line, not a row each", async () => {
@@ -366,7 +376,11 @@ describe("the company's page for one job", () => {
     const signInHref = "/sign-in?next=%2Fjobs%2Fjob-1";
     // The four-field application is right here, pointed back at this job (no extra page to find).
     expect(main.getByRole("form", { name: "Deployment company application" })).toBeInTheDocument();
-    expect(within(main.getByRole("list", { name: "What an approved company sees" })).getAllByRole("listitem")).toHaveLength(4);
+    const sees = main.getByRole("list", { name: "What an approved company sees" });
+    expect(within(sees).getAllByRole("listitem").map(line => line.textContent)).toEqual(["The site's video of the job, without sound, and its description",
+      "Its answers about weight, size, rate and hours", "A simulation of the site to open in your own tools, when it is ready"]);
+    // The first look is the site's own (owner, 2026-11-25): the gate promises none.
+    expect(screen.getByRole("main")).not.toHaveTextContent(/first look/i);
     expect(main.getByText(/brings you back to this job/)).toBeInTheDocument();
     expect(main.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
     expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
@@ -426,16 +440,17 @@ describe("the company's page for one job", () => {
     expect(screen.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/jobs?next=%2Fjobs%2Fjob-1#partner-application");
   });
 
-  it("shows a conditional first-look row and the count of the rest, from the shared first look", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+  // Owner, 2026-11-25: the first look stays on the site's own pages. A payload of before still carrying one shows none.
+  it("shows no first look on the company's page, even from a payload that still carries one", async () => {
+    const before = { ...item(), firstLook: { headline: "Most likely to fit: Universal Robots UR20" },
       firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 11.6 kg.", robot: "Universal Robots UR10e" }],
-      firstLookMore: "And 27 more." }) }) });
+      firstLookMore: "And 27 more.", firstLookStatus: "The video is being read. Our first look follows." };
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: before }) });
     render(<CompanyJob />);
-    expect(await screen.findByText("Fits if the item weighs under 11.6 kg.")).toBeInTheDocument();
-    expect(screen.getByText("Universal Robots UR10e:")).toBeInTheDocument();
-    expect(screen.getByText("And 27 more.")).toBeInTheDocument();
-    // Rows of robots on paper are a first look: the page does not also say the first look is not ready.
-    expect(screen.queryByText(/first look is not ready/)).not.toBeInTheDocument();
+    const page = await screen.findByRole("region", { name: "Job" });
+    expect(screen.queryByRole("region", { name: "First look" })).toBeNull();
+    expect(screen.queryByRole("list", { name: "Robots on paper" })).toBeNull();
+    expect(page).not.toHaveTextContent(/first look|Universal Robots|Fits if the item|And 27 more|Most likely to fit/i);
   });
 
   it("offers only Apply, Not a fit and Need more details, even once the job has a simulation package", async () => {

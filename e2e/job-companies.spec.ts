@@ -154,6 +154,9 @@ test("a signed-in company opens a job from the library, watches the video and an
   // A skipped question is named on one line under the answers, not given a row (owner, 2026-11-25).
   await expect(glance.getByText("Not stated yet: Times an hour")).toBeVisible();
   await expect(page.getByText("The simulation is being built from the site's video.")).toBeVisible();
+  // Cut to whether to apply (owner, 2026-11-25): no first look, and no "What counts as done" box the site left empty.
+  await expect(page.getByRole("region", { name: "First look" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "What counts as done" })).toHaveCount(0);
   // The visit list is the same for every job of its kind: folded to one line until opened (owner, 2026-11-25).
   await expect(page.getByRole("list", { name: "What a visit must confirm" })).toBeHidden();
   await page.getByText("What a visit must confirm", { exact: true }).click();

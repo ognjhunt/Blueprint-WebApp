@@ -27,14 +27,15 @@ describe("the page for deployment companies", () => {
     expect(video).toHaveAttribute("preload", "none");
     // The clip's license (Mixkit, free) is credited beside it.
     expect(within(sample).getByText(/^Video: Mixkit, free license\./)).toBeVisible();
-    // A live job's simulation and first look are named, never imitated: no viewer, download or result on the sample.
+    // A live job's simulation is named, never imitated: no viewer, download or result on the sample. No first look: a
+    // company's page shows none (owner, 2026-11-25).
     expect(within(sample).queryByRole("link", { name: /Download|View the simulation/ })).toBeNull();
     expect(within(sample).getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "#partner-application");
     // Launch copy (2026-11-20): what a live job can include, the answers without a timing promise, and the privacy line
     // where the introduction is explained.
     expect(within(sample).getByRole("heading", { name: "A live job can also include" })).toBeVisible();
     expect(within(sample).getByText("Choose Apply, Not a fit or Need more details.", { exact: true })).toBeVisible();
-    expect(sample).not.toHaveTextContent(/Tested it/);
+    expect(sample).not.toHaveTextContent(/Tested it|first look/i);
     expect(within(sample).getByText("The site sees your company's name and website when you answer. You see no site name, address or contact details until the site accepts you. Then we email you both each other's details.")).toBeVisible();
     expect(sample).not.toHaveTextContent(/in a minute|busiest/);
     expect(screen.getByRole("link", { name: "See a sample job" })).toHaveAttribute("href", "#sample-job");

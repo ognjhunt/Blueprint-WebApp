@@ -55,7 +55,6 @@ export const SAMPLE_JOB = {
   credit: "Video: Mixkit, free license. Sound removed, as on every job.",
   liveAlso: [
     "The site's answers to a few questions about the job, such as the heaviest item and the peak rate.",
-    "A first look on paper at which kinds of robot most likely fit, from published specifications.",
     // "where it can be built" (round 2, 2026-11-24): the Pipeline ships the site's room without the object when the
     // object cannot be built, and says so on the company's page.
     "A simulation of the site with the job's object in it where it can be built, when it is ready, to download and open in your own tools.",
@@ -66,7 +65,7 @@ export const SAMPLE_JOB = {
 
 export const HOW_STEPS = [
   { key: "video", title: "Film the job", line: "Use your phone to show one full round of a job that repeats." },
-  { key: "packet", title: "Companies review it", line: "We share your video and job description with approved companies, with a first look and a simulation when ready." },
+  { key: "packet", title: "Companies review it", line: "We share your video and job description with approved companies, with a simulation when ready." },
   { key: "companies", title: "Choose who to meet", line: "Responses appear on your job page. If a company is interested, you can ask for an introduction." },
 ] as const;
 

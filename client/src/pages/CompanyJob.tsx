@@ -10,12 +10,11 @@ import { CHARGE_MODELS, CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATE_LIMITS, ES
   VISIT_NOTE_LIMIT, isApplicationEstimate, type ApplicationEstimate, type ChargeModel, type SimilarJobs } from "@/lib/companyResponses";
 import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, COMPANY_START_WINDOWS, FIT_RESPONSE_STATES,
   companyQuestionOverdue, companyQuestionWaiting, companyResponseNeedsNote, type CompanyReplyDetails, type CompanyResponseState, type CompanyStartWindow } from "@/lib/companyResponses";
-import { JobCardAnswer } from "@/components/site/JobCardAnswer";
 import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
 import { CompanyTermsPrompt } from "@/components/site/CompanyTermsPrompt";
 import { RobotTeamEarlyAccess } from "@/components/site/RobotTeamEarlyAccess";
 import { jobTitleForDisplay, type CompanyJobPage } from "@/types/taskBrowse";
-import { ESTIMATE_BELOW, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_SURE, NO_SUCCESS_RULE, PACKET_FACTS_PENDING, SIMULATION_WITHOUT_OBJECT,
+import { ESTIMATE_BELOW, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_SURE, PACKET_FACTS_PENDING, SIMULATION_WITHOUT_OBJECT,
   type FitSummaryRow } from "@/lib/companyJobPage";
 import { SITE_REPLY_BEING_PREPARED, SITE_REPLY_LIMIT, SUCCESS_RULE_CANT_BE_SHOWN } from "@/lib/companiesRead";
 import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
@@ -23,14 +22,16 @@ import { SIGN_IN_LINK_ENDED, signInWithCompanyLink, takeSignInLinkFromAddress } 
 import { PartnerApplication } from "@/components/site/PartnerApplication";
 import { COMPANY } from "@/data/company";
 
-/** The job page for a visitor who is not signed in: what the job holds and how to see it (owner, 2026-11-23). */
+/**
+ * The job page for a visitor who is not signed in: what the job holds and how to see it (owner, 2026-11-23). No first
+ * look: it is the site's own, and the company's page does not show it (owner, 2026-11-25).
+ */
 export const GATE_HEADING = "Apply to see this job";
 export const GATE_WHAT_YOU_SEE = "The site shared this job with the robot deployment companies Blueprint approves. Approved companies see:";
 export const GATE_UNLOCKS = [
   "The site's video of the job, without sound, and its description",
   "Its answers about weight, size, rate and hours",
-  "A first look at which kinds of robot most likely fit",
-  "A simulation of the site to test in your own tools, when it is ready",
+  "A simulation of the site to open in your own tools, when it is ready",
 ] as const;
 export const GATE_RETURN = "Apply below. Once you're approved, the link we email you brings you back to this job.";
 /** A declined company opening a job: why it cannot see it, and where to write (stress test, 2026-11-24). */
@@ -117,12 +118,12 @@ function dateInWords(value: string): string {
 }
 
 /**
- * The company's page for one job (package E, E3). Everything on it comes from the server's closed payload
- * (`server/utils/companyJobPage.ts`): the site's sentence, its quick answers, the country, the video, what the video
- * shows of the object and how sure each figure is, the first look, and the simulation, each when it exists, and the
- * answer form. The only download offered is the
- * simulation package (E9); the video is played, with its download control hidden (which discourages saving; it cannot
- * prevent it).
+ * The company's page for one job (package E, E3), cut to the one thing a company decides on it: whether to apply (owner,
+ * 2026-11-25). Everything on it comes from the server's closed payload (`server/utils/companyJobPage.ts`): the site's
+ * sentence, its quick answers, the country, the video, what the video shows of the object and how sure each figure is,
+ * and the simulation, each when it exists, and the answer form. No first look: it stays on the site's own pages. The
+ * only download offered is the simulation package (E9); the video is played, with its download control hidden (which
+ * discourages saving; it cannot prevent it).
  */
 export default function CompanyJob() {
   const { jobId = "" } = useParams();
@@ -252,7 +253,6 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
     <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button></div></div>;
 
   const simulationReady = page.simulationDownload?.state === "ready";
-  const firstLookShown = page.firstLookRows.length > 0 || Boolean(page.firstLook);
   // One column of what the job is, beside the form; the page ends with the form (owner, 2026-11-25: the cards that sat
   // below the form were missed, and took more room than they were worth).
   return <div className="bare-screen company-job company-job-ready" role="region" aria-label="Job">
@@ -284,7 +284,9 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
         <section aria-label="The job">
           <h2>The job, in the site's words</h2>
           {page.sentence ? <blockquote>{page.sentence}</blockquote> : <p>The site's description can't be shown right now.</p>}
-          <div className="company-job-success"><h3>What counts as done</h3><p>{page.successRule || (page.successRulePending ? SUCCESS_RULE_CANT_BE_SHOWN : NO_SUCCESS_RULE)}</p></div>
+          {/* Only when the site said, or while its rule is being prepared: no box saying the site has not said. */}
+          {(page.successRule || page.successRulePending) && <div className="company-job-success"><h3>What counts as done</h3>
+            <p>{page.successRule || SUCCESS_RULE_CANT_BE_SHOWN}</p></div>}
         </section>
 
         <section aria-label="At a glance">
@@ -313,15 +315,6 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
                 height={page.video.height} onTicketEnded={refreshTickets} />
             : <p>{VIDEO_PREPARING}</p>}
         </section>
-
-        {/* Robots on paper, once there are some; nothing while the first look is not ready. */}
-        {firstLookShown && <section aria-label="First look">
-          <h2>First look</h2>
-          {page.firstLookRows.length > 0 && <ul aria-label="Robots on paper">{page.firstLookRows.map((row, index) =>
-            <li key={`${index}-${row.robot}`}>{row.robot ? <strong>{row.robot}: </strong> : null}{row.text}</li>)}</ul>}
-          {page.firstLookMore ? <p className="ms-field-hint">{page.firstLookMore}</p> : null}
-          {page.firstLook ? <JobCardAnswer answer={page.firstLook} titled={false} /> : null}
-        </section>}
 
         {/* The same for every job of its kind, so folded: one line until a company opens it. */}
         <section aria-label="A visit must confirm" className="company-job-visit">
