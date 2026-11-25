@@ -27,8 +27,8 @@ Public copy:
 - Sharing is the service. A site that sends a job agrees once, in the statement
   it accepts (recording statement `2026-11-12.v4` or later), that Blueprint
   shares the job with the deployment companies it has approved: the site's
-  description, its video without its sound, the simulation built from it, the
-  success rule and the first look. There is no share button,
+  description, its video without its sound, the simulation built from it and the
+  success rule; the first look stays with the site (2026-11-25). There is no share button,
   no share setting and no pause. A job under an older statement is not shown to
   any company until its site accepts the current one. A site's name, street
   address and contact details are never shared without asking the site first.

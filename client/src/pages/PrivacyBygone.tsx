@@ -6,9 +6,10 @@ import { COMPANY } from "@/data/company";
 import { PREVIOUS_PRIVACY_URL, PREVIOUS_PRIVACY_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 /**
- * FROZEN: the Privacy Policy of version 2026-11-12.2 (the same words as 2026-11-12.1), in force from 2026-11-12 until
- * version 2026-11-13.1 replaced it. Its sections are copied word for word from `Privacy.tsx` as it stood at
- * 2026-11-12.2. Do not edit the sections: they are the policy as it stood. Change Privacy.tsx instead.
+ * FROZEN: the Privacy Policy of version 2026-11-13.1, in force from 2026-11-13 until the next version replaced it
+ * (owner, 2026-11-17: no face blurring for jobs started under the new version). Its sections are copied word for word
+ * from `Privacy.tsx` as it stood at 2026-11-13.1. Do not edit the sections: they are the policy as it stood. Change
+ * Privacy.tsx instead.
  */
 const SHARING_SENTENCE = "Starting a job means we share it with robot deployment companies we've approved, so they can judge it without a visit. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, our first look at which robots fit, and the result of any early trial we run.";
 const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.";
@@ -180,9 +181,9 @@ const privacySubprocessorCategories = [
     category: "AI, 3D processing and compute",
     providers: [
       ["OpenAI", "Reading the job description and frames from a site capture to draft the job brief and prepare the simulated scene, drafting replies, and sorting incoming requests"],
-      ["Google Gemini", "Watching site footage, with its sound removed, and frames from it to draft and check the job brief and to find what the simulated scene needs"],
+      ["Google Gemini", "Watching site footage, with its sound removed, and frames from it, together with the job description, to draft and check the job brief and to find what the simulated scene needs"],
       ["Meta", "Outlining objects and areas in site footage, with its sound removed, to prepare the simulated scene"],
-      ["Anthropic", "Drafting the job brief from capture frames only when a site explicitly chooses that option, and drafting and sorting internal work where we configure it"],
+      ["Anthropic", "For jobs started and requests sent under this version of the policy or a later one, may read the job description and frames from a site capture to draft the job brief and prepare the simulated scene, draft replies, and sort incoming requests; for earlier jobs, drafting the job brief from capture frames only when a site explicitly chooses that option; and drafting and sorting internal work where we configure it"],
       ["DeepSeek", "Drafting and sorting internal work, where we configure it"],
       ["World Labs", "Rebuilding a work area as a 3D scene from site footage, with its sound removed"],
       ["Vast.ai", "Cloud GPU servers that rebuild scenes and run simulated evaluations"],
@@ -278,8 +279,10 @@ export default function PrivacyPrevious() {
         <h2>AI in the Service</h2>
         <p>
           Frames from a site capture, together with the job description, are processed by AI model providers acting as
-          our sub-processors to draft the job brief. By default that is OpenAI, with Google Gemini reviewing the footage;
-          Anthropic receives frames only when a site explicitly chooses that option. We also use the providers listed
+          our sub-processors to draft the job brief. These are processed by OpenAI or, for jobs started and requests sent
+          under this version of the policy or a later one, by Anthropic, with Google Gemini reviewing the
+          footage; for an earlier job, Anthropic receives frames only when the site explicitly chose that option. We also
+          use the providers listed
           above to rebuild scenes and sort incoming requests. We send each provider only what the step needs, footage
           goes to them with its sound removed, the provider may not use it for its own purposes, and we do not give any
           of them your footage as training data.

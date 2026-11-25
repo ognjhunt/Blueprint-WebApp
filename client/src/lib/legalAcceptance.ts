@@ -359,6 +359,62 @@
  * - Footage: unaffected. The Pipeline decides blurring by the Privacy version recorded on the job, and the Privacy
  *   version does not change, so a job started under Privacy 2026-11-23.2 is not blurred.
  */
+/*
+ * 2026-11-25 (owner, 2026-11-25: "approve terms"). Our first look stays with the site: a deployment company's job page
+ * and its payload no longer carry it (owner, 2026-11-25). And a company answers Apply, Not a fit or Need more details:
+ * its form no longer offers "Tested it: can do" or "Tested it: cannot yet" (owner, 2026-11-25; the early trial was
+ * dropped on 2026-11-14), while a tested answer stored before still reads, and a stored "Tested it: can do" can still be
+ * accepted (`INTRODUCIBLE_RESPONSE_STATES`, `client/src/lib/companyResponses.ts`). Terms and Privacy Policy 2026-11-25.2
+ * say so, and change nothing else:
+ * - the sharing sentence (`SHARING_SENTENCE`, the same constant on both pages) no longer lists "our first look at which
+ *   robots fit" in what a site's job shares: "... the simulation we build from it, and what counts as the job done.";
+ *   the Privacy Policy's "Who we share it with" drops "and our first look" from what companies receive in the same way.
+ *   The job packet the Terms describe (section 1) still holds the first look: the site still gets it;
+ * - the Terms no longer say a company can also answer Tested it: can do or Tested it: cannot yet once the simulation
+ *   can be downloaded (section 1 and section 4);
+ * - "a company that applied or answered Tested it: can do" becomes "a company that applied" where a site accepts a company
+ *   (`REPLACEMENT_SENTENCE`, and `pilotReplacementPolicy` with it, and section 3), and the company's sentence
+ *   (`COMPANY_APPLICATION_SENTENCE`, the same constant on both pages) keeps a stored tested answer in a short clause,
+ *   because it says when, and only when, a company's contact details go: "after you applied (or answered Tested it: can
+ *   do, an answer we no longer offer)". No date: the code accepts a stored "Tested it: can do" whenever it was given.
+ * The documents share the id and take effect at once, as 2026-11-23.2 did. The id is 2026-11-25.2, not 2026-11-25.1:
+ * 2026-11-25.1 is the version published ahead on 2026-11-11 and replaced before it took effect
+ * (`ANNOUNCED_SUPERSEDED_VERSION`), whose acceptances are asked again; reusing it would make them count.
+ *
+ * The texts are frozen as before, and both chains move one place. Terms 2026-11-23.4 is frozen at `TermsPrevious.tsx`
+ * (/terms/previous); 2026-11-23.3 moves to `TermsOlder.tsx`, 2026-11-23.2 to `TermsFormer.tsx`, 2026-11-21.1 to
+ * `TermsPrior.tsx`, 2026-11-19.1 to `TermsPast.tsx`, 2026-11-17.1 to `TermsBygone.tsx`, 2026-11-12.2 to `TermsLapsed.tsx`
+ * and 2026-11-12.1 to `TermsExpired.tsx`, a slot added the way `TermsLapsed.tsx` was. Privacy 2026-11-23.2 is frozen at
+ * `PrivacyPrevious.tsx` (/privacy/previous); 2026-11-23.1 moves to `PrivacyOlder.tsx`, 2026-11-21.1 to
+ * `PrivacyFormer.tsx`, 2026-11-19.1 to `PrivacyPrior.tsx`, 2026-11-17.1 to `PrivacyPast.tsx`, 2026-11-13.1 to
+ * `PrivacyBygone.tsx` and 2026-11-12.2 to `PrivacyLapsed.tsx`, a slot added the way `TermsLapsed.tsx` was.
+ * `*Earlier.tsx` keeps 2026-11-02.1. The Terms slots run Previous, Older, Former, Prior, Past, Bygone, Lapsed, Expired,
+ * Earlier, and the Privacy slots Previous, Older, Former, Prior, Past, Bygone, Lapsed, Earlier, newest first. None of
+ * these is routed but the previous pages. Same digests as before the move: each kept page is the same bytes.
+ *
+ * Advance email: Terms section 11 and the Privacy Policy's "Changes to this policy" promise account holders an email
+ * before a material change takes effect. This version only narrows: a company receives one item fewer and is offered two
+ * answers fewer, which the beta allows (Terms section 1: features may change, be limited, or be withdrawn), and it asks
+ * nothing new of anyone. Whether it is material, and any email, is the owner's decision; no email is sent by code.
+ *
+ * Who it binds, and how:
+ * - Nobody is asked to agree again: every Terms and Privacy version that counted before still counts
+ *   (`EARLIER_TERMS_VERSIONS_STILL_COUNTING`, `EARLIER_PRIVACY_VERSIONS_STILL_COUNTING`), so accounts keep what they
+ *   had and `companyMaySeeJobs` stays true for every deployment company that could see jobs. It is not in
+ *   `LEGAL_VERSIONS_THAT_ASK_AGAIN`: it asks nothing new of a company and adds nothing it may or must do with a job; a
+ *   company whose stored "Tested it: can do" a site accepts agreed to that exchange under the Terms it accepted and under
+ *   its answer line, and the new sentence still names it.
+ * - A job's listing does not read these versions: it rests on the recording statement (2026-11-12.v4 or later,
+ *   `server/utils/jobSharedListing.ts`), whose words do not change and never named the first look ("We share your job,
+ *   including this video and the simulation we build from it ..."). Sharing less than a site agreed to needs no new
+ *   statement. No job is hidden and no site is asked to accept anything again.
+ * - A site starting a job from this release accepts Terms and Privacy 2026-11-25.2 under the start form's line; a form
+ *   opened before the release records the pair it showed (Terms 2026-11-23.4 with Privacy 2026-11-23.2, or an earlier
+ *   pair; `PAIRS_A_PAGE_SHOWED`), and a job started earlier keeps its recorded versions.
+ * - Footage: 2026-11-25.2 promises no blurring, as every version from 2026-11-17.1 does. The Pipeline needs no change: it
+ *   compares the recorded version with 2026-11-17.1 (`is_no_face_blur_version` in BlueprintCapturePipeline
+ *   `atlas_privacy_screen.py`), so a job under 2026-11-25.2 is not blurred.
+ */
 /**
  * The id of the 2026-11-17 Terms and Privacy Policy, the first versions that do not promise face blurring, and the one
  * place it is written in code and tests.
@@ -400,8 +456,15 @@ export const COMPANY_ESTIMATE_TERMS_VERSION = "2026-11-23.3";
  * the previous Terms in `client/src/components/site/LegalVersionNotes.tsx` and the list its test expects).
  */
 export const LIBRARY_MODEL_TERMS_VERSION = "2026-11-23.4";
-export const TERMS_VERSION = LIBRARY_MODEL_TERMS_VERSION;
-export const PRIVACY_VERSION = COMPANY_APPLICATION_VERSION;
+/**
+ * The id of the 2026-11-25 Terms and Privacy Policy (our first look stays with the site; a company answers Apply, Not a
+ * fit or Need more details), and the one place it is written in code and tests: if the release slips past midnight UTC,
+ * change it here to 2026-11-26.1 (and the date and id the pinned tests and `e2e/privacy-pages.spec.ts` expect the pages to
+ * print). Not 2026-11-25.1: that id is `ANNOUNCED_SUPERSEDED_VERSION`.
+ */
+export const NO_TESTED_ANSWER_VERSION = "2026-11-25.2";
+export const TERMS_VERSION = NO_TESTED_ANSWER_VERSION;
+export const PRIVACY_VERSION = NO_TESTED_ANSWER_VERSION;
 /**
  * Published ahead on 2026-11-11 for November 25 and replaced before it took effect. Acceptances recorded under it keep
  * it; its text is frozen at `client/src/pages/TermsAnnounced.tsx` and `PrivacyAnnounced.tsx` (not routed). It no
@@ -418,46 +481,52 @@ export const ANNOUNCED_SUPERSEDED_VERSION = "2026-11-25.1";
  * notice Terms section 12 promises can be given before it takes effect. The
  * date is a placeholder for the owner to confirm; no notice is sent by code.
  */
-/** The Terms in force before 2026-11-23.4 are 2026-11-23.3. */
-export const PREVIOUS_TERMS_VERSION = COMPANY_ESTIMATE_TERMS_VERSION;
-/** The Privacy Policy in force before 2026-11-23.2 is 2026-11-23.1. */
-export const PREVIOUS_PRIVACY_VERSION = CITY_STATE_PRIVACY_VERSION;
-/** The Terms that were "previous" until 2026-11-23.4: kept byte for byte at `client/src/pages/TermsOlder.tsx`, not
+/** The Terms in force before 2026-11-25.2 are 2026-11-23.4. */
+export const PREVIOUS_TERMS_VERSION = LIBRARY_MODEL_TERMS_VERSION;
+/** The Privacy Policy in force before 2026-11-25.2 is 2026-11-23.2. */
+export const PREVIOUS_PRIVACY_VERSION = COMPANY_APPLICATION_VERSION;
+/** The Terms that were "previous" until 2026-11-25.2: kept byte for byte at `client/src/pages/TermsOlder.tsx`, not
  * routed. */
-export const OLDER_TERMS_VERSION = COMPANY_APPLICATION_VERSION;
-/** The Privacy Policy that was "previous" until 2026-11-23.2: kept byte for byte at `client/src/pages/PrivacyOlder.tsx`,
+export const OLDER_TERMS_VERSION = COMPANY_ESTIMATE_TERMS_VERSION;
+/** The Privacy Policy that was "previous" until 2026-11-25.2: kept byte for byte at `client/src/pages/PrivacyOlder.tsx`,
  * not routed. */
-export const OLDER_PRIVACY_VERSION = LAUNCH_COPY_VERSION;
-/** The Terms that were "older" until 2026-11-23.4 ("previous" until 2026-11-23.3): kept byte for byte at
+export const OLDER_PRIVACY_VERSION = CITY_STATE_PRIVACY_VERSION;
+/** The Terms that were "older" until 2026-11-25.2 ("previous" until 2026-11-23.4): kept byte for byte at
  * `client/src/pages/TermsFormer.tsx`, not routed. */
-export const FORMER_TERMS_VERSION = LAUNCH_COPY_VERSION;
-/** The Privacy Policy that was "older" until 2026-11-23.2 ("previous" until 2026-11-23.1): kept byte for byte at
+export const FORMER_TERMS_VERSION = COMPANY_APPLICATION_VERSION;
+/** The Privacy Policy that was "older" until 2026-11-25.2 ("previous" until 2026-11-23.2): kept byte for byte at
  * `client/src/pages/PrivacyFormer.tsx`, not routed. */
-export const FORMER_PRIVACY_VERSION = NO_EARLY_TRIAL_VERSION;
-/** The Terms that were "former" until 2026-11-23.4 ("previous" until 2026-11-23.2): kept byte for byte at
+export const FORMER_PRIVACY_VERSION = LAUNCH_COPY_VERSION;
+/** The Terms that were "former" until 2026-11-25.2 ("previous" until 2026-11-23.3): kept byte for byte at
  * `client/src/pages/TermsPrior.tsx`, not routed. The `*Prior.tsx` slot sits between `*Former.tsx` and `*Past.tsx`. */
-export const PRIOR_TERMS_VERSION = NO_EARLY_TRIAL_VERSION;
-/** The Privacy Policy that was "former" until 2026-11-23.2 ("previous" until 2026-11-21.1): kept byte for byte at
+export const PRIOR_TERMS_VERSION = LAUNCH_COPY_VERSION;
+/** The Privacy Policy that was "former" until 2026-11-25.2 ("previous" until 2026-11-23.1): kept byte for byte at
  * `client/src/pages/PrivacyPrior.tsx`, not routed. */
-export const PRIOR_PRIVACY_VERSION = NO_FACE_BLUR_VERSION;
-/** The Terms that were "prior" until 2026-11-23.4 ("previous" until 2026-11-21.1): kept byte for byte at
+export const PRIOR_PRIVACY_VERSION = NO_EARLY_TRIAL_VERSION;
+/** The Terms that were "prior" until 2026-11-25.2 ("previous" until 2026-11-23.2): kept byte for byte at
  * `client/src/pages/TermsPast.tsx`, not routed. The `*Past.tsx` slot sits between `*Prior.tsx` and `*Bygone.tsx`. */
-export const PAST_TERMS_VERSION = NO_FACE_BLUR_VERSION;
-/** The Privacy Policy that was "prior" until 2026-11-23.2 ("previous" until 2026-11-17.1): kept byte for byte at
+export const PAST_TERMS_VERSION = NO_EARLY_TRIAL_VERSION;
+/** The Privacy Policy that was "prior" until 2026-11-25.2 ("previous" until 2026-11-21.1): kept byte for byte at
  * `client/src/pages/PrivacyPast.tsx`, not routed. */
-export const PAST_PRIVACY_VERSION = "2026-11-13.1";
-/** The Terms that were "past" until 2026-11-23.4 ("previous" until 2026-11-19.1): kept byte for byte at
- * `client/src/pages/TermsBygone.tsx`, not routed. The `TermsBygone.tsx` slot sits between `TermsPast.tsx` and
- * `TermsLapsed.tsx`. */
-export const BYGONE_TERMS_VERSION = "2026-11-12.2";
-/** The Terms that were "bygone" until 2026-11-23.4 ("previous" until 2026-11-17.1): kept byte for byte at
+export const PAST_PRIVACY_VERSION = NO_FACE_BLUR_VERSION;
+/** The Terms that were "past" until 2026-11-25.2 ("previous" until 2026-11-21.1): kept byte for byte at
+ * `client/src/pages/TermsBygone.tsx`, not routed. The `*Bygone.tsx` slot sits between `*Past.tsx` and `*Lapsed.tsx`. */
+export const BYGONE_TERMS_VERSION = NO_FACE_BLUR_VERSION;
+/** The Privacy Policy that was "past" until 2026-11-25.2 ("previous" until 2026-11-17.1): kept byte for byte at
+ * `client/src/pages/PrivacyBygone.tsx`, not routed. */
+export const BYGONE_PRIVACY_VERSION = "2026-11-13.1";
+/** The Terms that were "bygone" until 2026-11-25.2 ("previous" until 2026-11-19.1): kept byte for byte at
  * `client/src/pages/TermsLapsed.tsx`, not routed. The `TermsLapsed.tsx` slot sits between `TermsBygone.tsx` and
+ * `TermsExpired.tsx`. */
+export const LAPSED_TERMS_VERSION = "2026-11-12.2";
+/** The Privacy Policy that was "bygone" until 2026-11-25.2 ("previous" until 2026-11-13.1; the same words as
+ * 2026-11-12.1): kept byte for byte at `client/src/pages/PrivacyLapsed.tsx`, not routed. The `PrivacyLapsed.tsx` slot
+ * sits between `PrivacyBygone.tsx` and `PrivacyEarlier.tsx`. */
+export const LAPSED_PRIVACY_VERSION = "2026-11-12.2";
+/** The Terms that were "lapsed" until 2026-11-25.2 ("previous" until 2026-11-17.1): kept byte for byte at
+ * `client/src/pages/TermsExpired.tsx`, not routed. The `TermsExpired.tsx` slot sits between `TermsLapsed.tsx` and
  * `TermsEarlier.tsx`. */
-export const LAPSED_TERMS_VERSION = "2026-11-12.1";
-/** The Privacy Policy that was "past" until 2026-11-23.2 ("previous" until 2026-11-13.1; the same words as
- * 2026-11-12.1): kept byte for byte at `client/src/pages/PrivacyBygone.tsx`, not routed. The `PrivacyBygone.tsx` slot
- * sits between `PrivacyPast.tsx` and `PrivacyEarlier.tsx`. */
-export const BYGONE_PRIVACY_VERSION = "2026-11-12.2";
+export const EXPIRED_TERMS_VERSION = "2026-11-12.1";
 /** The Privacy Policy that was "previous" until 2026-11-13.1: kept byte for byte at `client/src/pages/PrivacyEarlier.tsx`, not routed. */
 export const EARLIER_PRIVACY_VERSION = "2026-11-02.1";
 /** The Terms that were "previous" until 2026-11-12.2: kept byte for byte at `client/src/pages/TermsEarlier.tsx`, not routed. */
@@ -469,33 +538,35 @@ export const EARLIER_TERMS_VERSION = "2026-11-02.1";
  * version and this digest are updated together.
  */
 export const LEGAL_PAGE_DIGESTS = {
-  "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "1628d846f2e100486af08a537be52760b9f91980f56e4aa6a9a812151a0eff71" },
-  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "b15096f220f555ca9ca107d8389ffd1f0f48d1254b74613005f170346999bbb5" },
+  "client/src/pages/Terms.tsx": { version: TERMS_VERSION, sha256: "ef8bde0efe3259b03fb3d56ef0525f96d2ea045bc63f982d13f2e59091fe9b46" },
+  "client/src/pages/Privacy.tsx": { version: PRIVACY_VERSION, sha256: "b2757df19eacd64f8b4007fcbf399bfbce593067006affdb6e3aefa39fc9d7b5" },
   "client/src/pages/TermsAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "2a56699800d45d0ce2d63598021799a7abbc3027612b1cdfaaf9c0c98cf2cd97" },
   "client/src/pages/PrivacyAnnounced.tsx": { version: ANNOUNCED_SUPERSEDED_VERSION, sha256: "ae47ecfdb9bbf404ac0d070c02816d2a99f7d4460616e8b06435fbbcb3f115f9" },
-  "client/src/pages/TermsPrevious.tsx": { version: PREVIOUS_TERMS_VERSION, sha256: "a95e0acdbc1904fa35ccf991a432a3202e854a374050d183fb1ba7f43628c1d1" },
-  "client/src/pages/TermsOlder.tsx": { version: OLDER_TERMS_VERSION, sha256: "546909384564aa1bc1a0aee7a56abc63fa347f1a7fc2ed00b2e7e7cd0a870b4b" },
-  "client/src/pages/TermsFormer.tsx": { version: FORMER_TERMS_VERSION, sha256: "c34a330db07e8bebb525d5459a3eb86fb01b49e90a0af65b64e4f5b403bfe4dd" },
-  "client/src/pages/TermsPrior.tsx": { version: PRIOR_TERMS_VERSION, sha256: "9febe464cf76b6e77b03c72c6f48464c1611dcfb35203d54e600b09d42ad1771" },
-  "client/src/pages/TermsPast.tsx": { version: PAST_TERMS_VERSION, sha256: "cb7276aa54fa2044a391900ce89ac1a23c64a0a088bbc7b2de4104390d6135c9" },
-  "client/src/pages/TermsBygone.tsx": { version: BYGONE_TERMS_VERSION, sha256: "6370c9c16803d758afa2348c619f300747ee20e66fb420ff5cd88fd29256b231" },
-  "client/src/pages/TermsLapsed.tsx": { version: LAPSED_TERMS_VERSION, sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" },
+  "client/src/pages/TermsPrevious.tsx": { version: PREVIOUS_TERMS_VERSION, sha256: "0b1354dee41a50061742c523651afe6b6ce29ba517a24ae6c1da773ad3d7a2cb" },
+  "client/src/pages/TermsOlder.tsx": { version: OLDER_TERMS_VERSION, sha256: "a95e0acdbc1904fa35ccf991a432a3202e854a374050d183fb1ba7f43628c1d1" },
+  "client/src/pages/TermsFormer.tsx": { version: FORMER_TERMS_VERSION, sha256: "546909384564aa1bc1a0aee7a56abc63fa347f1a7fc2ed00b2e7e7cd0a870b4b" },
+  "client/src/pages/TermsPrior.tsx": { version: PRIOR_TERMS_VERSION, sha256: "c34a330db07e8bebb525d5459a3eb86fb01b49e90a0af65b64e4f5b403bfe4dd" },
+  "client/src/pages/TermsPast.tsx": { version: PAST_TERMS_VERSION, sha256: "9febe464cf76b6e77b03c72c6f48464c1611dcfb35203d54e600b09d42ad1771" },
+  "client/src/pages/TermsBygone.tsx": { version: BYGONE_TERMS_VERSION, sha256: "cb7276aa54fa2044a391900ce89ac1a23c64a0a088bbc7b2de4104390d6135c9" },
+  "client/src/pages/TermsLapsed.tsx": { version: LAPSED_TERMS_VERSION, sha256: "6370c9c16803d758afa2348c619f300747ee20e66fb420ff5cd88fd29256b231" },
+  "client/src/pages/TermsExpired.tsx": { version: EXPIRED_TERMS_VERSION, sha256: "ccb2fb154ddab8e8c052c5870ca13084e461d4f2815c2eb8c7f5454ffbc12f27" },
   "client/src/pages/TermsEarlier.tsx": { version: EARLIER_TERMS_VERSION, sha256: "37a4885464a275f5236ed3dd0edee9b148bbeea9bdc80b6ab7f7b9a4dfb8d7bb" },
-  "client/src/pages/PrivacyPrevious.tsx": { version: PREVIOUS_PRIVACY_VERSION, sha256: "8ee31f21a7e98349814556e889de7f610114df60b3c06cbffa128cc274b784b4" },
-  "client/src/pages/PrivacyOlder.tsx": { version: OLDER_PRIVACY_VERSION, sha256: "ffda6e2de60e1a97f79321a688482a477bc4c01ff2c3c0923698b350e7917e93" },
-  "client/src/pages/PrivacyFormer.tsx": { version: FORMER_PRIVACY_VERSION, sha256: "4bea76fcde690b85752bd60bf7396a270d369921e698dab056b683d561922ccf" },
-  "client/src/pages/PrivacyPrior.tsx": { version: PRIOR_PRIVACY_VERSION, sha256: "dd1cf7021b9bcd521dd82d75051649d6a1ec176580d74f22b3870cb9de8db229" },
-  "client/src/pages/PrivacyPast.tsx": { version: PAST_PRIVACY_VERSION, sha256: "cc64b063dc906beb69ba2e7ddcdd02cadaf2e27e86c0b59157478cc038eb8099" },
-  "client/src/pages/PrivacyBygone.tsx": { version: BYGONE_PRIVACY_VERSION, sha256: "c2a859cb17b3b54629e4b88545a3c950e842f85c4a52d0a2652943fe749e895f" },
+  "client/src/pages/PrivacyPrevious.tsx": { version: PREVIOUS_PRIVACY_VERSION, sha256: "e07d8b3459933c9914f35b03d8bd95c8177296227a50c3038fe5d837ebaac4b9" },
+  "client/src/pages/PrivacyOlder.tsx": { version: OLDER_PRIVACY_VERSION, sha256: "8ee31f21a7e98349814556e889de7f610114df60b3c06cbffa128cc274b784b4" },
+  "client/src/pages/PrivacyFormer.tsx": { version: FORMER_PRIVACY_VERSION, sha256: "ffda6e2de60e1a97f79321a688482a477bc4c01ff2c3c0923698b350e7917e93" },
+  "client/src/pages/PrivacyPrior.tsx": { version: PRIOR_PRIVACY_VERSION, sha256: "4bea76fcde690b85752bd60bf7396a270d369921e698dab056b683d561922ccf" },
+  "client/src/pages/PrivacyPast.tsx": { version: PAST_PRIVACY_VERSION, sha256: "dd1cf7021b9bcd521dd82d75051649d6a1ec176580d74f22b3870cb9de8db229" },
+  "client/src/pages/PrivacyBygone.tsx": { version: BYGONE_PRIVACY_VERSION, sha256: "cc64b063dc906beb69ba2e7ddcdd02cadaf2e27e86c0b59157478cc038eb8099" },
+  "client/src/pages/PrivacyLapsed.tsx": { version: LAPSED_PRIVACY_VERSION, sha256: "c2a859cb17b3b54629e4b88545a3c950e842f85c4a52d0a2652943fe749e895f" },
   "client/src/pages/PrivacyEarlier.tsx": { version: EARLIER_PRIVACY_VERSION, sha256: "cad7fcac5cc1ec468ab74471a13a5e61a208b697deafd97b4039f01ab38eab3c" },
 } as const;
 /** The versions the digests above were recorded against; a version bump without a new digest fails the same test. */
 export const LEGAL_PAGE_DIGEST_VERSIONS = {
-  terms: LIBRARY_MODEL_TERMS_VERSION, privacy: COMPANY_APPLICATION_VERSION, previousTerms: "2026-11-23.3", previousPrivacy: "2026-11-23.1",
-  olderTerms: "2026-11-23.2", olderPrivacy: "2026-11-21.1", formerTerms: "2026-11-21.1", formerPrivacy: "2026-11-19.1",
-  priorTerms: "2026-11-19.1", priorPrivacy: "2026-11-17.1", pastTerms: "2026-11-17.1", pastPrivacy: "2026-11-13.1",
-  bygoneTerms: "2026-11-12.2", bygonePrivacy: "2026-11-12.2", lapsedTerms: "2026-11-12.1", announced: "2026-11-25.1",
-  earlierTerms: "2026-11-02.1", earlierPrivacy: "2026-11-02.1",
+  terms: NO_TESTED_ANSWER_VERSION, privacy: NO_TESTED_ANSWER_VERSION, previousTerms: "2026-11-23.4", previousPrivacy: "2026-11-23.2",
+  olderTerms: "2026-11-23.3", olderPrivacy: "2026-11-23.1", formerTerms: "2026-11-23.2", formerPrivacy: "2026-11-21.1",
+  priorTerms: "2026-11-21.1", priorPrivacy: "2026-11-19.1", pastTerms: "2026-11-19.1", pastPrivacy: "2026-11-17.1",
+  bygoneTerms: "2026-11-17.1", bygonePrivacy: "2026-11-13.1", lapsedTerms: "2026-11-12.2", lapsedPrivacy: "2026-11-12.2",
+  expiredTerms: "2026-11-12.1", announced: "2026-11-25.1", earlierTerms: "2026-11-02.1", earlierPrivacy: "2026-11-02.1",
 } as const;
 
 /**
@@ -572,6 +643,11 @@ const EARLIER_PRIVACY_VERSIONS_STILL_COUNTING: Readonly<Record<string, readonly 
   // asked again.
   [COMPANY_APPLICATION_VERSION]: [CITY_STATE_PRIVACY_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION,
     "2026-11-13.1", "2026-11-12.2"],
+  // 2026-11-25.2 only narrows (owner, 2026-11-25): our first look is no longer among what a company receives, and a
+  // company is offered no tested answer. Every version that counted beside the current Terms before it still counts,
+  // and nobody is asked again.
+  [NO_TESTED_ANSWER_VERSION]: [COMPANY_APPLICATION_VERSION, CITY_STATE_PRIVACY_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION,
+    NO_FACE_BLUR_VERSION, "2026-11-13.1", "2026-11-12.2"],
 };
 
 /**
@@ -634,6 +710,13 @@ const EARLIER_TERMS_VERSIONS_STILL_COUNTING: Readonly<Record<string, readonly st
   // version that counted before it still counts: nobody is asked again, and no deployment company loses access.
   [LIBRARY_MODEL_TERMS_VERSION]: [COMPANY_ESTIMATE_TERMS_VERSION, COMPANY_APPLICATION_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION,
     NO_FACE_BLUR_VERSION, "2026-11-12.2"],
+  // 2026-11-25.2 says our first look stays with the site and a company answers Apply, Not a fit or Need more details
+  // (owner, 2026-11-25). It only narrows: a company receives one item fewer and is offered two answers fewer, and a
+  // stored "Tested it: can do" stays one a site can accept, as the Terms a company accepted said. It asks nothing new of
+  // an account or a deployment company, so every Terms version that counted before it still counts: nobody is asked
+  // again, and no deployment company loses access.
+  [NO_TESTED_ANSWER_VERSION]: [LIBRARY_MODEL_TERMS_VERSION, COMPANY_ESTIMATE_TERMS_VERSION, COMPANY_APPLICATION_VERSION, LAUNCH_COPY_VERSION,
+    NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, "2026-11-12.2"],
 };
 export const TERMS_VERSIONS_CURRENT: ReadonlySet<string> =
   versionsStillCounting(TERMS_VERSION, PREVIOUS_TERMS_VERSION, EARLIER_TERMS_VERSIONS_STILL_COUNTING);
@@ -676,6 +759,8 @@ export function shownVersionsCount(terms: unknown, privacy: unknown, nowMs = Dat
  */
 export const PAIRS_A_PAGE_SHOWED: readonly ShownLegalVersions[] = [
   { terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION },
+  // Forms from Terms 2026-11-23.4 until 2026-11-25.2.
+  { terms_version: LIBRARY_MODEL_TERMS_VERSION, privacy_version: COMPANY_APPLICATION_VERSION },
   // Forms from Terms 2026-11-23.3 until Terms 2026-11-23.4.
   { terms_version: COMPANY_ESTIMATE_TERMS_VERSION, privacy_version: COMPANY_APPLICATION_VERSION },
   // Forms from 2026-11-23.2 until Terms 2026-11-23.3.

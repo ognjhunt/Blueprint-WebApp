@@ -34,11 +34,12 @@ test("privacy page offers deletion and shows optional analytics off until permis
 });
 
 // Privacy 2026-11-23.1 (owner, 2026-11-23: "yes to the privacy wording"): the Location row names the city, state and
-// country a company sees. Since 2026-11-23.2 the 2026-11-23.1 text is the previous version, and says the same.
+// country a company sees. Since 2026-11-23.2 the 2026-11-23.1 text was the previous version; since 2026-11-25.2 the
+// 2026-11-23.2 text is, and says the same.
 test("privacy page says a company sees the city, state and country, as the previous version does", async ({ page }) => {
   await page.goto("/privacy");
   const article = page.locator("article");
-  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).toContainText("Effective November 25, 2026");
   await expect(article).toContainText("A deployment company sees the city, state and country of the job, not the address you typed.");
   await expect(article).not.toContainText("A deployment company sees the country of the job, not the address you typed.");
   await page.getByRole("link", { name: "previous version", exact: true }).click();
@@ -49,10 +50,12 @@ test("privacy page says a company sees the city, state and country, as the previ
 
 // Terms and Privacy 2026-11-23.2 (owner, 2026-11-23: "yes, update both"): a company applies, and a site sees its name
 // and website with each answer and accepts the companies it wants to meet; an answer given before November 23, 2026
-// stays under an alias. The previous Privacy Policy (2026-11-23.1) keeps the alias sentence. Since Terms 2026-11-23.3 the
-// previous Terms are 2026-11-23.2, which say the same as the current Terms.
-test("the Terms and Privacy Policy say a site sees a company's name and website and accepts it; the previous Privacy Policy keeps the alias", async ({ page }) => {
-  const APPLICATION = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
+// stays under an alias. Since 2026-11-25.2 (owner, 2026-11-25: "approve terms") the sentence says "after you applied" and
+// keeps a stored "Tested it: can do" in a short clause; the previous Terms (2026-11-23.4) and Privacy Policy (2026-11-23.2)
+// keep the 2026-11-23.2 sentence. None of the four keeps the alias sentence of 2026-11-21.1.
+test("the Terms and Privacy Policy say a site sees a company's name and website and accepts it; the previous versions say the same of the alias", async ({ page }) => {
+  const APPLICATION_THEN = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
+  const APPLICATION = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied (or answered Tested it: can do, an answer we no longer offer). Answers you gave before November 23, 2026 stay under an alias.";
   const ALIAS = "A site sees your answer and the reason you give, under an alias, with your company's name and contact details taken out.";
   const article = page.locator("article");
   await page.goto("/privacy");
@@ -60,58 +63,60 @@ test("the Terms and Privacy Policy say a site sees a company's name and website 
   await expect(article).toContainText("When a site accepts your application, we give you the site's name, address and contact details.");
   await expect(article).not.toContainText(ALIAS);
   await page.goto("/privacy/previous");
-  await expect(article).toContainText(ALIAS);
+  await expect(article).toContainText(APPLICATION_THEN);
   await expect(article).not.toContainText(APPLICATION);
+  await expect(article).not.toContainText(ALIAS);
   await page.goto("/terms");
-  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).toContainText("Effective November 25, 2026");
   await expect(article).toContainText(APPLICATION);
-  await expect(article).toContainText("An approved deployment company can answer Apply, Not a fit or Need more details.");
+  await expect(article).toContainText("An approved deployment company can answer Apply, Not a fit or Need more details. The site sees each answer.");
   await expect(article).not.toContainText(/Interested|Introduce us/);
   await page.goto("/terms/previous");
   await expect(article).toContainText("Previous version, effective November 23, 2026");
-  await expect(article).toContainText(APPLICATION);
+  await expect(article).toContainText(APPLICATION_THEN);
   await expect(article).not.toContainText(ALIAS);
 });
 
 // Terms 2026-11-23.3 (owner, 2026-11-23: "yes build it this way"): a company may give an estimate with its answer. The
 // Terms say, for sites and for companies, that it is an estimate before a site visit and not a quote, and the Privacy
-// Policy does not change. Since Terms 2026-11-23.4 the previous Terms are 2026-11-23.3, which say the same of the estimate.
+// Policy does not change. Since 2026-11-25.2 the previous Terms are 2026-11-23.4, which say the same of the estimate.
 test("the Terms and the previous Terms say a company's estimate is its own, before a site visit and not a quote; the Privacy Policy does not", async ({ page }) => {
   const SITE = "An estimate a deployment company gives with its answer is its own, given before a site visit. It is not a quote, and Blueprint does not check or guarantee it.";
   const COMPANY = "If you give an estimate with your answer, the site sees it as an estimate before a site visit, not a quote.";
   const article = page.locator("article");
   await page.goto("/terms");
-  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).toContainText("Effective November 25, 2026");
   await expect(article).toContainText(SITE);
   await expect(article).toContainText(COMPANY);
-  await expect(article).toContainText("This version replaced the previous version (version 2026-11-23.3, effective November 23, 2026).");
+  await expect(article).toContainText("This version replaced the previous version (version 2026-11-23.4, effective November 23, 2026).");
   await page.getByRole("link", { name: "previous version", exact: true }).click();
   await expect(page).toHaveURL(/\/terms\/previous$/);
   await expect(article).toContainText("Previous version, effective November 23, 2026");
   await expect(article).toContainText(SITE);
   await expect(article).toContainText(COMPANY);
   await page.goto("/privacy");
-  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).toContainText("Effective November 25, 2026");
   await expect(article).not.toContainText("not a quote");
 });
 
 // Terms 2026-11-23.4 (owner, 2026-11-23): one sentence in section 6, Ownership, right after what Blueprint owns: a model
-// in a simulation that comes from a public library stays under that library's license. The previous Terms (2026-11-23.3)
-// say nothing of it, and the Privacy Policy does not change.
-test("the Terms say a library model in a simulation stays under its own license; the previous Terms and the Privacy Policy do not", async ({ page }) => {
+// in a simulation that comes from a public library stays under that library's license. The Terms before it (2026-11-23.3)
+// say nothing of it, and the Privacy Policy does not change. Since 2026-11-25.2 the previous Terms are 2026-11-23.4, which
+// say the same.
+test("the Terms and the previous Terms say a library model in a simulation stays under its own license; the Privacy Policy does not", async ({ page }) => {
   const LIBRARY = "A model in a simulation that comes from a public library stays under that library's license, named in the simulation's README: Blueprint does not own it, and these Terms do not restrict it.";
+  const OWNS = `subject to the rights these Terms give you, including a site's right to withdraw its job. ${LIBRARY} If you send us feedback`;
   const article = page.locator("article");
   await page.goto("/terms");
-  await expect(article).toContainText("Effective November 23, 2026");
-  await expect(article.locator("section", { has: page.getByRole("heading", { name: "6. Ownership" }) }))
-    .toContainText(`subject to the rights these Terms give you, including a site's right to withdraw its job. ${LIBRARY} If you send us feedback`);
-  await expect(article).toContainText("This version replaced the previous version (version 2026-11-23.3, effective November 23, 2026).");
+  await expect(article).toContainText("Effective November 25, 2026");
+  await expect(article.locator("section", { has: page.getByRole("heading", { name: "6. Ownership" }) })).toContainText(OWNS);
+  await expect(article).toContainText("This version replaced the previous version (version 2026-11-23.4, effective November 23, 2026).");
   await page.getByRole("link", { name: "previous version", exact: true }).click();
   await expect(page).toHaveURL(/\/terms\/previous$/);
   await expect(article).toContainText("Previous version, effective November 23, 2026");
-  await expect(article).not.toContainText("public library");
+  await expect(article.locator("section", { has: page.getByRole("heading", { name: "6. Ownership" }) })).toContainText(OWNS);
   await page.goto("/privacy");
-  await expect(article).toContainText("Effective November 23, 2026");
+  await expect(article).toContainText("Effective November 25, 2026");
   await expect(article).not.toContainText("public library");
 });
 
@@ -121,18 +126,44 @@ test("the Terms say a library model in a simulation stays under its own license;
 test("each legal page and its past versions say their version id, so same-day versions can be told apart", async ({ page }) => {
   const article = page.locator("article");
   await page.goto("/terms");
-  await expect(article).toContainText("Effective November 23, 2026");
-  await expect(article).toContainText("Version 2026-11-23.4.");
+  await expect(article).toContainText("Effective November 25, 2026");
+  await expect(article).toContainText("Version 2026-11-25.2.");
   await article.getByText("Past versions", { exact: true }).click();
-  await expect(article.locator(".ms-legal-versions li").first()).toHaveText("Version 2026-11-23.3, effective November 23, 2026, replaced the same day");
-  await expect(article.locator(".ms-legal-versions li").nth(1)).toHaveText("Version 2026-11-23.2, effective November 23, 2026, replaced the same day");
+  await expect(article.locator(".ms-legal-versions li").first()).toHaveText("Version 2026-11-23.4, effective November 23, 2026");
+  await expect(article.locator(".ms-legal-versions li").nth(1)).toHaveText("Version 2026-11-23.3, effective November 23, 2026, replaced the same day");
+  await expect(article.locator(".ms-legal-versions li").nth(2)).toHaveText("Version 2026-11-23.2, effective November 23, 2026, replaced the same day");
   await page.goto("/terms/previous");
   await expect(article).toContainText("Previous version, effective November 23, 2026");
-  await expect(article).toContainText("Version 2026-11-23.3.");
-  await expect(article).toContainText("when the current Terms (version 2026-11-23.4) took effect.");
+  await expect(article).toContainText("Version 2026-11-23.4.");
+  await expect(article).toContainText("when the current Terms (version 2026-11-25.2) took effect.");
   await page.goto("/privacy");
-  await expect(article).toContainText("Version 2026-11-23.2.");
-  await expect(article).toContainText("This version replaced the previous version (version 2026-11-23.1, effective November 23, 2026).");
+  await expect(article).toContainText("Version 2026-11-25.2.");
+  await expect(article).toContainText("This version replaced the previous version (version 2026-11-23.2, effective November 23, 2026).");
   await page.goto("/privacy/previous");
-  await expect(article).toContainText("Version 2026-11-23.1.");
+  await expect(article).toContainText("Version 2026-11-23.2.");
+});
+
+// Terms and Privacy 2026-11-25.2 (owner, 2026-11-25: "approve terms"): our first look stays with the site. Neither page
+// says a company receives it, and the Terms' job packet still holds it. A company answers Apply, Not a fit or Need more
+// details, and a site accepts "a company that applied". The previous versions keep what they said.
+test("the Terms and Privacy Policy no longer share our first look or offer a tested answer; the previous versions keep what they said", async ({ page }) => {
+  const SHARING = "We share your description of the job, your video without its sound, the simulation we build from it, and what counts as the job done.";
+  const SHARING_THEN = "We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.";
+  const article = page.locator("article");
+  await page.goto("/terms");
+  await expect(article).toContainText(SHARING);
+  await expect(article).not.toContainText(SHARING_THEN);
+  await expect(article).toContainText("our first look at which kinds of robot most likely fit");
+  await expect(article).not.toContainText(/first look at which robots fit|can also answer|Tested it: cannot yet/);
+  await expect(article).toContainText("When you accept a company that applied, we give it your name, your address and your contact details");
+  await expect(article).toContainText("If a company you were introduced to drops out, you can accept another company that applied.");
+  await page.goto("/terms/previous");
+  await expect(article).toContainText(SHARING_THEN);
+  await expect(article).toContainText("Once the simulation can be downloaded, it can also answer Tested it: can do or Tested it: cannot yet.");
+  await page.goto("/privacy");
+  await expect(article).toContainText(SHARING);
+  await expect(article).not.toContainText(/first look/i);
+  await expect(article).toContainText("the simulation and what counts as the job done, only to decide whether they can do the job.");
+  await page.goto("/privacy/previous");
+  await expect(article).toContainText(SHARING_THEN);
 });

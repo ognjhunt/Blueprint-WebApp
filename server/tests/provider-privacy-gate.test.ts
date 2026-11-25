@@ -5,7 +5,8 @@
  * every place a provider is chosen.
  */
 import fs from "node:fs";
-import { CITY_STATE_PRIVACY_VERSION, COMPANY_APPLICATION_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION } from "../../client/src/lib/legalAcceptance";
+import { CITY_STATE_PRIVACY_VERSION, COMPANY_APPLICATION_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION,
+  NO_TESTED_ANSWER_VERSION } from "../../client/src/lib/legalAcceptance";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -81,6 +82,7 @@ describe("the gate's tables", () => {
     expect(resolvePrivacyVersion(LAUNCH_COPY_VERSION)).toBe(LAUNCH_COPY_VERSION);
     expect(resolvePrivacyVersion(CITY_STATE_PRIVACY_VERSION)).toBe(CITY_STATE_PRIVACY_VERSION);
     expect(resolvePrivacyVersion(COMPANY_APPLICATION_VERSION)).toBe(COMPANY_APPLICATION_VERSION);
+    expect(resolvePrivacyVersion(NO_TESTED_ANSWER_VERSION)).toBe(NO_TESTED_ANSWER_VERSION);
     expect(resolvePrivacyVersion("not-a-version")).toBe(STRICTEST_PRIVACY_TABLE);
     expect(resolvePrivacyVersion(undefined)).toBe(STRICTEST_PRIVACY_TABLE);
     // The strictest table permits nothing that any known version refuses.
@@ -109,9 +111,9 @@ describe("the gate's decisions under every version", () => {
     for (const version of [...versions, STRICTEST_PRIVACY_TABLE]) {
       for (const kind of ALL_KINDS) {
         const sendsRestricted = LANE_DATA_CLASSES[kind].classes.some((dataClass) => (restricted as readonly string[]).includes(dataClass));
-        // 2026-11-13.1, 2026-11-17.1, 2026-11-19.1, 2026-11-21.1, 2026-11-23.1 and 2026-11-23.2 (none changes what a
-        // provider row permits) let Anthropic receive what OpenAI may.
-        const providers = [PRIVACY_VERSION, CITY_STATE_PRIVACY_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, "2026-11-13.1"].includes(version) ? ["acp_harness", "openclaw", "codex_local"] as const
+        // 2026-11-13.1, 2026-11-17.1, 2026-11-19.1, 2026-11-21.1, 2026-11-23.1, 2026-11-23.2 and 2026-11-25.2 (none changes
+        // what a provider row permits) let Anthropic receive what OpenAI may.
+        const providers = [PRIVACY_VERSION, COMPANY_APPLICATION_VERSION, CITY_STATE_PRIVACY_VERSION, LAUNCH_COPY_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, "2026-11-13.1"].includes(version) ? ["acp_harness", "openclaw", "codex_local"] as const
           : ["anthropic_agent_sdk", "acp_harness", "openclaw", "codex_local"] as const;
         for (const provider of providers) {
           if (sendsRestricted) expect(privacyDecision(provider, kind, version).permitted, `${version} ${kind} ${provider}`).toBe(false);
@@ -125,9 +127,11 @@ describe("the gate's decisions under every version", () => {
     // (no early trial) has the rows of 2026-11-17.1 word for word. 2026-11-21.1 (launch copy, owner approval of
     // 2026-11-21) rewords the rows in plain words, and every row names the same kinds of data: it permits the same.
     // 2026-11-23.1 (a company sees the city, state and country of a job) has the rows of 2026-11-21.1 word for word, and
-    // so does 2026-11-23.2 (a company applies; a site sees its name and website).
-    expect(PRIVACY_VERSION).toBe(COMPANY_APPLICATION_VERSION);
+    // so do 2026-11-23.2 (a company applies; a site sees its name and website) and 2026-11-25.2 (our first look stays with
+    // the site; a company answers Apply, Not a fit or Need more details).
+    expect(PRIVACY_VERSION).toBe(NO_TESTED_ANSWER_VERSION);
     expect(PRIVACY_POLICY_PROVIDER_ROWS[PRIVACY_VERSION].rows).toEqual(PRIVACY_POLICY_PROVIDER_ROWS[LAUNCH_COPY_VERSION].rows);
+    expect(PRIVACY_POLICY_PROVIDER_ROWS[COMPANY_APPLICATION_VERSION].rows).toEqual(PRIVACY_POLICY_PROVIDER_ROWS[LAUNCH_COPY_VERSION].rows);
     expect(PRIVACY_POLICY_PROVIDER_ROWS[CITY_STATE_PRIVACY_VERSION].rows).toEqual(PRIVACY_POLICY_PROVIDER_ROWS[LAUNCH_COPY_VERSION].rows);
     expect(PRIVACY_POLICY_PROVIDER_ROWS[NO_EARLY_TRIAL_VERSION].rows).toEqual(PRIVACY_POLICY_PROVIDER_ROWS[NO_FACE_BLUR_VERSION].rows);
     const launch = PRIVACY_POLICY_PROVIDER_ROWS[LAUNCH_COPY_VERSION].rows, before = PRIVACY_POLICY_PROVIDER_ROWS[NO_EARLY_TRIAL_VERSION].rows;
@@ -143,12 +147,14 @@ describe("the gate's decisions under every version", () => {
       expect(current[row].words, row).toBe(row === "Anthropic" ? earlier[row].words.replace("under this version of the policy or a later one",
         "under the version of this policy effective November 13, 2026, or a later one") : earlier[row].words);
     }
-    expect(PRIVACY_POLICY_PROVIDER_ROWS[CITY_STATE_PRIVACY_VERSION].page).toBe("client/src/pages/PrivacyPrevious.tsx");
-    expect(PRIVACY_POLICY_PROVIDER_ROWS[LAUNCH_COPY_VERSION].page).toBe("client/src/pages/PrivacyOlder.tsx");
-    expect(PRIVACY_POLICY_PROVIDER_ROWS[NO_EARLY_TRIAL_VERSION].page).toBe("client/src/pages/PrivacyFormer.tsx");
-    expect(PRIVACY_POLICY_PROVIDER_ROWS[NO_FACE_BLUR_VERSION].page).toBe("client/src/pages/PrivacyPrior.tsx");
-    expect(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-13.1"].page).toBe("client/src/pages/PrivacyPast.tsx");
-    expect(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-12.2"].page).toBe("client/src/pages/PrivacyBygone.tsx");
+    expect(PRIVACY_POLICY_PROVIDER_ROWS[NO_TESTED_ANSWER_VERSION].page).toBe("client/src/pages/Privacy.tsx");
+    expect(PRIVACY_POLICY_PROVIDER_ROWS[COMPANY_APPLICATION_VERSION].page).toBe("client/src/pages/PrivacyPrevious.tsx");
+    expect(PRIVACY_POLICY_PROVIDER_ROWS[CITY_STATE_PRIVACY_VERSION].page).toBe("client/src/pages/PrivacyOlder.tsx");
+    expect(PRIVACY_POLICY_PROVIDER_ROWS[LAUNCH_COPY_VERSION].page).toBe("client/src/pages/PrivacyFormer.tsx");
+    expect(PRIVACY_POLICY_PROVIDER_ROWS[NO_EARLY_TRIAL_VERSION].page).toBe("client/src/pages/PrivacyPrior.tsx");
+    expect(PRIVACY_POLICY_PROVIDER_ROWS[NO_FACE_BLUR_VERSION].page).toBe("client/src/pages/PrivacyPast.tsx");
+    expect(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-13.1"].page).toBe("client/src/pages/PrivacyBygone.tsx");
+    expect(PRIVACY_POLICY_PROVIDER_ROWS["2026-11-12.2"].page).toBe("client/src/pages/PrivacyLapsed.tsx");
     for (const kind of ALL_KINDS) {
       const openAi = privacyDecision("openai_responses", kind, PRIVACY_VERSION).permitted;
       expect(privacyDecision("anthropic_agent_sdk", kind, PRIVACY_VERSION).permitted, kind).toBe(openAi);

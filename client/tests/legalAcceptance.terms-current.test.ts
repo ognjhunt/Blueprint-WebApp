@@ -5,16 +5,17 @@
  * A deployment company's side (`companyMaySeeJobs`) is in `server/tests/company-terms-gate.test.ts`.
  */
 import { describe, expect, it } from "vitest";
-import { CITY_STATE_PRIVACY_VERSION, COMPANY_APPLICATION_VERSION, COMPANY_ESTIMATE_TERMS_VERSION, LAUNCH_COPY_VERSION, LEGAL_VERSIONS_THAT_ASK_AGAIN,
-  LIBRARY_MODEL_TERMS_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, legalEffectiveAtMs, versionsStillCounting } from "@/lib/legalAcceptance";
-import { LAPSED_TERMS_VERSION, PAIRS_A_PAGE_SHOWED, PREVIOUS_TERMS_VERSION, PRIVACY_VERSION, TERMS_VERSION, TERMS_VERSIONS_CURRENT,
+import { ANNOUNCED_SUPERSEDED_VERSION, CITY_STATE_PRIVACY_VERSION, COMPANY_APPLICATION_VERSION, COMPANY_ESTIMATE_TERMS_VERSION, LAUNCH_COPY_VERSION,
+  LEGAL_VERSIONS_THAT_ASK_AGAIN, LIBRARY_MODEL_TERMS_VERSION, NO_EARLY_TRIAL_VERSION, NO_FACE_BLUR_VERSION, NO_TESTED_ANSWER_VERSION, legalEffectiveAtMs,
+  versionsStillCounting } from "@/lib/legalAcceptance";
+import { EXPIRED_TERMS_VERSION, PAIRS_A_PAGE_SHOWED, PREVIOUS_TERMS_VERSION, PRIVACY_VERSION, TERMS_VERSION, TERMS_VERSIONS_CURRENT,
   acceptedVersionsAreCurrent, buildLegalAcceptanceRecord, isCurrentLegalAcceptance, shownVersionsCount } from "@/lib/legalAcceptance";
 
 const DECIDE = "The Terms version changed. Decide in EARLIER_TERMS_VERSIONS_STILL_COUNTING whether an acceptance of an "
   + "earlier version still counts (only if the new Terms change nothing for existing accounts and deployment "
   + "companies), then update this test.";
 
-const AFTER = legalEffectiveAtMs(LIBRARY_MODEL_TERMS_VERSION) + 10 * 3_600_000;
+const AFTER = legalEffectiveAtMs(NO_TESTED_ANSWER_VERSION) + 10 * 3_600_000;
 const acceptance = (terms: string, privacy: string) => ({ ...buildLegalAcceptanceRecord({ acceptedAt: "2026-11-13T09:00:00.000Z" }),
   terms_version: terms, privacy_version: privacy });
 
@@ -32,17 +33,21 @@ const acceptance = (terms: string, privacy: string) => ({ ...buildLegalAcceptanc
 // still count, and nobody is asked again. Terms 2026-11-23.4 (a model in a simulation from a public library stays under
 // that library's license; Blueprint does not own it and the Terms do not restrict it; owner, 2026-11-23) only loosens
 // restrictions and asks nothing new: 2026-11-23.3 and every version that counted before it still count, and nobody is
-// asked again.
+// asked again. Terms 2026-11-25.2 (our first look stays with the site; a company answers Apply, Not a fit or Need more
+// details, and a stored "Tested it: can do" can still be accepted; owner, 2026-11-25: "approve terms") only narrows and
+// asks nothing new: 2026-11-23.4 and every version that counted before it still count, and nobody is asked again. Its id
+// is not 2026-11-25.1, the version published ahead and replaced before it took effect, whose acceptances stay asked again.
 describe("Terms versions that still count", () => {
-  it("is exactly the current version, 2026-11-23.3, 2026-11-23.2, 2026-11-21.1, 2026-11-19.1, 2026-11-17.1 and 2026-11-12.2", () => {
-    expect(TERMS_VERSION, DECIDE).toBe(LIBRARY_MODEL_TERMS_VERSION);
-    expect(PREVIOUS_TERMS_VERSION, DECIDE).toBe(COMPANY_ESTIMATE_TERMS_VERSION);
+  it("is exactly the current version, 2026-11-23.4, 2026-11-23.3, 2026-11-23.2, 2026-11-21.1, 2026-11-19.1, 2026-11-17.1 and 2026-11-12.2", () => {
+    expect(TERMS_VERSION, DECIDE).toBe(NO_TESTED_ANSWER_VERSION);
+    expect(PREVIOUS_TERMS_VERSION, DECIDE).toBe(LIBRARY_MODEL_TERMS_VERSION);
     expect([...TERMS_VERSIONS_CURRENT].sort(), DECIDE)
       .toEqual(["2026-11-12.2", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION, COMPANY_APPLICATION_VERSION,
-        COMPANY_ESTIMATE_TERMS_VERSION, LIBRARY_MODEL_TERMS_VERSION]);
+        COMPANY_ESTIMATE_TERMS_VERSION, LIBRARY_MODEL_TERMS_VERSION, NO_TESTED_ANSWER_VERSION]);
+    expect(TERMS_VERSIONS_CURRENT.has(ANNOUNCED_SUPERSEDED_VERSION)).toBe(false);
   });
 
-  it("keeps an account's acceptance of Terms 2026-11-23.3, 2026-11-23.2, 2026-11-21.1, 2026-11-19.1, 2026-11-17.1 or 2026-11-12.2 current, and still asks whoever accepted an older version", () => {
+  it("keeps an account's acceptance of Terms 2026-11-23.4, 2026-11-23.3, 2026-11-23.2, 2026-11-21.1, 2026-11-19.1, 2026-11-17.1 or 2026-11-12.2 current, and still asks whoever accepted an older version", () => {
     for (const privacy of ["2026-11-12.2", "2026-11-13.1", NO_FACE_BLUR_VERSION, NO_EARLY_TRIAL_VERSION, LAUNCH_COPY_VERSION, CITY_STATE_PRIVACY_VERSION,
       COMPANY_APPLICATION_VERSION]) {
       expect(acceptedVersionsAreCurrent("2026-11-12.2", privacy, AFTER), privacy).toBe(true);
@@ -51,18 +56,19 @@ describe("Terms versions that still count", () => {
       expect(acceptedVersionsAreCurrent(LAUNCH_COPY_VERSION, privacy, AFTER), privacy).toBe(true);
       expect(acceptedVersionsAreCurrent(COMPANY_APPLICATION_VERSION, privacy, AFTER), privacy).toBe(true);
       expect(acceptedVersionsAreCurrent(COMPANY_ESTIMATE_TERMS_VERSION, privacy, AFTER), privacy).toBe(true);
-      expect(acceptedVersionsAreCurrent(LAPSED_TERMS_VERSION, privacy, AFTER), privacy).toBe(false);
+      expect(acceptedVersionsAreCurrent(LIBRARY_MODEL_TERMS_VERSION, privacy, AFTER), privacy).toBe(true);
+      expect(acceptedVersionsAreCurrent(EXPIRED_TERMS_VERSION, privacy, AFTER), privacy).toBe(false);
     }
     for (const terms of ["2026-11-02.1", "2026-11-25.1", "2026-11-15.4", "", null, undefined])
       expect(acceptedVersionsAreCurrent(terms, PRIVACY_VERSION, AFTER), String(terms)).toBe(false);
   });
 
   it("records the new versions for a new acceptance, and leaves an earlier recorded acceptance as it is", () => {
-    expect(buildLegalAcceptanceRecord({ acceptedAt: "now" })).toMatchObject({ terms_version: LIBRARY_MODEL_TERMS_VERSION, privacy_version: COMPANY_APPLICATION_VERSION });
+    expect(buildLegalAcceptanceRecord({ acceptedAt: "now" })).toMatchObject({ terms_version: NO_TESTED_ANSWER_VERSION, privacy_version: NO_TESTED_ANSWER_VERSION });
     for (const earlier of [acceptance("2026-11-12.2", "2026-11-13.1"), acceptance(NO_FACE_BLUR_VERSION, NO_FACE_BLUR_VERSION),
       acceptance(NO_EARLY_TRIAL_VERSION, NO_EARLY_TRIAL_VERSION), acceptance(LAUNCH_COPY_VERSION, LAUNCH_COPY_VERSION),
       acceptance(LAUNCH_COPY_VERSION, CITY_STATE_PRIVACY_VERSION), acceptance(COMPANY_APPLICATION_VERSION, COMPANY_APPLICATION_VERSION),
-      acceptance(COMPANY_ESTIMATE_TERMS_VERSION, COMPANY_APPLICATION_VERSION)]) {
+      acceptance(COMPANY_ESTIMATE_TERMS_VERSION, COMPANY_APPLICATION_VERSION), acceptance(LIBRARY_MODEL_TERMS_VERSION, COMPANY_APPLICATION_VERSION)]) {
       const kept = structuredClone(earlier);
       expect(isCurrentLegalAcceptance(earlier)).toBe(true);
       expect(earlier).toEqual(kept);
@@ -75,10 +81,12 @@ describe("Terms versions that still count", () => {
 describe("the versions a form may record", () => {
   it("records exactly a pair a page showed, and refuses a pair no page showed", () => {
     expect(PAIRS_A_PAGE_SHOWED[0]).toEqual({ terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION });
-    // A start under Terms 2026-11-23.4 records the current pair: Terms 2026-11-23.4 beside Privacy 2026-11-23.2. A form
-    // opened before it still records the pair it showed: Terms 2026-11-23.3 beside Privacy 2026-11-23.2, or, before Terms
-    // 2026-11-23.3, both 2026-11-23.2, or, before 2026-11-23.2, Terms 2026-11-21.1 beside Privacy 2026-11-23.1, or, before
-    // Privacy 2026-11-23.1, the 2026-11-21.1 pair.
+    // A start under 2026-11-25.2 records the current pair: both 2026-11-25.2. A form opened before it still records the
+    // pair it showed: Terms 2026-11-23.4 beside Privacy 2026-11-23.2, or, before Terms 2026-11-23.4, Terms 2026-11-23.3
+    // beside Privacy 2026-11-23.2, or, before Terms 2026-11-23.3, both 2026-11-23.2, or, before 2026-11-23.2, Terms
+    // 2026-11-21.1 beside Privacy 2026-11-23.1, or, before Privacy 2026-11-23.1, the 2026-11-21.1 pair.
+    expect(shownVersionsCount(NO_TESTED_ANSWER_VERSION, NO_TESTED_ANSWER_VERSION, AFTER))
+      .toEqual({ terms_version: NO_TESTED_ANSWER_VERSION, privacy_version: NO_TESTED_ANSWER_VERSION });
     expect(shownVersionsCount(LIBRARY_MODEL_TERMS_VERSION, COMPANY_APPLICATION_VERSION, AFTER))
       .toEqual({ terms_version: LIBRARY_MODEL_TERMS_VERSION, privacy_version: COMPANY_APPLICATION_VERSION });
     expect(shownVersionsCount(COMPANY_ESTIMATE_TERMS_VERSION, COMPANY_APPLICATION_VERSION, AFTER))
@@ -106,7 +114,9 @@ describe("the versions a form may record", () => {
       [COMPANY_APPLICATION_VERSION, LAUNCH_COPY_VERSION], [COMPANY_ESTIMATE_TERMS_VERSION, CITY_STATE_PRIVACY_VERSION],
       [COMPANY_ESTIMATE_TERMS_VERSION, LAUNCH_COPY_VERSION], [COMPANY_ESTIMATE_TERMS_VERSION, COMPANY_ESTIMATE_TERMS_VERSION],
       [LIBRARY_MODEL_TERMS_VERSION, CITY_STATE_PRIVACY_VERSION], [LIBRARY_MODEL_TERMS_VERSION, LAUNCH_COPY_VERSION],
-      [LIBRARY_MODEL_TERMS_VERSION, LIBRARY_MODEL_TERMS_VERSION]])
+      [LIBRARY_MODEL_TERMS_VERSION, LIBRARY_MODEL_TERMS_VERSION], [NO_TESTED_ANSWER_VERSION, COMPANY_APPLICATION_VERSION],
+      [LIBRARY_MODEL_TERMS_VERSION, NO_TESTED_ANSWER_VERSION], [COMPANY_ESTIMATE_TERMS_VERSION, NO_TESTED_ANSWER_VERSION],
+      [NO_TESTED_ANSWER_VERSION, ANNOUNCED_SUPERSEDED_VERSION], [ANNOUNCED_SUPERSEDED_VERSION, NO_TESTED_ANSWER_VERSION]])
       expect(shownVersionsCount(terms, privacy, AFTER), `${terms} ${privacy}`).toBeNull();
     // An account that holds such a pair from before is still current: the check is on what a form may record.
     expect(acceptedVersionsAreCurrent(NO_FACE_BLUR_VERSION, "2026-11-13.1", AFTER)).toBe(true);

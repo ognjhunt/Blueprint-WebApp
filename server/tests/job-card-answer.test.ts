@@ -69,6 +69,11 @@ function job(extra: Record<string, unknown> = {}) {
   };
 }
 const put = (record: Record<string, unknown>) => sharedFakeFirestoreState.docs.set(`inboundRequests/${ID}`, record);
+/** The first look as composed for the site's own pages (`loadJobCardAnswer`); a company's card no longer carries it. */
+async function answerFor(): Promise<any> {
+  const { loadJobCardAnswer } = await import("../utils/jobCardAnswer");
+  return loadJobCardAnswer(ID, sharedFakeFirestoreState.docs.get(`inboundRequests/${ID}`));
+}
 async function get(path: string) {
   const response = await fetch(`${baseUrl}/api/site-worlds${path}`);
   return { status: response.status, body: await response.json() as Record<string, any> };
@@ -95,11 +100,14 @@ afterEach(async () => {
 });
 
 describe("GET /api/site-worlds/tasks/:taskId", () => {
-  it("carries the answer when the site asked under the statement that names it, and nothing private", async () => {
+  it("composes the answer for the site's pages with nothing private, and a company's card carries none", async () => {
     put(job());
     const { status, body } = await get(`/tasks/${ID}`);
     expect(status).toBe(200);
-    const summary = body.item.answerSummary;
+    // Terms 2026-11-25.2: the first look stays with the site; the company's card has no answer and no headline.
+    expect(body.item.answerSummary).toBeUndefined();
+    expect(body.item.answerHeadline).toBeUndefined();
+    const summary = await answerFor();
     expect(summary).toBeTruthy();
     expect(Object.keys(summary).sort()).toEqual(["confidence", "facts", "familyLabel", "headline", "note", "pick", "runnerUp",
       "sceneNote", "unknowns"]);
@@ -121,7 +129,6 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     for (const fact of summary.facts) expect(fact.display).toMatch(/\d/);
     expect(summary.unknowns).toContain("How many different objects the job handles.");
     expect(summary.note).toContain("not a test of a robot at the site");
-    expect(body.item.answerHeadline).toBe(summary.headline);
     // The card's own fields are the anonymised draft, as before.
     expect(body.item.title).toBe("Carton palletizing opportunity");
     // The card carries the site's own sentence as the job page shows it, its known name and organisation removed.
@@ -137,8 +144,7 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     const record = job();
     delete (record.walkthrough_job_estimates.job_estimates as Record<string, unknown>).job_kind;
     put(record);
-    const { body } = await get(`/tasks/${ID}`);
-    const summary = body.item.answerSummary;
+    const summary = await answerFor();
     expect(summary.note).toBe("This checks whether a robot can pick the object up and put it down, against published robot specifications and a cited track record. It is not a test of a robot at the site and does not certify performance or safety.");
     expect(summary.unknowns[0]).toBe("We could not tell from the site's video what is done to the object; this checks only whether a robot can pick it up and put it down.");
     expect(JSON.stringify(summary)).not.toMatch(/\byour\b/i);
@@ -148,18 +154,18 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     const other = job();
     (other.walkthrough_job_estimates.job_estimates as Record<string, unknown>).job_kind = "other";
     put(other);
-    const refused = (await get(`/tasks/${ID}`)).body.item.answerSummary;
+    const refused = await answerFor();
     expect(refused).toMatchObject({ headline: "We can't check robots against this job yet.", familyLabel: null, pick: null });
     // With the reader's kind of job, the card says nothing of the kind.
     put(job());
-    const judged = (await get(`/tasks/${ID}`)).body.item.answerSummary;
+    const judged = await answerFor();
     expect(judged.unknowns.some((line: string) => line.startsWith("We could not tell"))).toBe(false);
     expect(judged.familyLabel).toBe("palletizing");
   });
 
   it("says the site's video does not show the whole work area about the site, never in the review's own words", async () => {
     put(job({ capture_coverage: { covers_scene: false, missing_coverage: ["The far side of the loading dock"] } }));
-    const summary = (await get(`/tasks/${ID}`)).body.item.answerSummary;
+    const summary = await answerFor();
     expect(summary.unknowns).toContain("The site's video does not show the whole work area.");
     expect(JSON.stringify(summary)).not.toMatch(/\byour\b|far side/i);
   });
@@ -169,10 +175,10 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     seams.managed.mockImplementation(async () => ({ managedEvidence: [{ current: true, state: "completed", outcome: "estimate",
       screening: { candidates: [{ candidateId: "pi05_droid", name: "stored", state: "completed", planned: 10, scored: 10, succeeded: 10, failed: 0,
         void: 0, blockers: [] }] } }] }));
-    const item = (await get(`/tasks/${ID}`)).body.item;
-    expect(item.answerSummary.headline).toMatch(/^Most likely to fit: |^No robot clearly fits\.|^None of the /);
-    expect(item.answerSummary).not.toHaveProperty("test");
-    expect(item.answerSummary).not.toHaveProperty("simulation");
+    const item = await answerFor();
+    expect(item.headline).toMatch(/^Most likely to fit: |^No robot clearly fits\.|^None of the /);
+    expect(item).not.toHaveProperty("test");
+    expect(item).not.toHaveProperty("simulation");
     expect(JSON.stringify(item)).not.toMatch(/early trial|our trial|Franka/i);
     expect(seams.managed).not.toHaveBeenCalled();
   });
@@ -198,7 +204,7 @@ describe("GET /api/site-worlds/tasks/:taskId", () => {
     expect((await get(`/tasks/${ID}`)).status).toBe(404);
   });
 
-  it("returns the card without the answer when composing fails", async () => {
+  it("returns the card when composing the answer would fail, since a company's card composes none", async () => {
     put(job());
     seams.answerFails = true;
     const { status, body } = await get(`/tasks/${ID}`);

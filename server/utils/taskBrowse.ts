@@ -3,7 +3,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { InboundRequest } from "../types/inbound-request";
 import { jobTitleForDisplay, type LibraryJobStage, type PublicLiveJob, type TaskBrowseCard, type TaskCardDetail } from "../../client/src/types/taskBrowse";
 export type { PublicLiveJob } from "../../client/src/types/taskBrowse";
-import { jobCardAnswerShared, loadJobCardAnswer, loadJobCardAnswerHeadline } from "./jobCardAnswer";
+import { jobCardAnswerShared, loadJobCardAnswerHeadline } from "./jobCardAnswer";
 import { loadCompanyJobAccess, taskThumbnailUrl, teamJobAccess, thumbnailSourceOf, type TeamJobAccess, type TeamJobAccessContext } from "./teamJobAccess";
 import { JOB_SHARED_LISTING_VERSION } from "./taskListingDetails";
 import { companyJobHeadline, companyPlaceOf, countryOf, knownSiteIdentity, siteSentenceForCompany } from "./companyJobPage";
@@ -161,13 +161,14 @@ export async function listPublicLiveJobs(): Promise<PublicLiveJob[]> {
     .sort((a, b) => b.postedOn.localeCompare(a.postedOn) || a.kind.localeCompare(b.kind));
 }
 
-/** One listed card as an approved company opens it, with the answer when the site shared it. Null when not listed. */
+/**
+ * One listed card as an approved company opens it. Null when not listed. No first look: it stays with the site
+ * (Terms 2026-11-25.2; owner, 2026-11-25), so none is composed for a company here.
+ */
 export async function readTaskCardDetail(id: string): Promise<TaskCardDetail | null> {
   if (!db) throw new Error("Task library unavailable");
   const { record, access, session, brief } = await loadCompanyJobAccess(id);
   const listed = record ? projectTaskBrowseCard(id, record as InboundRequest, access) : null;
   if (!listed || !record) return null;
-  const [card, answerSummary] = await Promise.all([libraryCard(listed, record as InboundRequest, session, brief, 4_000),
-    loadJobCardAnswer(id, record)]);
-  return answerSummary ? { ...card, answerHeadline: answerSummary.headline, answerSummary } : card;
+  return libraryCard(listed, record as InboundRequest, session, brief, 4_000);
 }

@@ -6,7 +6,7 @@ import { TERMS_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 type Section = { title: string; paragraphs?: readonly string[]; items?: readonly string[] };
 
 /** Sharing is the service (owner, 2026-11-12): the sentences every page and email say the same way. */
-export const SHARING_SENTENCE = "Starting a job means that, once it has its video, we share it with robot deployment companies we've approved, so they can decide without a visit whether they can do it. We share your description of the job, your video without its sound, the simulation we build from it, what counts as the job done, and our first look at which robots fit.";
+export const SHARING_SENTENCE = "Starting a job means that, once it has its video, we share it with robot deployment companies we've approved, so they can decide without a visit whether they can do it. We share your description of the job, your video without its sound, the simulation we build from it, and what counts as the job done.";
 export const CONTACT_DETAILS_SENTENCE = "We do not share your name, your street address or your contact details with a deployment company unless you ask for an introduction to it.";
 export const COMPANY_USE_SENTENCE = "A deployment company may use your job only to decide whether it can do it. It may not pass it on, use it to train software, or keep it after we ask it to delete it.";
 export const WITHDRAWAL_SENTENCE = "You can withdraw your job at any time from its page. It then leaves every company's view at once, and we ask any company that saved a copy to delete it. We cannot take back a copy a company has already saved.";
@@ -15,8 +15,13 @@ export const OLDER_JOB_SENTENCE = "A job started before November 12, 2026 is sha
  * What a site can do when a company it was introduced to drops out (owner, 2026-11-21). Written out here, not imported,
  * so this page's digest covers it; `pilotReplacementPolicy` in `client/src/lib/evaluationPricing.ts` says the same.
  */
-export const REPLACEMENT_SENTENCE = "If a company you were introduced to drops out, you can accept another company that applied or answered Tested it: can do.";
-export const COMPANY_APPLICATION_SENTENCE = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied or answered Tested it: can do. Answers you gave before November 23, 2026 stay under an alias.";
+export const REPLACEMENT_SENTENCE = "If a company you were introduced to drops out, you can accept another company that applied.";
+/**
+ * What a company's answer shows a site, and when its contact details go. Since 2026-11-25.2 (owner, 2026-11-25) a company
+ * answers Apply, Not a fit or Need more details; a "Tested it: can do" stored before still reads and can be accepted
+ * (`INTRODUCIBLE_RESPONSE_STATES`, `client/src/lib/companyResponses.ts`), so this sentence keeps it in a short clause.
+ */
+export const COMPANY_APPLICATION_SENTENCE = "A site sees your company's name and website with each answer you give and the reason you give, with your contact details taken out. It gets your contact details only when it accepts your application, after you applied (or answered Tested it: can do, an answer we no longer offer). Answers you gave before November 23, 2026 stay under an alias.";
 /**
  * The Pipeline is starting to put models from public libraries (Google Scanned Objects, NVIDIA SimReady) into the
  * simulation a deployment company downloads. They are under CC BY 4.0, which forbids adding terms that restrict a
@@ -30,7 +35,7 @@ export const termsSections: readonly Section[] = [
     title: "1. The Service",
     paragraphs: [
       "Blueprint helps a site find a deployment company for one of its recurring jobs. A site gives an email and a video of the job, and can correct the job description we draft from the video. From the video we make a job packet: the site's description of the job, the video without its sound, our first look at which kinds of robot most likely fit, a simulation of the site with the job's object in it, and what counts as the job done. Blueprint does not test any robot in the simulation. Once the simulation can be downloaded, a deployment company may test its own robot in it, using its own tools.",
-      `${SHARING_SENTENCE} An approved deployment company can answer Apply, Not a fit or Need more details. Once the simulation can be downloaded, it can also answer Tested it: can do or Tested it: cannot yet. The site sees each answer.`,
+      `${SHARING_SENTENCE} An approved deployment company can answer Apply, Not a fit or Need more details. The site sees each answer.`,
       "The Service is in beta. Features may change, be limited, or be withdrawn, and we may pause or stop work on a job, for example to protect a site's privacy or the integrity of a result.",
       "A simulation is a bounded estimate. It is not a physical test, a safety assessment, or a guarantee of how a robot will perform at a real site, and it does not certify physical performance or safety. Any physical pilot is agreed directly between the site and the deployment company. The deployment company is responsible for installation and operation, and the site and the others responsible for the work approve the safety plan. After an introduction, we ask both sides what happened, up to three times (14, 45 and 90 days later), and record their answers on the job.",
       "Other providers help us run the Service; our Privacy Policy lists them. Their own terms apply to the services they provide.",
@@ -53,7 +58,7 @@ export const termsSections: readonly Section[] = [
       "Avoid recording screens, documents and restricted areas where you can.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and job details to provide the Service for your job: to make the job packet and the simulation, show you companies' responses, and share your job with the deployment companies we approve as this section describes. We do not license your recording to anyone for training without your written agreement.",
       SHARING_SENTENCE,
-      `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you with its name and website, with its contact details taken out. An answer given before November 23, 2026 reaches you under an alias. An estimate a deployment company gives with its answer is its own, given before a site visit. It is not a quote, and Blueprint does not check or guarantee it. When you accept a company that applied or answered Tested it: can do, we give it your name, your address and your contact details, and give you its name and contact details.`,
+      `${CONTACT_DETAILS_SENTENCE} A deployment company's answer reaches you with its name and website, with its contact details taken out. An answer given before November 23, 2026 reaches you under an alias. An estimate a deployment company gives with its answer is its own, given before a site visit. It is not a quote, and Blueprint does not check or guarantee it. When you accept a company that applied, we give it your name, your address and your contact details, and give you its name and contact details.`,
       COMPANY_USE_SENTENCE,
       WITHDRAWAL_SENTENCE,
       OLDER_JOB_SENTENCE,
@@ -65,7 +70,7 @@ export const termsSections: readonly Section[] = [
   {
     title: "4. For deployment companies",
     items: [
-      "A deployment company applies for an account, and Blueprint approves each company. An approved company signs in, sees the jobs sites have shared, and can answer each one: Apply, Not a fit or Need more details. Once a job's simulation can be downloaded, it can also answer Tested it: can do or Tested it: cannot yet.",
+      "A deployment company applies for an account, and Blueprint approves each company. An approved company signs in, sees the jobs sites have shared, and can answer each one: Apply, Not a fit or Need more details.",
       `${COMPANY_APPLICATION_SENTENCE} If you give an estimate with your answer, the site sees it as an estimate before a site visit, not a quote.`,
       "You may use a job only to decide whether you can do it. You may not pass it on, use it to train software, or keep it after we ask you to delete it.",
       "Nothing is charged today.",
