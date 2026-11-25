@@ -84,6 +84,16 @@ export async function listJobBillableEvents(requestId: string): Promise<Array<Bi
 }
 
 /**
+ * One job's events for the owner's marketplace numbers (`marketplaceNumbers.ts`), which pages it to the end: the
+ * company, status, made time and test marker only, in document-id order (an equality filter on one field, so the
+ * automatic single-field index serves it). Read only.
+ */
+export function jobBillableEventStatesQuery(store: FirebaseFirestore.Firestore, requestId: string): FirebaseFirestore.Query {
+  return store.collection(BILLABLE_EVENTS_COLLECTION).where("requestId", "==", requestId)
+    .select("companyId", "status", "madeAtIso", "testEvent").orderBy("__name__");
+}
+
+/**
  * Owner, 2026-11-23: an event counts as billable only once its introduction is made (`madeAtIso` set, when the company's
  * email was sent). One recorded but not made (its company email not sent yet, or its outcome unknown) is counted apart so
  * staff can see it; a void one is never counted. Nothing here writes to an event.

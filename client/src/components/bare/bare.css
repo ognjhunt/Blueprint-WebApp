@@ -135,3 +135,18 @@ ul.bare-menu { list-style: none; margin: var(--bare-s4) 0 0; padding: 0; border-
 .bare-screen.admin-job ol.admin-job-events { margin: 0; padding: 0; list-style: none; }
 .bare-screen.admin-job ol.admin-job-events > li { display: grid; gap: var(--bare-s1); }
 .bare-screen.admin-job ol.admin-job-events > li + li { margin-top: var(--bare-s12); }
+/* Marketplace numbers (`components/admin/MarketplaceNumbers.tsx`): headline numbers, then the rest, then one row per job. */
+.bare-screen.admin-job .admin-numbers > * + * { margin-top: var(--bare-s3); }
+.bare-screen.admin-job .admin-numbers-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--bare-s3); }
+.bare-screen.admin-job .admin-numbers-controls [role="group"] { display: flex; gap: var(--bare-s3); }
+.bare-screen.admin-job .admin-numbers-controls button[aria-pressed="true"] { font-weight: 600; text-decoration: none; }
+.bare-screen.admin-job .admin-numbers-switch { font-size: 15px; }
+.bare-screen.admin-job .admin-numbers-group { display: grid; gap: var(--bare-s4); }
+.bare-screen.admin-job .admin-numbers-group > * > * + * { margin-top: var(--bare-s1); }
+.bare-screen.admin-job .admin-numbers-big { font-size: 22px; font-weight: 600; }
+.bare-screen.admin-job .admin-numbers-scroll { overflow-x: auto; max-width: 100%; }
+.bare-screen.admin-job table.admin-numbers-table { border-collapse: collapse; font-size: 14px; min-width: 100%; }
+.bare-screen.admin-job table.admin-numbers-table th,
+.bare-screen.admin-job table.admin-numbers-table td { padding: 6px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--bare-rule); }
+.bare-screen.admin-job table.admin-numbers-table thead th { font-weight: 600; white-space: nowrap; }
+.bare-screen.admin-job table.admin-numbers-table tbody th { font-weight: 400; overflow-wrap: anywhere; min-width: 10ch; }

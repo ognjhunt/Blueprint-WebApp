@@ -21,6 +21,7 @@ import { companyMediaRefusal } from "../utils/companyJobPage";
 import { TERMS_PROMPT } from "../../client/src/lib/companyResponses";
 import { fetchCompanySimulation, storedCompanySimulation, verifyCompanySimulationTicket } from "../utils/websiteCompanySimulation";
 import { fetchCompanyClip, forwardableRange, storedCompanyClip, verifyCompanyClipTicket } from "../utils/websiteCompanyClip";
+import { recordSimulationUse, startsSimulationDownload } from "../utils/simulationUse";
 
 const router = Router();
 
@@ -153,6 +154,8 @@ router.get("/jobs/:jobId/simulation.zip", async (req, res) => {
       return res.status(503).json({ error: "The simulation is not available right now. Try again in a few minutes." });
     }
     res.status(read.status).set(read.headers);
+    // The owner's count of downloads (`simulationUse.ts`): a download started, not a resumed part; never waited for.
+    if (req.method === "GET" && startsSimulationDownload(req.get("range"))) recordSimulationUse(jobId, viewer, "download");
     sendThrough(read.body, res, { jobId, kind: "simulation", askedAtMs });
   } catch (error) {
     logger.warn({ error, jobId }, "Company simulation unavailable");

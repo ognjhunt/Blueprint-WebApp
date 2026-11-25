@@ -150,6 +150,8 @@ function preparationRowMicros(row: any) {
   if (row?.settlement !== undefined) return amount(settled) ? micros(settled) : Infinity;
   return amount(held) ? micros(held) : Infinity;
 }
+/** One preparation or model lane row as the cap counts it, for the owner's spend by lane (`marketplaceNumbers.ts`). */
+export const ledgerRowMicros = preparationRowMicros;
 /** The part of a row that can be read: an unreadable settlement is bounded by its readable hold (a settlement never passes it). */
 function readablePreparationRowMicros(row: any) {
   const value = preparationRowMicros(row), held = row?.admission?.maximum_cost_usd;

@@ -20,7 +20,7 @@ import { humanDecisionDigest } from "./human-reply-admission";
 import { loadCompanyJobAccess } from "./teamJobAccess";
 import { companyMaySeeJobs } from "./companyTerms";
 import { isInternalTestCompanyRow } from "./internalTestCompany";
-import { firstAnswerTimestamp, prepareCompanyAnswerInTransaction } from "./jobCompanies";
+import { firstAnswerTimestamp, firstApplicationFields, prepareCompanyAnswerInTransaction } from "./jobCompanies";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { recordReplyWindow } from "./siteReplyReminders";
 import { questionOnReply } from "./jobClarifications";
@@ -113,13 +113,15 @@ export async function recordCompanyAnswer(input: CompanyAnswerInput): Promise<Co
     const prior = (await tx.get(interestRef)).data();
     const priorQuestion = questionOnReply(prior), question = questionOnReply(row);
     const sameQuestion = question && priorQuestion?.text === question.text;
-    const next = { ...row, firstAnsweredAtIso: firstAnswerTimestamp(prior, row.updatedAtIso),
+    const applied = firstApplicationFields(prior, input.state, row.updatedAtIso);
+    const next = { ...row, firstAnsweredAtIso: firstAnswerTimestamp(prior, row.updatedAtIso), ...applied,
       ...(question ? { questionId: sameQuestion ? priorQuestion.id : randomBytes(32).toString("hex") } : {}),
       // When this question was first asked, so the company's page can say how quickly the site answers.
       ...(question && !sameQuestion ? { questionAskedAtIso: row.updatedAtIso }
         : sameQuestion && typeof prior?.questionAskedAtIso === "string" ? { questionAskedAtIso: prior.questionAskedAtIso } : {}),
       ...(sameQuestion && prior?.siteClarification ? { siteClarification: prior.siteClarification } : {}) };
-    if (prior && humanDecisionDigest({ ...prior, firstAnsweredAtIso: next.firstAnsweredAtIso, updatedAtIso: null })
+    if (prior && humanDecisionDigest({ ...prior, firstAnsweredAtIso: next.firstAnsweredAtIso, firstAppliedAtIso: applied.firstAppliedAtIso,
+      appliedAtOrBeforeIso: applied.appliedAtOrBeforeIso, updatedAtIso: null })
       === humanDecisionDigest({ ...next, updatedAtIso: null })) return;
     const prepared = await prepareCompanyAnswerInTransaction(tx, ref, taskId, current, companyId, input.state, captureUrl);
     prepared.write();
