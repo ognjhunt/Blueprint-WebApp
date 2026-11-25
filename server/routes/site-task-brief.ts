@@ -1007,6 +1007,10 @@ router.post("/:token/task-statement", async (req: Request, res: Response) => {
     if (!named) {
       return res.status(409).json({ error: "This job already has a description.", code: "task_statement_already_named" });
     }
+    // The sentence was the last thing a filmed job lacked: it goes to the approved companies now if it is listed, not at
+    // the sweep's next turn. Fire and forget, as on confirming (the site never waits for the send).
+    void import("../utils/jobAutoSend").then(({ sendJobToCompaniesIfListed }) => sendJobToCompaniesIfListed(payload.requestId))
+      .catch(() => undefined);
     return res.status(200).json({ brief: presentBrief(named) });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not name the job");

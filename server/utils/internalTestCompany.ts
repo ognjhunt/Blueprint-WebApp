@@ -52,11 +52,12 @@ export interface InternalTestCompanyMarker {
 }
 
 /**
- * The outbox kinds the pair uses: the new-job email and a clarification (to the test company), the site's notice of the
- * answer, and both introduction emails. A test job's row of any other kind is cancelled, as before.
+ * The outbox kinds the pair uses: the new-job email, a clarification and the simulation-ready notice (to the test
+ * company), the site's notice of the answer, and both introduction emails. A test job's row of any other kind is
+ * cancelled, as before.
  */
 export const INTERNAL_TEST_DELIVERABLE_KINDS: ReadonlySet<string> = new Set(["robot_team_new_task", "job_clarification",
-  "company_answered", "introduction_made_company", "introduction_made_site"]);
+  "company_simulation_ready", "company_answered", "introduction_made_company", "introduction_made_site"]);
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

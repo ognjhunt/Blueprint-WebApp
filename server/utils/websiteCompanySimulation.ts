@@ -24,6 +24,7 @@ import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { RECORDING_VERSIONS_THAT_SHARE } from "./teamJobAccess";
 import { forwardableRange, rangeCoversWholeFile, verifiedWholeFile } from "./websiteCompanyClip";
 import { isInternalTestJob, isInternalTestRecordingGrant } from "./internalTestJob";
+import { owedSimulationReadyNotice, SIMULATION_READY_NOTICE_FIELD } from "./simulationReadyNoticeMarker";
 
 export const COMPANY_SIMULATION_FIELD = "company_simulation";
 /** The contract's `MAX_PACKAGE_BYTES`. */
@@ -115,7 +116,12 @@ export async function recordWebsiteCompanySimulation(requestId: string, sceneId:
     } else if (prior && record.updated_at_epoch < prior.updated_at_epoch) {
       throw new Error("website_company_simulation_stale");
     } else {
-      transaction.set(sessionRef, { [COMPANY_SIMULATION_FIELD]: record, updated_at_iso: new Date().toISOString() }, { merge: true });
+      const atIso = new Date().toISOString();
+      transaction.set(sessionRef, { [COMPANY_SIMULATION_FIELD]: record, updated_at_iso: atIso }, { merge: true });
+      // The capture's first simulation: the companies that already answered or opened the job are owed one email saying
+      // so (`simulationReadyNotice.ts`), queued by the acceptance route and the sweep. A newer revision owes nothing.
+      if (!prior) transaction.set(requestRef, { [SIMULATION_READY_NOTICE_FIELD]: owedSimulationReadyNotice({ captureId,
+        simulationRevision: record.simulation_revision, atIso }) }, { merge: true });
     }
     return { schema_version: "website_company_simulation_acceptance.v1", accepted: true as const,
       simulation_revision: record.simulation_revision, simulation_digest: record.simulation_digest };
