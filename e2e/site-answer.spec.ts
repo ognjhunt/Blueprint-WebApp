@@ -209,7 +209,7 @@ test("the applicants section says the send line, each answer by alias, and offer
   await expect(companyA.getByText("Applied", { exact: true })).toBeVisible();
   // Why (2026-11-20): the company's words as the server gives them, and what would make an introduction possible.
   await expect(companies.getByText("In their words: “We would need a video of the far end of the line.”", { exact: true })).toBeVisible();
-  await expect(companies.getByText("You can accept Company B if it applies or changes its answer to Tested it: can do.", { exact: true })).toBeVisible();
+  await expect(companies.getByText("You can accept Company B if it applies.", { exact: true })).toBeVisible();
   await expect(companies.getByRole("button", { name: "Accept" })).toHaveCount(1);
   await expect(companies.getByText("We give Company A your email address and the place you gave us, and give you theirs.", { exact: true })).toBeVisible();
   await expect(companies.getByText("We will write to you about next steps.")).toHaveCount(0);
