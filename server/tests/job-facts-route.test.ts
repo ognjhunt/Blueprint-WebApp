@@ -144,6 +144,9 @@ describe("a tap on a question of the job's brief", () => {
       choices: ["Once a day", "A few times a day", "Once a week or less"] },
     { id: "hours", label: "Hours a day", evidence: "site_answer", answer_key: "hours" },
   ];
+  /** The version of the brief the site's page shows (`siteJobBriefPayload`), as the page sends it with each tap. */
+  const shown = () => String((job() as any).job_brief.inputDigest).slice(0, 16);
+  const STALE = "0000000000000000";
   async function withBrief() {
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job(), walkthrough_job_estimates: { capture_id: "walkthrough-req-1",
       job_estimates: { job_kind: "pick_and_place", object: "bedside lamp", object_largest_side_m: 0.45 } } });
@@ -156,11 +159,11 @@ describe("a tap on a question of the job's brief", () => {
 
   it("saves the index of the choice tapped, or unsure, beside the catalog answers, and a catalog tap keeps it", async () => {
     await withBrief();
-    const first = await tap({ custom: "how_often_moved", code: 1 });
+    const first = await tap({ custom: "how_often_moved", code: 1, version: shown() });
     expect(first.status).toBe(200);
     expect(first.body.jobFacts).toMatchObject({ custom: { how_often_moved: 1 } });
     expect((await tap({ key: "hours", code: "two_shifts" })).body.jobFacts).toMatchObject({ hours: "two_shifts", custom: { how_often_moved: 1 } });
-    expect((await tap({ custom: "how_often_moved", code: "unsure" })).body.jobFacts).toMatchObject({ hours: "two_shifts",
+    expect((await tap({ custom: "how_often_moved", code: "unsure", version: shown() })).body.jobFacts).toMatchObject({ hours: "two_shifts",
       custom: { how_often_moved: "unsure" } });
     expect(job().job_facts).toEqual({ hours: "two_shifts", custom: { how_often_moved: "unsure" }, updatedAtIso: expect.any(String) });
     expect(job().site).toEqual({ name: "Keep Me Site" });
@@ -168,20 +171,24 @@ describe("a tap on a question of the job's brief", () => {
 
   it("refuses a question the brief shown now does not ask, a choice it does not offer and any other shape, writing nothing", async () => {
     // No brief yet: no question of its own is asked.
-    expect(await tap({ custom: "how_often_moved", code: 0 })).toMatchObject({ status: 400, body: { code: "job_facts_unknown_question" } });
+    expect(await tap({ custom: "how_often_moved", code: 0, version: STALE })).toMatchObject({ status: 400, body: { code: "job_facts_unknown_question" } });
     await withBrief();
+    const version = shown();
     for (const [body, code] of [
-      [{ custom: "how_often_moved", code: 3 }, "job_facts_unknown_answer"],
-      [{ custom: "how_often_moved", code: "1" }, "job_facts_unknown_answer"],
-      [{ custom: "how_often_moved", code: "A few times a day" }, "job_facts_unknown_answer"],
-      [{ custom: "hours", code: 0 }, "job_facts_unknown_question"],
-      [{ custom: "lamp_size", code: 0 }, "job_facts_unknown_question"],
-      [{ custom: "How_Often", code: 0 }, "job_facts_unknown_question"],
-      [{ custom: "how_often_moved", code: 0, key: "hours" }, "job_facts_unexpected_field"],
+      [{ custom: "how_often_moved", code: 3, version }, "job_facts_unknown_answer"],
+      [{ custom: "how_often_moved", code: "1", version }, "job_facts_unknown_answer"],
+      [{ custom: "how_often_moved", code: "A few times a day", version }, "job_facts_unknown_answer"],
+      [{ custom: "hours", code: 0, version }, "job_facts_unknown_question"],
+      [{ custom: "lamp_size", code: 0, version }, "job_facts_unknown_question"],
+      [{ custom: "How_Often", code: 0, version }, "job_facts_unknown_question"],
+      [{ custom: "how_often_moved", code: 0, version, key: "hours" }, "job_facts_unexpected_field"],
+      // Without the version of the brief the page showed, or with one in another shape.
+      [{ custom: "how_often_moved", code: 0 }, "job_facts_unknown_question"],
+      [{ custom: "how_often_moved", code: 0, version: "not-a-version" }, "job_facts_unknown_question"],
     ] as const) expect(await tap(body), JSON.stringify(body)).toMatchObject({ status: 400, body: { code } });
     // A changed sentence: the stored brief is no longer the one the site's page shows, so its question is not asked.
     sharedFakeFirestoreState.docs.set("siteTaskBriefs/req-1", { summary: "Move the lamp to the desk." });
-    expect(await tap({ custom: "how_often_moved", code: 0 })).toMatchObject({ status: 400, body: { code: "job_facts_unknown_question" } });
+    expect(await tap({ custom: "how_often_moved", code: 0, version })).toMatchObject({ status: 400, body: { code: "job_facts_unknown_question" } });
     expect(job().job_facts).toBeUndefined();
   });
 
@@ -189,7 +196,27 @@ describe("a tap on a question of the job's brief", () => {
     await withBrief();
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job(),
       request: { buyerType: "site_operator", consent_attestation: { withdrawn_at_iso: "2026-11-25T09:00:00.000Z" } } });
-    expect((await tap({ custom: "how_often_moved", code: 0 })).status).toBe(409);
+    expect((await tap({ custom: "how_often_moved", code: 0, version: STALE })).status).toBe(409);
     expect(job().job_facts).toBeUndefined();
+  });
+
+  // Codex review, 2026-11-25: a brief written again while the site's page was open may keep a row's id and move its
+  // choices, so the same index would name another answer. A tap names the brief it was made on; another is refused.
+  it("refuses a tap made on a brief that has since been written again, and records nothing the site did not choose", async () => {
+    await withBrief();
+    const before = shown();
+    // The brief is written again (the reading changed), with the same question and its choices in another order.
+    const { ensureJobBrief, resetJobBriefForTests, useJobBriefWriter } = await import("../utils/jobBrief");
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job(), walkthrough_job_estimates: { capture_id: "walkthrough-req-1",
+      job_estimates: { job_kind: "pick_and_place", object: "bedside lamp", object_largest_side_m: 0.5 } } });
+    useJobBriefWriter(async () => ROWS.map(row => row.evidence === "ask_site" ? { ...row, choices: [...row.choices!].reverse() } : row));
+    expect(await ensureJobBrief("req-1")).not.toBeNull();
+    resetJobBriefForTests();
+    expect(shown()).not.toBe(before);
+    expect(await tap({ custom: "how_often_moved", code: 0, version: before }))
+      .toMatchObject({ status: 409, body: { code: "job_facts_brief_changed" } });
+    expect(job().job_facts).toBeUndefined();
+    // On the brief shown now, the same tap is saved.
+    expect((await tap({ custom: "how_often_moved", code: 0, version: shown() })).status).toBe(200);
   });
 });

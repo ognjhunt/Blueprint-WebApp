@@ -130,7 +130,10 @@ export function JobFacts({ token, facts, onSaved, taskFamily, reading, brief }: 
     setStatus("saving"); setError("");
     try {
       // A brief's own question is saved by its row id, with the index of the choice tapped or "unsure".
-      const body = key.startsWith("custom:") ? { custom: key.slice(7), code: code === "unsure" ? "unsure" : Number(code) } : { key, code };
+      // With the version of the brief shown, so a brief written again since refuses the tap rather than record another
+      // answer under the same index.
+      const body = key.startsWith("custom:") ? { custom: key.slice(7), code: code === "unsure" ? "unsure" : Number(code),
+        version: brief?.version } : { key, code };
       const response = await fetch(`/api/job-facts/${encodeURIComponent(token)}`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
         body: JSON.stringify(body),

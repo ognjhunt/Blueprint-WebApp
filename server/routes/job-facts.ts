@@ -5,7 +5,7 @@
  * route on the job page (`verifyCaptureUploadToken`, owner scope); there is no second scheme. Rate
  * limiting is the global `/api` limiter in `server/index.ts`, as for `/api/site-task-brief`. Every
  * value is checked against the closed code lists; no free text is accepted. A tap on a question of the
- * job's brief (`{ custom, code }`) is checked against the brief the site's page shows now: a question
+ * job's brief (`{ custom, code, version }`) is checked against the brief the site's page shows now: a stale version, a question
  * it does not ask, or a choice it does not offer, is refused. A job whose site withdrew its recording
  * permission is refused and nothing is written.
  */
@@ -18,6 +18,8 @@ import { JobFactsRefused, parseCustomJobFactTap, parseJobFactTap, saveCustomJobF
 const router = Router();
 
 const NOT_SAVED = "Your answer could not be saved. Try again shortly.";
+/** The brief's questions were written again while the page was open: nothing was saved, and the page shows the new ones. */
+export const BRIEF_CHANGED = "These questions were just updated. Reload the page to answer the new ones.";
 
 router.post("/:token", csrfProtection, async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -36,6 +38,7 @@ router.post("/:token", csrfProtection, async (req, res) => {
     if (error instanceof JobFactsRefused) {
       if (error.code === "unknown_question" || error.code === "unknown_answer")
         return res.status(400).json({ ok: false, code: `job_facts_${error.code}`, error: NOT_SAVED });
+      if (error.code === "brief_changed") return res.status(409).json({ ok: false, code: "job_facts_brief_changed", error: BRIEF_CHANGED });
       if (error.code === "consent_withdrawn") return res.status(409).json({ ok: false, code: "capture_processing_not_authorized",
         error: "Recording consent was withdrawn. Your job can no longer be changed." });
       if (error.code === "job_missing") return res.status(404).json({ ok: false, code: "job_facts_job_missing", error: NOT_SAVED });
