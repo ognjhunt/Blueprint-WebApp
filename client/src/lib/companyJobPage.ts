@@ -247,7 +247,6 @@ export const PACKET_FACTS_PENDING = "The facts about the object are being checke
 
 /** About the site, without anything that identifies it. */
 export const SITE_IDENTITY_RULE = "The site's name, street address and contact details come only with an introduction the site asks for.";
-export const SITE_AGREED_SHARING = "The site agreed, when it sent the job, to share it with approved deployment companies.";
 
 /** "Answers questions from companies here, usually within 3 hours." from the median of the site's answer times. */
 export function answerSpeedInWords(hours: number | null): string | null {
