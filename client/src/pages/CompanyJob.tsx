@@ -67,8 +67,8 @@ export const VIDEO_PREPARING = "The video is being prepared.";
  * (`jobCompanies.companyWordsForSite`). */
 export const WORDS_REACH_SITE = "The site reads these words, with your company's name, people's names and contact details taken out.";
 export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finished yet.";
-export const NO_FIRST_LOOK = "Our first look is not ready yet.";
-export const NO_PACKET_FACTS = "Nothing about the object is measured or estimated yet.";
+/** Under the simulation's buttons once its download is ready. */
+export const SIMULATION_DOWNLOAD_HINT = "A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.";
 /** Under the site's quick answers: they are its own statements. */
 export const SITE_ANSWERS_HINT = "The site's own answers. Blueprint has not checked them.";
 
@@ -252,6 +252,9 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
     <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button></div></div>;
 
   const simulationReady = page.simulationDownload?.state === "ready";
+  const firstLookShown = page.firstLookRows.length > 0 || Boolean(page.firstLook);
+  // One column of what the job is, beside the form; the page ends with the form (owner, 2026-11-25: the cards that sat
+  // below the form were missed, and took more room than they were worth).
   return <div className="bare-screen company-job company-job-ready" role="region" aria-label="Job">
     <a className="company-job-back" href={backHref}><ArrowLeft size={17} aria-hidden="true" />Back to jobs</a>
     <h1>{page.headline || jobTitleForDisplay(page.title)}</h1>
@@ -260,12 +263,21 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
       {page.headlineFacts.map(fact => <span key={fact}>{fact}</span>)}
       {dateInWords(page.publishedAtIso) && <span>Shared {dateInWords(page.publishedAtIso)}</span>}
     </div>
+    {page.aboutSite.length > 0 && <ul className="company-job-about" aria-label="About the site">
+      {page.aboutSite.map(line => <li key={line}>{line}</li>)}</ul>}
     <div className="company-job-actions">
       {user && <a className="ms-button" href="#answer-this-job">Apply or respond<ArrowDown size={16} aria-hidden="true" /></a>}
-      {/* Seen in the browser first, with no download (owner, 2026-11-25); the same viewer as the section below. */}
+      {/* Seen in the browser first, with no download (owner, 2026-11-25). */}
       {page.simulation.state === "ready" && <a className="company-job-download" href={page.simulation.viewerUrl}><Eye size={16} aria-hidden="true" />View the simulation</a>}
       {page.simulationDownload?.state === "ready" && <a className="company-job-download" href={page.simulationDownload.url} download><Download size={16} aria-hidden="true" />Download the simulation</a>}
     </div>
+    {/* What the download holds, or where the simulation stands, in a line under its buttons. */}
+    {(simulationReady || page.simulation.state !== "ready") && <section className="company-job-simulation" aria-label="Simulation of the site">
+      {simulationReady
+        ? <p className="ms-field-hint">{SIMULATION_DOWNLOAD_HINT}</p>
+        : <p className="ms-field-hint" role="status">{page.simulationStatus ?? SIMULATION_NOT_FINISHED}</p>}
+      {page.simulationDownload?.state === "ready" && page.simulationDownload.objectIncluded === false ? <p className="ms-field-hint" role="note">{SIMULATION_WITHOUT_OBJECT}</p> : null}
+    </section>}
 
     <div className="company-job-grid">
       <div className="company-job-overview">
@@ -278,44 +290,11 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
         <section aria-label="At a glance">
           <h2>At a glance</h2>
           <FitSummary rows={page.fitSummary} />
-          <p className="ms-field-hint">{SITE_ANSWERS_HINT}</p>
+          {page.fitSummary.some(row => row.state === "stated" || row.state === "unsure") && <p className="ms-field-hint">{SITE_ANSWERS_HINT}</p>}
         </section>
 
-        <section aria-label="The video">
-          <h2>The video</h2>
-          {page.video.state === "ready"
-            ? <CompanyJobVideo url={page.video.url} poster={page.thumbnailUrl ?? undefined} width={page.video.width}
-                height={page.video.height} onTicketEnded={refreshTickets} />
-            : <p>{VIDEO_PREPARING}</p>}
-        </section>
-      </div>
-
-      {user && <CompanyAnswerForm key={page.id} jobId={page.id} user={user} page={page} tested={simulationReady} />}
-
-      <div className="company-job-evidence">
-        <section aria-label="First look">
-          <h2>First look</h2>
-          {page.firstLookRows.length > 0 && <ul aria-label="Robots on paper">{page.firstLookRows.map((row, index) =>
-            <li key={`${index}-${row.robot}`}>{row.robot ? <strong>{row.robot}: </strong> : null}{row.text}</li>)}</ul>}
-          {page.firstLookMore ? <p className="ms-field-hint">{page.firstLookMore}</p> : null}
-          {/* A status only when nothing at all is shown: rows of robots on paper are a first look already. */}
-          {page.firstLook ? <JobCardAnswer answer={page.firstLook} titled={false} />
-            : page.firstLookRows.length === 0 ? <p role="status">{page.firstLookStatus ?? NO_FIRST_LOOK}</p> : null}
-        </section>
-
-        <section aria-label="Simulation of the site">
-          <h2>Simulation of the site</h2>
-          {page.simulationDownload?.state === "ready"
-            ? <p className="ms-field-hint">A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.</p>
-            : null}
-          {page.simulationDownload?.state === "ready" && page.simulationDownload.objectIncluded === false
-            ? <p role="note">{SIMULATION_WITHOUT_OBJECT}</p> : null}
-          {page.simulation.state === "ready"
-            ? <p><a className="ms-button" href={page.simulation.viewerUrl}>View the simulation of the site</a></p>
-            : page.simulationDownload?.state !== "ready" ? <p role="status">{page.simulationStatus ?? SIMULATION_NOT_FINISHED}</p> : null}
-        </section>
-
-        <section aria-label="The object and how sure we are">
+        {/* The Pipeline's facts about the object, only once there are some (or while they are being checked). */}
+        {(page.packetFacts || page.packetFactsPending) && <section aria-label="The object and how sure we are">
           <h2>The object, and how sure we are</h2>
           {page.packetFacts ? <>
             {page.packetFacts.object.length > 0 && <ul aria-label="The object and where it goes">
@@ -324,34 +303,60 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
               <ul aria-label="Measured">{page.packetFacts.measured.map(line => <li key={line}>{line}</li>)}</ul></>}
             {page.packetFacts.estimated.length > 0 && <><h3>Estimated</h3>
               <ul aria-label="Estimated">{page.packetFacts.estimated.map(line => <li key={line}>{line}</li>)}</ul></>}
-          </> : <p role={page.packetFactsPending ? "status" : undefined}>{page.packetFactsPending ? PACKET_FACTS_PENDING : NO_PACKET_FACTS}</p>}
+          </> : <p role="status">{PACKET_FACTS_PENDING}</p>}
+        </section>}
+
+        <section aria-label="The video">
+          <h2>The video</h2>
+          {page.video.state === "ready"
+            ? <CompanyJobVideo url={page.video.url} poster={page.thumbnailUrl ?? undefined} width={page.video.width}
+                height={page.video.height} onTicketEnded={refreshTickets} />
+            : <p>{VIDEO_PREPARING}</p>}
         </section>
 
-        <section aria-label="A visit must confirm">
-          <h2>A visit must confirm</h2>
+        {/* Robots on paper, once there are some; nothing while the first look is not ready. */}
+        {firstLookShown && <section aria-label="First look">
+          <h2>First look</h2>
+          {page.firstLookRows.length > 0 && <ul aria-label="Robots on paper">{page.firstLookRows.map((row, index) =>
+            <li key={`${index}-${row.robot}`}>{row.robot ? <strong>{row.robot}: </strong> : null}{row.text}</li>)}</ul>}
+          {page.firstLookMore ? <p className="ms-field-hint">{page.firstLookMore}</p> : null}
+          {page.firstLook ? <JobCardAnswer answer={page.firstLook} titled={false} /> : null}
+        </section>}
+
+        {/* The same for every job of its kind, so folded: one line until a company opens it. */}
+        <section aria-label="A visit must confirm" className="company-job-visit">
+          <details>
+            <summary>What a visit must confirm</summary>
+            <ul aria-label="What a visit must confirm">{page.visitMustConfirm.map(line => <li key={line}>{line}</li>)}</ul>
+          </details>
           <p className="ms-field-hint">{NOTHING_TESTED_AT_SITE}</p>
-          <ul aria-label="What a visit must confirm">{page.visitMustConfirm.map(line => <li key={line}>{line}</li>)}</ul>
-        </section>
-
-        <section aria-label="About the site">
-          <h2>About the site</h2>
-          <ul aria-label="About the site">{page.aboutSite.map(line => <li key={line}>{line}</li>)}</ul>
         </section>
       </div>
+
+      {user && <CompanyAnswerForm key={page.id} jobId={page.id} user={user} page={page} tested={simulationReady} />}
     </div>
   </div>;
 }
 
-/** The site's answers as fixed fields a company scans like a load post: "Not stated" where the site skipped one. */
+/**
+ * The site's answers as fields a company scans like a load post. Each answer and each "Not sure" is a row; the questions
+ * the site skipped are named on one line under them, not given a row each (owner, 2026-11-25: five "Not stated" rows).
+ * A skipped question Blueprint estimated keeps its row, pointing at the estimate.
+ */
 function FitSummary({ rows }: { rows: FitSummaryRow[] }) {
   if (rows.length === 0) return <p>{NOT_STATED}.</p>;
-  return <dl className="company-fit-summary" aria-label="The site's answers">{rows.map(row => <div key={row.key}
-    className={row.state === "stated" || row.state === "from_video" ? undefined : "company-fit-missing"}>
-    <dt>{row.label}</dt>
-    <dd>{row.value ?? (row.state === "unsure" ? NOT_SURE : NOT_STATED)}
-      {row.state === "from_video" && <span className="ms-field-hint"> (from the video)</span>}
-      {row.estimateBelow && <span className="ms-field-hint"> · {ESTIMATE_BELOW}</span>}</dd>
-  </div>)}</dl>;
+  const skipped = rows.filter(row => row.state === "not_stated" && !row.estimateBelow);
+  const shown = rows.filter(row => !skipped.includes(row));
+  return <div className="company-fit" aria-label="The site's answers">
+    {shown.length > 0 && <dl className="company-fit-summary">{shown.map(row => <div key={row.key}
+      className={row.state === "stated" || row.state === "from_video" ? undefined : "company-fit-missing"}>
+      <dt>{row.label}</dt>
+      <dd>{row.value ?? (row.state === "unsure" ? NOT_SURE : NOT_STATED)}
+        {row.state === "from_video" && <span className="ms-field-hint"> (from the video)</span>}
+        {row.estimateBelow && <span className="ms-field-hint"> · {ESTIMATE_BELOW}</span>}</dd>
+    </div>)}</dl>}
+    {skipped.length > 0 && <p className="company-fit-skipped"><strong>{NOT_STATED} yet:</strong> {skipped.map(row => row.label).join(" · ")}</p>}
+  </div>;
 }
 
 /** Said when the estimate's two ends cannot be read as US dollars from low to high. */

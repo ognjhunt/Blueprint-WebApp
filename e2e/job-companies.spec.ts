@@ -151,14 +151,20 @@ test("a signed-in company opens a job from the library, watches the video and an
   await expect(page.getByText("Stack 12 kg cartons from the conveyor onto the pallet.")).toBeVisible();
   const glance = page.getByLabel("The site's answers");
   await expect(glance.getByText("5 to 15 kg (11 to 33 lb)")).toBeVisible();
-  await expect(glance.getByText("Not stated")).toBeVisible();
+  // A skipped question is named on one line under the answers, not given a row (owner, 2026-11-25).
+  await expect(glance.getByText("Not stated yet: Times an hour")).toBeVisible();
   await expect(page.getByText("The simulation is being built from the site's video.")).toBeVisible();
+  // The visit list is the same for every job of its kind: folded to one line until opened (owner, 2026-11-25).
+  await expect(page.getByRole("list", { name: "What a visit must confirm" })).toBeHidden();
+  await page.getByText("What a visit must confirm", { exact: true }).click();
   await expect(page.getByRole("list", { name: "What a visit must confirm" })).toBeVisible();
   const video = page.getByLabel("The site's video, without sound");
   await expect(video).toHaveAttribute("src", videoUrl);
   await expect(video).toHaveAttribute("controlsList", /nodownload/);
   await expect.poll(() => videoRequests.length).toBeGreaterThan(0);
 
+  // Back at the top, as a company arrives on the page at phone width.
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.setViewportSize({ width: 390, height: 844 });
   const answerLink = page.getByRole("link", { name: "Apply or respond", exact: true });
   await expect(answerLink).toBeInViewport();

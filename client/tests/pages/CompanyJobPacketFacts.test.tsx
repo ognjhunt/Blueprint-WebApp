@@ -42,10 +42,11 @@ describe("the facts about the object", () => {
     expect(screen.queryByText("Nothing about the object is measured or estimated yet.")).not.toBeInTheDocument();
   });
 
-  it("say there are none when the Pipeline has none", async () => {
+  it("leave their box out when the Pipeline has none (owner, 2026-11-25: a box that only says it is empty)", async () => {
     show(item());
     render(<CompanyJob />);
-    expect(await screen.findByText("Nothing about the object is measured or estimated yet.")).toBeInTheDocument();
+    await screen.findByText("Stack cartons on pallets");
+    expect(screen.queryByRole("region", { name: "The object and how sure we are" })).toBeNull();
   });
 });
 
