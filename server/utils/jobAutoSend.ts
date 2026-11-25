@@ -286,7 +286,10 @@ export async function sweepAutomaticSends(pageSize = 100): Promise<{ examined: n
   return { examined: due.length, sent, wrapped };
 }
 
-/** The worker's sweep, on the automation leader lease, once a minute. */
+/**
+ * The worker's sweep, on the automation leader lease, once a minute. The same pass queues any simulation-ready notice a
+ * lost call left owed (`simulationReadyNotice.ts`).
+ */
 export function startAutomaticSendWorker(options: { intervalMs?: number; lease?: AutomationLeaderLease } = {}) {
   // A pull request preview shares the production store and must never send anything.
   if (isPullRequestPreview()) return () => undefined;
@@ -297,7 +300,12 @@ export function startAutomaticSendWorker(options: { intervalMs?: number; lease?:
     if (stopped) return;
     if (!running && lease.isLeader()) {
       running = true;
-      try { await sweepAutomaticSends(); await recordWorkerLoopPass("automatic-send"); }
+      try {
+        await sweepAutomaticSends();
+        await import("./simulationReadyNotice").then(({ sweepSimulationReadyNotices }) => sweepSimulationReadyNotices())
+          .catch(error => logger.warn({ err: error }, "Simulation-ready notice sweep failed; it will retry"));
+        await recordWorkerLoopPass("automatic-send");
+      }
       catch (error) { logger.error({ err: error }, "Automatic send sweep failed; it will retry"); }
       finally { running = false; }
     }

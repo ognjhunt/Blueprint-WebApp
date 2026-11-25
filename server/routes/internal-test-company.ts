@@ -12,6 +12,10 @@
  *   `blueprint_internal_test`, under the current response line.
  * - `POST /api/internal/pipeline/test-jobs/:jobId/site-link` `{}`: the site's owner link of an internal test job (and only
  *   of one), so the session can act as the site (its applicants, Accept) through the site's own token routes.
+ * - `POST /api/internal/pipeline/test-company/outcome-questions` `{ job_id, day? }`: after the test company's
+ *   introduction on an internal test job, asks that date's outcome question (14, 45 or 90; 14 by default) of both sides
+ *   now rather than on the date, to the internal test inbox only, and answers with each side's answer links
+ *   (`queueInternalTestOutcomeQuestions`). Never billable.
  *
  * The same signature check as every internal Pipeline route (`verifyPipelineSyncRequest`) is the only door. None of these
  * reaches a real job: each refuses a job that is not an internal test job, and the test company's every read closes real
@@ -191,6 +195,33 @@ router.post("/test-company/accept", rateLimiter, requirePipelineSignature, async
   } catch (error) {
     logger.warn({ jobId, error: error instanceof Error ? error.message : String(error) }, "The internal test company's Accept failed");
     return res.status(503).json({ code: "internal_test_company_accept_unavailable", job_id: jobId });
+  }
+});
+
+const outcomeQuestionsSchema = z.object({ job_id: JOB_ID, day: z.union([z.literal(14), z.literal(45), z.literal(90)]).default(14) }).strict();
+
+router.post("/test-company/outcome-questions", rateLimiter, requirePipelineSignature, async (req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store");
+  const parsed = outcomeQuestionsSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ code: "internal_test_outcome_questions_invalid" });
+  const refused = unavailable(res);
+  if (refused) return refused;
+  const jobId = parsed.data.job_id;
+  try {
+    const { queueInternalTestOutcomeQuestions } = await import("../utils/jobOutcomes");
+    const result = await queueInternalTestOutcomeQuestions(jobId, parsed.data.day);
+    if (result.ok) return res.json({ ok: true, job_id: jobId, day: parsed.data.day, queued: result.queued, answers: result.answers });
+    switch (result.reason) {
+      case "no_test_company": return res.status(409).json({ code: "internal_test_company_missing" });
+      case "not_found": return res.status(404).json({ code: "internal_test_job_not_found", job_id: jobId });
+      case "not_a_test_job": return res.status(409).json({ code: "not_an_internal_test_job", job_id: jobId });
+      case "not_introduced": return res.status(409).json({ code: "internal_test_company_not_introduced", job_id: jobId });
+      case "closed": return res.status(409).json({ code: "internal_test_job_closed", job_id: jobId });
+      default: return res.status(503).json({ code: "internal_test_company_store_unavailable" });
+    }
+  } catch (error) {
+    logger.warn({ jobId, error: error instanceof Error ? error.message : String(error) }, "The internal test outcome questions were not queued");
+    return res.status(503).json({ code: "internal_test_outcome_questions_unavailable", job_id: jobId });
   }
 });
 

@@ -192,6 +192,11 @@ describe("outcome thank-you page", () => {
   it("says the recorded answer, and nothing for an unknown one", () => {
     expect(outcomeThanksSentence("?answer=quote_given")).toBe("Thanks. We've recorded: Quote given.");
     expect(outcomeThanksSentence("?answer=not_going_ahead")).toBe("Thanks. We've recorded: Not going ahead.");
+    // Owner, 2026-11-25: the answers offered now, and the one reason given with "Not going ahead".
+    expect(outcomeThanksSentence("?answer=site_visit")).toBe("Thanks. We've recorded: Site visit booked or done.");
+    expect(outcomeThanksSentence("?answer=not_going_ahead&reason=timing")).toBe("Thanks. We've recorded: Not going ahead (Timing).");
+    expect(outcomeThanksSentence("?answer=not_going_ahead&reason=<b>x</b>")).toBe("Thanks. We've recorded: Not going ahead.");
+    expect(outcomeThanksSentence("?answer=met&reason=cost")).toBe("Thanks. We've recorded: We met.");
     expect(outcomeThanksSentence("?answer=<b>hi</b>")).toBe("Thanks.");
     expect(outcomeThanksSentence("")).toBe("Thanks.");
   });
