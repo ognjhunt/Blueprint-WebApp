@@ -155,6 +155,45 @@ router.post("/test-company/answer", rateLimiter, requirePipelineSignature, async
   }
 });
 
+const acceptSchema = z.object({ job_id: JOB_ID }).strict();
+
+/**
+ * The site's Accept, for the internal test company's answer on an internal test job: the site's own introduction code
+ * (`requestIntroduction`, actor "site"), with what the site's page shows beside the button (the company's letter, its
+ * answer's time and the introduction sentence true for this job). No site token leaves the website: an engineering
+ * session presses it through this signed call, never through the site's link. Every check of a site's press stands.
+ */
+router.post("/test-company/accept", rateLimiter, requirePipelineSignature, async (req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store");
+  const parsed = acceptSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ code: "internal_test_company_accept_invalid" });
+  const refused = unavailable(res);
+  if (refused) return refused;
+  const store = db!;
+  const jobId = parsed.data.job_id;
+  try {
+    const company = await loadInternalTestCompany(store);
+    if (!company) return res.status(409).json({ code: "internal_test_company_missing" });
+    const job = (await store.collection("inboundRequests").doc(jobId).get()).data();
+    if (!job) return res.status(404).json({ code: "internal_test_job_not_found", job_id: jobId });
+    if (!isInternalTestJob(job)) return res.status(409).json({ code: "not_an_internal_test_job", job_id: jobId });
+    const { COMPANY_RESPONSES_COLLECTION, storedAliases } = await import("../utils/jobCompanies");
+    const letter = storedAliases(job)[company.id];
+    if (!letter) return res.status(409).json({ code: "internal_test_company_not_answered", job_id: jobId });
+    const answer = (await store.collection("inboundRequests").doc(jobId).collection(COMPANY_RESPONSES_COLLECTION)
+      .doc(company.id).get()).data();
+    const { introductionStatementVersionOf, requestIntroduction } = await import("../utils/jobIntroductions");
+    const result = await requestIntroduction({ requestId: jobId, alias: letter, actor: "site",
+      statementVersion: await introductionStatementVersionOf(job),
+      answerAtIso: typeof answer?.updatedAtIso === "string" ? answer.updatedAtIso : null });
+    if (!result.ok) return res.status(409).json({ code: "internal_test_company_accept_refused", reason: result.reason, job_id: jobId });
+    return res.json({ ok: true, job_id: jobId, introduced_at_iso: result.introducedAtIso });
+  } catch (error) {
+    logger.warn({ jobId, error: error instanceof Error ? error.message : String(error) }, "The internal test company's Accept failed");
+    return res.status(503).json({ code: "internal_test_company_accept_unavailable", job_id: jobId });
+  }
+});
+
 router.post("/test-jobs/:jobId/site-link", rateLimiter, requirePipelineSignature, async (req: Request, res: Response) => {
   res.setHeader("Cache-Control", "no-store");
   const jobId = JOB_ID.safeParse(req.params.jobId);
@@ -164,8 +203,8 @@ router.post("/test-jobs/:jobId/site-link", rateLimiter, requirePipelineSignature
     const job = (await db.collection("inboundRequests").doc(jobId.data).get()).data();
     // An internal test job's link only: any other job is answered as one that does not exist.
     if (!job || !isInternalTestJob(job)) return res.status(404).json({ code: "internal_test_job_not_found", job_id: jobId.data });
-    const siteUrl = captureUploadUrlFor(jobId.data, "owner");
-    return res.json({ ok: true, job_id: jobId.data, site_url: siteUrl, site_token: siteUrl.split("/capture-upload/")[1] ?? null });
+    // The link only, never its token as a field of its own: the operator door shows no field named for a token.
+    return res.json({ ok: true, job_id: jobId.data, site_url: captureUploadUrlFor(jobId.data, "owner") });
   } catch (error) {
     logger.error({ jobId: jobId.data, error: error instanceof Error ? error.message : String(error) }, "An internal test job's site link failed");
     return res.status(503).json({ code: "internal_test_job_unavailable", job_id: jobId.data });

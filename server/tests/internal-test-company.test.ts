@@ -243,7 +243,9 @@ async function answerOnWebsite(email: string, jobId: string, body: Record<string
 async function siteLink(jobId: string) {
   const result = await signedPost(`/api/internal/pipeline/test-jobs/${jobId}/site-link`, {});
   expect(result.status, JSON.stringify(result.body)).toBe(200);
-  return String(result.body.site_token);
+  // The link only: the operator door shows no field named for a token.
+  expect(Object.keys(result.body).sort()).toEqual(["job_id", "ok", "site_url"]);
+  return String(result.body.site_url).split("/capture-upload/")[1];
 }
 async function siteStatus(token: string) {
   const response = await fetch(`${base}/api/site-task-brief/${token}/status`);
@@ -379,6 +381,29 @@ describe("the internal test company on an internal test job, end to end", () => 
     expect(outwardEmails()).toHaveLength(4);
     expect(outwardEmails().every(message => message.to === INBOX)).toBe(true);
     expect(emailsTo(NORTH.email)).toEqual([]);
+  });
+
+  it("an engineering session presses the site's Accept through the signed route, as the site's page does", async () => {
+    seedRealJob();
+    expect((await ensureTestCompany()).status).toBe(201);
+    const { jobId } = await createTestJob();
+    // Nothing to accept before the test company answered.
+    expect(await signedPost("/api/internal/pipeline/test-company/accept", { job_id: jobId }))
+      .toMatchObject({ status: 409, body: { code: "internal_test_company_not_answered" } });
+    expect((await signedPost("/api/internal/pipeline/test-company/answer", { job_id: jobId, state: "interested",
+      inputs: "Blueprint's own test answer, from the internal route." })).status).toBe(200);
+    const accepted = await signedPost("/api/internal/pipeline/test-company/accept", { job_id: jobId });
+    expect(accepted, JSON.stringify(accepted.body)).toMatchObject({ status: 200,
+      body: { ok: true, job_id: jobId, introduced_at_iso: expect.any(String) } });
+    expect(doc(`billableEvents/introduction-${jobId}-${TEST_COMPANY_ID}`)).toMatchObject({ status: "test_no_charge",
+      testEvent: true });
+    // Once per company, as for a site's press; and never a real job.
+    expect(await signedPost("/api/internal/pipeline/test-company/accept", { job_id: jobId }))
+      .toMatchObject({ status: 409, body: { code: "internal_test_company_accept_refused", reason: "already_introduced" } });
+    expect(await signedPost("/api/internal/pipeline/test-company/accept", { job_id: REAL_JOB }))
+      .toMatchObject({ status: 409, body: { code: "not_an_internal_test_job" } });
+    await deliver();
+    expect(outwardEmails().every(message => message.to === INBOX)).toBe(true);
   });
 
   it("a site's reply to the test company's question reaches the inbox", async () => {

@@ -495,8 +495,18 @@ describe("only the site's own route reaches the billable event (source)", () => 
   const files = [...sources("server"), ...sources("client/src")];
   const calling = (pattern: RegExp) => files.filter(file => pattern.test(fs.readFileSync(path.join(ROOT, file), "utf8"))).sort();
 
-  it("calls requestIntroduction from the site's owner-link route only", () => {
-    expect(calling(/\brequestIntroduction\s*\(/)).toEqual(["server/routes/site-task-brief.ts", "server/utils/jobIntroductions.ts"]);
+  it("calls requestIntroduction from the site's owner-link route only, and the internal test company's Accept on a test job", () => {
+    expect(calling(/\brequestIntroduction\s*\(/)).toEqual(["server/routes/internal-test-company.ts",
+      "server/routes/site-task-brief.ts", "server/utils/jobIntroductions.ts"]);
+    // The internal route (owner, 2026-11-25) presses Accept for Blueprint's internal test company only, and only after it
+    // has refused every job that is not an internal test job: its introduction's event is a test event, never billable
+    // (`buildIntroductionBillableEvent` with `test` for an internal test job).
+    const route = fs.readFileSync(path.join(ROOT, "server/routes/internal-test-company.ts"), "utf8");
+    const accept = route.slice(route.indexOf('"/test-company/accept"'));
+    expect(accept.indexOf("if (!isInternalTestJob(job)) return")).toBeGreaterThan(-1);
+    expect(accept.indexOf("if (!isInternalTestJob(job)) return")).toBeLessThan(accept.indexOf("requestIntroduction("));
+    const introductions = fs.readFileSync(path.join(ROOT, "server/utils/jobIntroductions.ts"), "utf8");
+    expect(introductions).toMatch(/buildIntroductionBillableEvent\([^;]*\{ test: isInternalTestJob\(record\) \}\)/s);
   });
 
   it("creates an event only inside requestIntroduction, and changes one only to void it or to record when it was made", () => {
