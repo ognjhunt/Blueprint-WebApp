@@ -5,6 +5,7 @@ import type { TaskOutcome } from "@/types/taskOutcome";
 import { isLikelyPhone } from "@/lib/device";
 import { JobFacts } from "@/components/site/JobFacts";
 import { sanitizeJobReading, type JobReading } from "@/lib/jobFacts";
+import { sanitizeSiteJobBrief, type SiteJobBrief } from "@/lib/jobBrief";
 import type { FirstLookWords } from "@/lib/firstLookWords";
 import { TaskTargetChoice, type TaskTargetChoiceView } from "@/components/site/TaskTargetChoice";
 import { TaskDestinationAnswered, TaskDestinationChoice, isDestinationChoice, type TaskDestinationChoiceView } from "@/components/site/TaskDestinationChoice";
@@ -71,6 +72,8 @@ type TaskStatus = {
   jobFacts?: unknown;
   /** What the video reading says the job is and what it handles: the quick questions choose and word themselves by it. */
   jobReading?: JobReading | null;
+  /** The job brief's questions, asked in place of the catalog's while the brief is used (`client/src/lib/jobBrief.ts`). */
+  jobBrief?: SiteJobBrief | null;
   /** The first look as the Pipeline's published table words it, for the owner only. */
   firstLookTable?: FirstLookWords | null;
   /** The server holds a recording, whichever device sent it. */
@@ -601,6 +604,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             outlook: keptOutlook ? currentStatus.current?.outlook ?? null : outlookLate ? null : data.outlook ?? null,
             jobFacts: data.scope === "owner" ? data.jobFacts ?? null : null,
             jobReading: data.scope === "owner" ? sanitizeJobReading(data.jobReading) : null,
+            jobBrief: data.scope === "owner" ? sanitizeSiteJobBrief(data.jobBrief) : null,
             firstLookTable: data.scope === "owner" && data.firstLookTable && Array.isArray(data.firstLookTable.rows) ? data.firstLookTable : null,
             captureReceived: data.captureReceived === true,
             targetChoice: data.scope === "owner" && isTargetChoice(data.targetChoice) ? data.targetChoice : null,
@@ -912,9 +916,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // Only for a shared job: a job under an older statement has no company to answer yet, and its page asks for v4 first.
   const taskFamily = status?.companyStatus?.taskFamily ?? anonymizedOpportunityDraft(jobSentence ?? "").taskFamily;
   const jobFacts = answer && scope === "owner" && !withdrawn && answer.sharing?.state !== "not_shared"
-    // Keyed by what chooses the questions: a new reading or a new kind starts the walk from its own first question.
-    ? <JobFacts key={`${taskFamily}|${status?.jobReading?.kind ?? ""}|${status?.jobReading?.object ? "named" : ""}`} token={token}
-      facts={status?.jobFacts as never} taskFamily={taskFamily} reading={status?.jobReading ?? null} /> : null;
+    // Keyed by what chooses the questions: a new reading, a new kind or a new brief starts the walk from its own first question.
+    ? <JobFacts key={`${taskFamily}|${status?.jobReading?.kind ?? ""}|${status?.jobReading?.object ? "named" : ""}|${status?.jobBrief?.version ?? ""}`}
+      token={token} facts={status?.jobFacts as never} taskFamily={taskFamily} reading={status?.jobReading ?? null}
+      brief={status?.jobBrief ?? null} /> : null;
   const siteActionWaiting = answer?.sharing?.olderStatement === true || !quietCard || Boolean(taskStatementForm);
   const settingsOpen = scope === "owner" && (link.status === "valid" || link.status === "held");
   const editJob = scope === "owner" && brief && !withdrawn ? <details id="job-brief-editor" open={editingBrief || undefined}

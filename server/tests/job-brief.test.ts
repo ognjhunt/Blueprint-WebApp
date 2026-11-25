@@ -207,6 +207,30 @@ describe("writing the brief", () => {
   });
 });
 
+describe("the brief on the site's own page", () => {
+  it("asks the brief's questions while it is current and has three rows it could show, and the catalog's otherwise", async () => {
+    await scripted();
+    const { ensureJobBrief, siteJobBriefOf } = await import("../utils/jobBrief");
+    const { siteJobBriefPayload } = await import("../../client/src/lib/jobBrief");
+    const sentence = () => state.docs.get(`siteTaskBriefs/${ID}`) as never;
+    expect(siteJobBriefOf(record(), sentence())).toBeNull();
+    const written = await ensureJobBrief(ID);
+    const shown = siteJobBriefOf(record(), sentence());
+    expect(shown).toEqual(written);
+    expect(siteJobBriefPayload(shown!)).toEqual({ version: written!.inputDigest.slice(0, 16), questions: [
+      { kind: "custom", id: "how_often_moved", question: "How often is the lamp moved?", choices: ["Once a day", "A few times a day", "Once a week or less"] },
+      { kind: "catalog", key: "hours" }] });
+    // A changed sentence: no longer current, so the catalog's questions until the new brief lands.
+    state.docs.set(`siteTaskBriefs/${ID}`, { summary: "Move the lamp to the desk." });
+    expect(siteJobBriefOf(record(), sentence())).toBeNull();
+    // A current brief with fewer than three rows it could show is not used.
+    state.docs.set(`siteTaskBriefs/${ID}`, { summary: SENTENCE, successCriteria: { successDefinition: "The lamp stands upright on the shelf." } });
+    const thin = { ...written!, rows: written!.rows.filter(row => row.evidence === "video_estimate" || row.evidence === "site_sentence") };
+    patch({ job_brief: thin });
+    expect(siteJobBriefOf(record(), sentence())).toBeNull();
+  });
+});
+
 describe("the lane", () => {
   it("runs on the small tier at low effort, text only, configurable by the lane's own settings", async () => {
     const { getTaskModelByProvider, getOpenAiReasoningEffort, getAnthropicEffort } = await import("../agents/provider-config");

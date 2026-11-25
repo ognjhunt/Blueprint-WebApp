@@ -134,3 +134,62 @@ describe("parseJobFactTap and readJobFacts", () => {
       .toEqual({ maxLoadedWeightKg: "44lb", updatedAtIso: "2026-11-24T00:00:00.000Z" });
   });
 });
+
+// Owner, 2026-11-25: the site answers its job brief's own questions on its page (`client/src/lib/jobBrief.ts`).
+describe("a tap on a question of the job's brief", () => {
+  const SENTENCE = "Move the lamp from the round bedside table to the glass shelf on the wall.";
+  const ROWS = [
+    { id: "lamp_size", label: "Lamp size", evidence: "video_estimate", estimate_fields: ["object_largest_side_m"] },
+    { id: "how_often_moved", label: "How often it is moved", evidence: "ask_site", question: "How often is the lamp moved?",
+      choices: ["Once a day", "A few times a day", "Once a week or less"] },
+    { id: "hours", label: "Hours a day", evidence: "site_answer", answer_key: "hours" },
+  ];
+  async function withBrief() {
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job(), walkthrough_job_estimates: { capture_id: "walkthrough-req-1",
+      job_estimates: { job_kind: "pick_and_place", object: "bedside lamp", object_largest_side_m: 0.45 } } });
+    sharedFakeFirestoreState.docs.set("siteTaskBriefs/req-1", { summary: SENTENCE });
+    const { ensureJobBrief, resetJobBriefForTests, useJobBriefWriter } = await import("../utils/jobBrief");
+    useJobBriefWriter(async () => ROWS);
+    expect(await ensureJobBrief("req-1")).not.toBeNull();
+    resetJobBriefForTests();
+  }
+
+  it("saves the index of the choice tapped, or unsure, beside the catalog answers, and a catalog tap keeps it", async () => {
+    await withBrief();
+    const first = await tap({ custom: "how_often_moved", code: 1 });
+    expect(first.status).toBe(200);
+    expect(first.body.jobFacts).toMatchObject({ custom: { how_often_moved: 1 } });
+    expect((await tap({ key: "hours", code: "two_shifts" })).body.jobFacts).toMatchObject({ hours: "two_shifts", custom: { how_often_moved: 1 } });
+    expect((await tap({ custom: "how_often_moved", code: "unsure" })).body.jobFacts).toMatchObject({ hours: "two_shifts",
+      custom: { how_often_moved: "unsure" } });
+    expect(job().job_facts).toEqual({ hours: "two_shifts", custom: { how_often_moved: "unsure" }, updatedAtIso: expect.any(String) });
+    expect(job().site).toEqual({ name: "Keep Me Site" });
+  });
+
+  it("refuses a question the brief shown now does not ask, a choice it does not offer and any other shape, writing nothing", async () => {
+    // No brief yet: no question of its own is asked.
+    expect(await tap({ custom: "how_often_moved", code: 0 })).toMatchObject({ status: 400, body: { code: "job_facts_unknown_question" } });
+    await withBrief();
+    for (const [body, code] of [
+      [{ custom: "how_often_moved", code: 3 }, "job_facts_unknown_answer"],
+      [{ custom: "how_often_moved", code: "1" }, "job_facts_unknown_answer"],
+      [{ custom: "how_often_moved", code: "A few times a day" }, "job_facts_unknown_answer"],
+      [{ custom: "hours", code: 0 }, "job_facts_unknown_question"],
+      [{ custom: "lamp_size", code: 0 }, "job_facts_unknown_question"],
+      [{ custom: "How_Often", code: 0 }, "job_facts_unknown_question"],
+      [{ custom: "how_often_moved", code: 0, key: "hours" }, "job_facts_unexpected_field"],
+    ] as const) expect(await tap(body), JSON.stringify(body)).toMatchObject({ status: 400, body: { code } });
+    // A changed sentence: the stored brief is no longer the one the site's page shows, so its question is not asked.
+    sharedFakeFirestoreState.docs.set("siteTaskBriefs/req-1", { summary: "Move the lamp to the desk." });
+    expect(await tap({ custom: "how_often_moved", code: 0 })).toMatchObject({ status: 400, body: { code: "job_facts_unknown_question" } });
+    expect(job().job_facts).toBeUndefined();
+  });
+
+  it("refuses after a withdrawal and writes nothing", async () => {
+    await withBrief();
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...job(),
+      request: { buyerType: "site_operator", consent_attestation: { withdrawn_at_iso: "2026-11-25T09:00:00.000Z" } } });
+    expect((await tap({ custom: "how_often_moved", code: 0 })).status).toBe(409);
+    expect(job().job_facts).toBeUndefined();
+  });
+});

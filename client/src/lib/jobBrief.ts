@@ -352,3 +352,31 @@ export function jobBriefQuestions(brief: StoredJobBrief): JobBriefQuestion[] {
 
 /** "Not sure", offered with every one of the brief's own questions. */
 export const JOB_BRIEF_NOT_SURE = NOT_SURE_LABEL;
+
+/** The brief's questions as the site's job page receives them: a short version to key the walk by, and the questions. */
+export interface SiteJobBrief { version: string; questions: JobBriefQuestion[] }
+
+/** The site's payload for a current brief (`siteJobBriefOf` on the server). */
+export function siteJobBriefPayload(brief: StoredJobBrief): SiteJobBrief {
+  return { version: brief.inputDigest.slice(0, 16), questions: jobBriefQuestions(brief) };
+}
+
+/** The status read's `jobBrief`, or null: a short version and well-formed questions only, as any payload is read. */
+export function sanitizeSiteJobBrief(value: unknown): SiteJobBrief | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.version !== "string" || !/^[a-f0-9]{8,64}$/.test(raw.version) || !Array.isArray(raw.questions)) return null;
+  const questions: JobBriefQuestion[] = [];
+  for (const item of raw.questions.slice(0, JOB_BRIEF_MAX_ROWS)) {
+    const question = item as Record<string, unknown> | null;
+    if (question?.kind === "catalog" && isJobFactKey(question.key)) {
+      if (!questions.some(other => other.kind === "catalog" && other.key === question.key)) questions.push({ kind: "catalog", key: question.key });
+      continue;
+    }
+    if (question?.kind !== "custom") continue;
+    const row = sanitizeJobBriefRow({ id: question.id, label: "Question", evidence: "ask_site", question: question.question, choices: question.choices });
+    if (row?.evidence === "ask_site" && !questions.some(other => other.kind === "custom" && other.id === row.id))
+      questions.push({ kind: "custom", id: row.id, question: row.question, choices: row.choices });
+  }
+  return { version: raw.version, questions };
+}

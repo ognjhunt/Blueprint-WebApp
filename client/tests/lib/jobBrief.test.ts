@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   JOB_BRIEF_SCHEMA_VERSION, estimateFieldsMade, estimateInWords, jobBriefFitSummary, jobBriefQuestions, jobBriefShowable, jobBriefWords,
-  jobBriefWordsRefused, quoteInSentence, sanitizeJobBriefRow, sanitizeJobBriefRows, sanitizeStoredJobBrief,
+  jobBriefWordsRefused, quoteInSentence, sanitizeJobBriefRow, sanitizeJobBriefRows, sanitizeSiteJobBrief, sanitizeStoredJobBrief,
+  siteJobBriefPayload,
   type JobBriefEstimates, type JobBriefRow, type StoredJobBrief,
 } from "../../src/lib/jobBrief";
 import { fitObjectRow } from "../../src/lib/companyJobPage";
@@ -209,5 +210,20 @@ describe("the questions a brief asks the site", () => {
       { kind: "custom", id: "how_often_moved", question: "How often is the lamp moved?", choices: ["Once a day", "A few times a day", "Once a week or less"] },
       { kind: "catalog", key: "hours" },
     ]);
+  });
+});
+
+describe("the brief's questions as the site's page receives them", () => {
+  it("keeps a short version and well-formed questions only", () => {
+    const payload = siteJobBriefPayload(brief(LAMP_ROWS));
+    expect(payload.version).toBe("a".repeat(16));
+    expect(sanitizeSiteJobBrief(payload)).toEqual(payload);
+    expect(sanitizeSiteJobBrief({ version: "a".repeat(16), questions: [{ kind: "catalog", key: "hours" }, { kind: "catalog", key: "hours" },
+      { kind: "catalog", key: "lampWeight" }, { kind: "custom", id: "x", question: "What is your budget?", choices: ["Small", "Large"] },
+      { kind: "custom", id: "often", question: "How often?", choices: ["Daily", "Weekly", "Not sure"] }, { kind: "other" }] }))
+      .toEqual({ version: "a".repeat(16), questions: [{ kind: "catalog", key: "hours" },
+        { kind: "custom", id: "often", question: "How often?", choices: ["Daily", "Weekly"] }] });
+    expect(sanitizeSiteJobBrief({ version: "not hex!", questions: [] })).toBeNull();
+    expect(sanitizeSiteJobBrief(null)).toBeNull();
   });
 });

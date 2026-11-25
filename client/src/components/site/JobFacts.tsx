@@ -1,10 +1,11 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
-  JOB_FACT_CHOICES, JOB_FACT_KEYS, JOB_FACT_NUMBERS, JOB_FACTS_HEADING, KG_PER_LB,
+  CUSTOM_JOB_FACT_ID, JOB_FACT_CHOICES, JOB_FACT_KEYS, JOB_FACT_NUMBERS, JOB_FACTS_HEADING, KG_PER_LB, NOT_SURE_LABEL,
   isJobFactCode, jobFactKeysFor, jobFactQuestion, jobFactQuestionHint, sanitizeJobFacts, typedJobFactNumber,
   type JobFactKey, type JobFacts as JobFactsValue, type JobReading,
 } from "@/lib/jobFacts";
+import type { JobBriefQuestion, SiteJobBrief } from "@/lib/jobBrief";
 
 export const JOB_FACTS_SAVED = "Saved";
 export const JOB_FACTS_NOT_SAVED = "Your answer could not be saved. Try again shortly.";
@@ -18,7 +19,23 @@ export const JOB_FACTS_ALL_SKIPPED = "You skipped these for now.";
 export const JOB_FACTS_ANSWER_THEM = "Answer them";
 export const jobFactsStep = (step: number, total: number) => `${step} of ${total}`;
 
-type Answers = Partial<Record<JobFactKey, string>>;
+/**
+ * One question on the page, by its slot: a catalog question by its key ("weight"), or one of the job brief's own by its
+ * row id ("custom:how_often_moved"). Answers and skips are kept by slot.
+ */
+type Slot = JobFactKey | `custom:${string}`;
+type Question = { slot: Slot } & JobBriefQuestion;
+type Answers = Partial<Record<Slot, string>>;
+const customSlot = (id: string): Slot => `custom:${id}`;
+const isSlot = (value: unknown): value is Slot => (JOB_FACT_KEYS as readonly unknown[]).includes(value)
+  || (typeof value === "string" && value.startsWith("custom:") && CUSTOM_JOB_FACT_ID.test(value.slice(7)));
+
+/** The questions the page walks: the brief's while it asks any, else the catalog's for the job (`jobFactKeysFor`). */
+function questionsFor(taskFamily: string | undefined, reading: JobReading | null | undefined, brief: SiteJobBrief | null | undefined): Question[] {
+  if (brief?.questions.length) return brief.questions.map(question => question.kind === "catalog"
+    ? { ...question, slot: question.key } : { ...question, slot: customSlot(question.id) });
+  return jobFactKeysFor(taskFamily, reading).map(key => ({ kind: "catalog", key, slot: key }));
+}
 
 /**
  * Skipped questions, for this tab only (sessionStorage): a skip is "not now", so a later visit asks again. The key is a
@@ -29,13 +46,13 @@ const skippedStorageKey = (token: string) => {
   for (let index = 0; index < token.length; index += 1) hash = Math.imul(hash ^ token.charCodeAt(index), 0x01000193);
   return `blueprint.jobFacts.skipped.${(hash >>> 0).toString(36)}`;
 };
-function readSkipped(token: string): Set<JobFactKey> {
+function readSkipped(token: string): Set<Slot> {
   try {
     const raw = JSON.parse(window.sessionStorage.getItem(skippedStorageKey(token)) ?? "[]");
-    return new Set((Array.isArray(raw) ? raw : []).filter((key): key is JobFactKey => (JOB_FACT_KEYS as readonly unknown[]).includes(key)));
+    return new Set((Array.isArray(raw) ? raw : []).filter(isSlot));
   } catch { return new Set(); }
 }
-function writeSkipped(token: string, skipped: ReadonlySet<JobFactKey>) {
+function writeSkipped(token: string, skipped: ReadonlySet<Slot>) {
   try { window.sessionStorage.setItem(skippedStorageKey(token), JSON.stringify([...skipped])); } catch { /* asks again after a reload */ }
 }
 
@@ -43,6 +60,8 @@ const answersOf = (facts: unknown): Answers => {
   const clean = sanitizeJobFacts(facts);
   const answers: Answers = {};
   if (clean) for (const key of JOB_FACT_KEYS) if (clean[key]) answers[key] = clean[key];
+  // A brief's question is answered with the index of the choice tapped, or "unsure".
+  for (const [id, answer] of Object.entries(clean?.custom ?? {})) answers[customSlot(id)] = String(answer);
   return answers;
 };
 
@@ -51,16 +70,18 @@ const answersOf = (facts: unknown): Answers => {
  * question, with a small progress indicator, a "Not sure" choice and a Skip. Choices save on tap. A number is saved when
  * the site submits it. Skip saves nothing and moves on. A "Change" link walks the answers again. Once the video reading
  * gives a kind of job, the kind chooses the questions (`jobFactKeysFor`), and weight and size name the object it names
- * (`reading`); before then the keyword match (`taskFamily`) chooses. The choices wrap at phone width. Saves through its
+ * (`reading`); before then the keyword match (`taskFamily`) chooses. Once the job has a brief that is used
+ * (`client/src/lib/jobBrief.ts`), its questions are asked instead, in its order: the catalog questions it reads answers
+ * from and its own, each of its own with "Not sure" added. The choices wrap at phone width. Saves through its
  * own route with the site's signed link. Blocks of different kinds sit at least 8 px apart (the job page's phone
  * layout check).
  */
-export function JobFacts({ token, facts, onSaved, taskFamily, reading }: {
+export function JobFacts({ token, facts, onSaved, taskFamily, reading, brief }: {
   token: string; facts?: Partial<JobFactsValue> | null; onSaved?: (facts: JobFactsValue) => void; taskFamily?: string;
-  reading?: JobReading | null;
+  reading?: JobReading | null; brief?: SiteJobBrief | null;
 }) {
   const [answers, setAnswers] = useState<Answers>(() => answersOf(facts));
-  const [skipped, setSkipped] = useState<Set<JobFactKey>>(() => readSkipped(token));
+  const [skipped, setSkipped] = useState<Set<Slot>>(() => readSkipped(token));
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
   /** While changing earlier answers: which question is shown; null otherwise. */
@@ -71,13 +92,15 @@ export function JobFacts({ token, facts, onSaved, taskFamily, reading }: {
   const factsKey = JSON.stringify(answersOf(facts));
   useEffect(() => { setAnswers(JSON.parse(factsKey) as Answers); }, [factsKey]);
 
-  const keys = jobFactKeysFor(taskFamily, reading);
-  const total = keys.length;
-  const current: JobFactKey | null = changing !== null ? keys[changing] ?? null
-    : keys.find(key => !answers[key] && !skipped.has(key)) ?? null;
-  const answeredCount = keys.filter(key => answers[key]).length;
-  const step = current ? keys.indexOf(current) + 1 : total;
-  const numeric = current ? JOB_FACT_NUMBERS[current] : undefined;
+  const questions = questionsFor(taskFamily, reading, brief);
+  const total = questions.length;
+  const currentQuestion: Question | null = changing !== null ? questions[changing] ?? null
+    : questions.find(question => !answers[question.slot] && !skipped.has(question.slot)) ?? null;
+  const current: Slot | null = currentQuestion?.slot ?? null;
+  const catalogKey: JobFactKey | null = currentQuestion?.kind === "catalog" ? currentQuestion.key : null;
+  const answeredCount = questions.filter(question => answers[question.slot]).length;
+  const step = currentQuestion ? questions.indexOf(currentQuestion) + 1 : total;
+  const numeric = catalogKey ? JOB_FACT_NUMBERS[catalogKey] : undefined;
 
   // After each step, focus moves to the new question (or the closing line), so a keyboard or screen-reader user keeps
   // their place in the block (review S5).
@@ -88,7 +111,7 @@ export function JobFacts({ token, facts, onSaved, taskFamily, reading }: {
   const advance = () => { setChanging(index => index === null ? null : index + 1 >= total ? null : index + 1); setMoved(count => count + 1); };
 
   /** Skip: nothing is saved. While changing, it moves on and keeps the stored answer. */
-  function skip(key: JobFactKey) {
+  function skip(key: Slot) {
     if (saving.current || status === "saving") return;
     setStatus("idle"); setError("");
     if (changing !== null) { advance(); return; }
@@ -99,16 +122,18 @@ export function JobFacts({ token, facts, onSaved, taskFamily, reading }: {
 
   // A save in flight, read synchronously: two presses in the same tick (before a re-render) send one request.
   const saving = useRef(false);
-  async function choose(key: JobFactKey, code: string) {
+  async function choose(key: Slot, code: string) {
     if (saving.current || status === "saving") return;
     // The answer already chosen: moving on, nothing to save.
     if (answers[key] === code) { advance(); return; }
     saving.current = true;
     setStatus("saving"); setError("");
     try {
+      // A brief's own question is saved by its row id, with the index of the choice tapped or "unsure".
+      const body = key.startsWith("custom:") ? { custom: key.slice(7), code: code === "unsure" ? "unsure" : Number(code) } : { key, code };
       const response = await fetch(`/api/job-facts/${encodeURIComponent(token)}`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }), referrerPolicy: "no-referrer",
-        body: JSON.stringify({ key, code }),
+        body: JSON.stringify(body),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || result?.ok !== true) throw new Error(typeof result?.error === "string" ? result.error : JOB_FACTS_NOT_SAVED);
@@ -140,28 +165,32 @@ export function JobFacts({ token, facts, onSaved, taskFamily, reading }: {
     void choose(key, code);
   }
 
-  const hint = current ? jobFactQuestionHint(current, reading) : null;
+  const hint = catalogKey ? jobFactQuestionHint(catalogKey, reading) : null;
+  // The choices of the question shown: the catalog's own, or the brief's with "Not sure" added.
+  const choices: ReadonlyArray<{ code: string; label: string }> = currentQuestion?.kind === "custom"
+    ? [...currentQuestion.choices.map((label, index) => ({ code: String(index), label })), { code: "unsure", label: NOT_SURE_LABEL }]
+    : catalogKey ? JOB_FACT_CHOICES[catalogKey] : [];
   const restart = () => { setChanging(0); setStatus("idle"); setMoved(count => count + 1); };
   return <section aria-labelledby={`${groupId}-heading`} className="site-job-facts" data-testid="job-facts" style={{ margin: "16px 0 24px" }}>
     <h2 id={`${groupId}-heading`} className="site-job-facts-heading">{JOB_FACTS_HEADING}</h2>
     {current ? <div role="group" aria-labelledby={`${groupId}-question`} aria-describedby={hint ? `${groupId}-hint` : undefined} key={current}>
       {/* Buttons, not radios: arrow keys never save; Enter or Space on a choice does (review S5). */}
       <p id={`${groupId}-question`} className="site-job-fact-question" ref={node => { stepRef.current = node; }} tabIndex={-1}>
-        {jobFactQuestion(current, reading)}</p>
+        {currentQuestion?.kind === "custom" ? currentQuestion.question : jobFactQuestion(catalogKey!, reading)}</p>
       {hint && <p id={`${groupId}-hint`} className="ms-field-hint site-job-fact-hint">{hint}</p>}
-      {numeric && <form className="ms-form ms-job-number" onSubmit={event => submitNumber(event, current)}>
-        <label>{current === "maxLoadedWeightKg" ? "Weight" : numeric.unit}
+      {numeric && catalogKey && <form className="ms-form ms-job-number" onSubmit={event => submitNumber(event, catalogKey)}>
+        <label>{catalogKey === "maxLoadedWeightKg" ? "Weight" : numeric.unit}
           <input name="value" type="number" required min={numeric.min} step={numeric.whole ? 1 : "any"}
-            max={current === "maxLoadedWeightKg" ? Math.floor(numeric.max / KG_PER_LB) : numeric.max}
-            inputMode={numeric.whole ? "numeric" : "decimal"} defaultValue={typedJobFactNumber(current, answers[current])?.value} />
+            max={catalogKey === "maxLoadedWeightKg" ? Math.floor(numeric.max / KG_PER_LB) : numeric.max}
+            inputMode={numeric.whole ? "numeric" : "decimal"} defaultValue={typedJobFactNumber(catalogKey, answers[catalogKey])?.value} />
         </label>
-        {current === "maxLoadedWeightKg" && <label>Unit<select name="unit" defaultValue={typedJobFactNumber(current, answers[current])?.unit ?? "lb"}>
+        {catalogKey === "maxLoadedWeightKg" && <label>Unit<select name="unit" defaultValue={typedJobFactNumber(catalogKey, answers[catalogKey])?.unit ?? "lb"}>
           <option value="lb">lb</option><option value="kg">kg</option>
         </select></label>}
         <button type="submit" className="ms-button" disabled={status === "saving"}>Save</button>
       </form>}
       <div className="site-job-fact-choices">
-        {JOB_FACT_CHOICES[current].map(choice => {
+        {choices.map(choice => {
           const chosen = answers[current] === choice.code;
           // `aria-disabled`, not `disabled`, while a save runs: a disabled button drops keyboard focus, and nothing would put
           // it back after a failed save. `choose` ignores a press while saving.
