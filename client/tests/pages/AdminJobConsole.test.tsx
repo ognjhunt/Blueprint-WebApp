@@ -130,6 +130,15 @@ describe("the job list", () => {
     expect(screen.getByText("Account and data deletion requests", { selector: "summary" })).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/account-deletion"))).toBe(false);
   });
+
+  it("holds the owner's marketplace numbers on the list, read with the admin's sign-in, and not on a job's page", async () => {
+    renderPage();
+    expect(await screen.findByRole("region", { name: "Marketplace numbers" })).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).startsWith("/api/admin/jobs/marketplace-numbers?"))).toBe(true));
+    fireEvent.click(await screen.findByRole("link", { name: /Stack cartons/ }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Dock 4" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Marketplace numbers" })).toBeNull();
+  });
 });
 
 describe("a job's page", () => {
