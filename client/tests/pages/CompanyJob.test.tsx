@@ -66,6 +66,11 @@ describe("the company's page for one job", () => {
     expect(screen.getByRole("link", { name: "View the simulation of the site" })).toHaveAttribute("href", "/splat-viewer/index.html?content=x");
     // The simulation opens in the same tab; its viewer has the way back to this job.
     expect(screen.getByRole("link", { name: "View the simulation of the site" })).not.toHaveAttribute("target");
+    // And at the top, beside the download, so a company sees it without downloading anything (owner, 2026-11-25).
+    const top = screen.getByRole("link", { name: "View the simulation" });
+    expect(top).toHaveAttribute("href", "/splat-viewer/index.html?content=x");
+    expect(top).not.toHaveAttribute("target");
+    expect(top.closest(".company-job-actions")).not.toBeNull();
     expect(screen.getByText("Fits.")).toBeInTheDocument();
     // What the video shows of the object and how sure each figure is, beside the site's own unchecked answers.
     expect(screen.getByText(SITE_ANSWERS_HINT)).toBeInTheDocument();
@@ -358,6 +363,8 @@ describe("the company's page for one job", () => {
       simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?x=1" } }) }) });
     render(<CompanyJob />);
     expect(await screen.findByRole("link", { name: "Download the simulation" })).toHaveAttribute("href", "/api/company-media/jobs/job-1/simulation.zip?x=1");
+    // No viewer, no view button.
+    expect(screen.queryByRole("link", { name: "View the simulation" })).toBeNull();
     expect(screen.getByText("A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.")).toBeInTheDocument();
     expect(screen.queryByText(/Gaussian splat/)).toBeNull();
     expect(screen.queryByText("The simulation of the site is not finished yet.")).toBeNull();
