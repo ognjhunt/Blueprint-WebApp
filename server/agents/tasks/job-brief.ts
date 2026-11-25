@@ -64,7 +64,7 @@ Each row:
 - evidence: where the value comes from. You never write the value: code fills it in from the evidence you name.
   - "site_answer" with answer_key: a key from catalog, when a catalog question asks exactly this fact. Prefer it whenever siteAnswers already holds an answer for that key.
   - "video_estimate" with estimate_fields: one or more field names from videoEstimates (only names listed there), when Blueprint's estimate from the video gives the fact.
-  - "site_sentence" with quote: words copied exactly, character for character, from sentence (at most ${JOB_BRIEF_QUOTE_MAX} characters), when the site's own sentence already says it (where the object goes, for example).
+  - "site_sentence" with quote: words copied exactly, character for character, from sentence (at most ${JOB_BRIEF_QUOTE_MAX} characters), when the site's own sentence already says it (where the object goes, for example). Quote only the few words that give this fact, never the whole sentence: the page already shows the whole sentence, and a quote of most of it is not shown.
   - "ask_site" with question (at most ${JOB_BRIEF_QUESTION_MAX} characters: one plain question to the site about its own job) and ${JOB_BRIEF_CHOICES_MIN} to ${JOB_BRIEF_CHOICES_MAX} choices (each at most ${JOB_BRIEF_CHOICE_MAX} characters, distinct, covering the likely answers). Only when no catalog question asks it and neither the video nor the sentence gives it. Code adds "Not sure"; never include it.
 
 Rules:

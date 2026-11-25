@@ -292,6 +292,25 @@ describe("what a company reads of the brief", () => {
       "How often it is moved", "Hours a day"]);
   });
 
+  it("leaves out a quote of all or nearly all the sentence, which the page shows just above, and keeps a few of its words", async () => {
+    const { companyFitSummary } = await import("../utils/companyJobPage");
+    const { quoteRepeatsSentence } = await import("../../client/src/lib/jobBrief");
+    const { screeningsFrom } = await import("../utils/freeTextScreening");
+    const everything = { ...screeningsFrom(new Map()), stateOf: (_writer: string, text: string) => ({ state: "shown" as const, text }) };
+    // lamp-2 (2026-11-25): the brief's route row quoted the whole sentence, so it only repeated it.
+    const whole = "Move the lamp from the round bedside table to the glass shelf on the wall.";
+    expect(quoteRepeatsSentence(whole, whole)).toBe(true);
+    expect(quoteRepeatsSentence("move the lamp from the round bedside table to the glass shelf on the wall", whole)).toBe(true);
+    expect(quoteRepeatsSentence("the lamp from the round bedside table to the glass shelf on the wall", whole)).toBe(true);
+    expect(quoteRepeatsSentence("from the round bedside table to the glass shelf", whole)).toBe(false);
+    const repeating = [ROWS[0], { ...ROWS[1], quote: whole }, ROWS[2], ROWS[3]];
+    const labels = companyFitSummary({ ...input(repeating), sentence: whole }, known, everything as never).map(row => row.label);
+    expect(labels).toEqual(["Object", "Lamp size and weight", "How often it is moved", "Hours a day"]);
+    const few = [ROWS[0], { ...ROWS[1], quote: "from the round bedside table to the glass shelf" }, ROWS[2], ROWS[3]];
+    expect(companyFitSummary({ ...input(few), sentence: whole }, known, everything as never).map(row => row.label))
+      .toContain("From table to shelf");
+  });
+
   it("leaves out a label whose inner capitals read as a name, as every word a model read from the site is", async () => {
     const { companyFitSummary } = await import("../utils/companyJobPage");
     const { screeningsFrom } = await import("../utils/freeTextScreening");

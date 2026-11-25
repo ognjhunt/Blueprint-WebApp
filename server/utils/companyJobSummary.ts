@@ -15,7 +15,7 @@
 import { jobTitleForDisplay, type CompanyJobPage } from "../../client/src/types/taskBrowse";
 import { JOB_PAGE_HEADINGS, JOB_SUMMARY_FOOTER, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_STATED_YET,
   PACKET_FACTS_PENDING, SIMULATION_DOWNLOAD_HINT, SIMULATION_NOT_FINISHED, SIMULATION_WITHOUT_OBJECT, SITE_ANSWERS_HINT,
-  SITE_DESCRIPTION_CANT_BE_SHOWN, SITE_IDENTITY_RULE, VIDEO_PREPARING, fitRowMarks, fitRowValue, fitRowsShown,
+  SITE_DESCRIPTION_CANT_BE_SHOWN, SITE_IDENTITY_RULE, VIDEO_PREPARING, fitRowMarks, fitRowValue, fitRowsHoldSiteAnswers, fitRowsShown,
   sharedOnInWords } from "../../client/src/lib/companyJobPage";
 import { SUCCESS_RULE_CANT_BE_SHOWN } from "../../client/src/lib/companiesRead";
 import { pdfCanShow, renderPdf, type PdfBlock } from "./simplePdf";
@@ -76,7 +76,7 @@ export function companyJobSummaryBlocks(page: CompanyJobPage, jobUrl: string): P
   if (rows.length) blocks.push({ kind: "rows", rows: rows.map(row => ({ label: shown(row.label),
     value: `${shown(fitRowValue(row))}${fitRowMarks(row).join("")}` })) });
   if (skipped.length) paragraph(`${NOT_STATED_YET} ${skipped.map(row => row.label).join(" · ")}`);
-  if (page.fitSummary.some(row => row.state === "stated" || row.state === "unsure")) paragraph(SITE_ANSWERS_HINT, "hint");
+  if (fitRowsHoldSiteAnswers(page.fitSummary)) paragraph(SITE_ANSWERS_HINT, "hint");
 
   // The facts about the object, once there are some (or while they are being checked).
   if (page.packetFacts || page.packetFactsPending) {
