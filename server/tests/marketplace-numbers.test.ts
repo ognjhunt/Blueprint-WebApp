@@ -221,7 +221,7 @@ describe("the window's numbers", () => {
     expect(numbers.outcomes.introductions).toBe(1);
     expect(numbers.outcomes.rows.filter(row => row.introductions)).toEqual([
       { key: "visit", label: "Visit (marked by the site)", introductions: 1 },
-      { key: "answer_still_talking", label: "Still talking", introductions: 1 }]);
+      { key: "answer_still_talking", label: "Still talking (earlier answer)", introductions: 1 }]);
     expect(numbers.cost).toMatchObject({ perJob: { jobs: 2, medianUsd: 21.17, p90Usd: 30, maxUsd: 30, totalUsd: 42.34 },
       noLedger: 0, unreadable: 1, unavailable: 0 });
     expect(numbers.cost.lanes.map(lane => [lane.key, lane.spread?.medianUsd ?? null, lane.unreadable])).toEqual([
