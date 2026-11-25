@@ -224,16 +224,6 @@ export const SIMULATION_STATUS = {
   unknown: "The simulation of the site is not finished yet.",
 } as const;
 
-/** Where the first look stands, when it has nothing to show yet. */
-export const FIRST_LOOK_STATUS = {
-  no_video: "Our first look comes once the site's video arrives.",
-  reading: "The video is being read. Our first look follows.",
-  unknown: "Our first look is not ready yet.",
-} as const;
-
-/** Said for a job whose site has not said what counts as done. */
-export const NO_SUCCESS_RULE = "The site has not said what counts as done yet.";
-
 /**
  * Said beside the download when the Pipeline says the package is the site's room without the job's object
  * (`object_included: false`): what the download holds, and nothing more. No answer asks what a company tested (owner,

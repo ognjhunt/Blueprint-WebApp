@@ -19,12 +19,12 @@ const { default: CompanyJob } = await import("@/pages/CompanyJob");
 
 const item = (change: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   schemaVersion: "company_job_page.v1", id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
-  headline: "Stack cartons on pallets", headlineFacts: [], fitSummary: [], firstLookStatus: null, simulationStatus: null,
+  headline: "Stack cartons on pallets", headlineFacts: [], fitSummary: [], simulationStatus: null,
   visitMustConfirm: [], aboutSite: [],
   publishedAtIso: "2026-11-12T10:00:00.000Z", sentence: "Stack cartons onto the pallet.", jobFacts: [], country: "United States",
   video: { state: "preparing" }, simulation: { state: "not_finished" },
-  simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?expires=1&signature=a" }, firstLook: null,
-  firstLookRows: [], myAnswer: null, packetFacts: null, notShown: [],
+  simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?expires=1&signature=a" },
+  myAnswer: null, packetFacts: null, notShown: [],
   responseStatement: { version: COMPANY_RESPONSE_STATEMENT_VERSION, text: COMPANY_RESPONSE_STATEMENT }, ...change } as CompanyJobPage);
 const fetchMock = vi.fn();
 const show = (page: CompanyJobPage) => fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ item: page }) });

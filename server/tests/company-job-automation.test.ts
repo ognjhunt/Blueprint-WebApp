@@ -512,8 +512,10 @@ describe("the company's page for one job (E3)", () => {
     expect(item.visitMustConfirm).toEqual([...VISIT_MUST_CONFIRM.palletizing]);
     expect(item.aboutSite).toEqual([SITE_IDENTITY_RULE]);
     expect(item).not.toHaveProperty("notShown");
-    // A viewer and a first look exist in this fixture, so neither box needs a status.
+    // A viewer exists in this fixture, so the simulation needs no status.
     expect(item).toMatchObject({ simulationStatus: null });
+    // The first look stays on the site's own pages (owner, 2026-11-25): none of it is in the company's payload.
+    for (const key of ["firstLook", "firstLookRows", "firstLookMore", "firstLookStatus"]) expect(item).not.toHaveProperty(key);
   });
 
   it("keeps the site's name out of the title and the fit summary when the video reading echoes it", async () => {

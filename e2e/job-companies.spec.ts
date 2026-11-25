@@ -121,13 +121,11 @@ test("a signed-in company opens a job from the library, watches the video and an
       fitSummary: [{ key: "weight", label: "Weight", value: "5 to 15 kg (11 to 33 lb)", state: "stated" },
         { key: "perHour", label: "Times an hour", value: null, state: "not_stated" },
         { key: "hours", label: "Hours a day", value: "Two shifts", state: "stated" }],
-      firstLookStatus: null, simulationStatus: "The simulation is being built from the site's video.",
+      simulationStatus: "The simulation is being built from the site's video.",
       visitMustConfirm: ["How pallets arrive, where they are staged and how full ones leave."],
       aboutSite: ["The site's name, street address and contact details come only with an introduction the site asks for."],
       video: { state: "ready", url: videoUrl, width: 640, height: 360, durationSeconds: 1 },
-      simulation: { state: "not_finished" }, firstLook: null,
-      firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 20 kg.", robot: "Universal Robots UR20" }],
-      packetFacts: null,
+      simulation: { state: "not_finished" }, packetFacts: null,
       myAnswer: null, responseStatement: { version: "company-response-2026-11-12", text: statement } } } });
     if (url.pathname === `/api/company-media/jobs/${JOB}/video.mp4`) {
       videoRequests.push(url.search);

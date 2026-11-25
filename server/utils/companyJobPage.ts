@@ -3,23 +3,22 @@
  *
  * Built field by field. It reads the site's own sentence (the brief's summary), the site's quick answers (`job_facts`),
  * the country (decrypted from the place's country alone, else the capture region; with the state or city only under a
- * statement listed in `RECORDING_VERSION_PLACE_LEVEL`), the job packet's media identities,
- * the first look and the Pipeline's facts about the job's object (`packetFactsForCompany`). It never reads the site's name, typed address, email, phone or the submitter's name, so none can
+ * statement listed in `RECORDING_VERSION_PLACE_LEVEL`), the job packet's media identities and the Pipeline's facts
+ * about the job's object (`packetFactsForCompany`). Not the first look: it stays on the site's own pages (owner,
+ * 2026-11-25). It never reads the site's name, typed address, email, phone or the submitter's name, so none can
  * reach the payload; plant-and-prove tests keep it so. Media are tickets bound to this viewer, re-checked on every
  * request (`companyMediaAllowed`).
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { jobTitleForDisplay, type CompanyFirstLookRow, type CompanyJobPage } from "../../client/src/types/taskBrowse";
+import { jobTitleForDisplay, type CompanyJobPage } from "../../client/src/types/taskBrowse";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, isCompanyResponseState, replyByIso } from "../../client/src/lib/companyResponses";
 import { jobFactsInWords } from "../../client/src/lib/jobFacts";
-import { FIRST_LOOK_STATUS, SIMULATION_STATUS, SITE_IDENTITY_RULE, answerSpeedInWords, fitObjectRow, fitSummary,
+import { SIMULATION_STATUS, SITE_IDENTITY_RULE, answerSpeedInWords, fitObjectRow, fitSummary,
   jobHeadline, rateInWords, visitMustConfirm, type FitSummaryRow } from "../../client/src/lib/companyJobPage";
 import { jobBriefFitSummary, jobBriefWords, type JobBriefEstimates, type StoredJobBrief } from "../../client/src/lib/jobBrief";
-import { firstLookRowFromAnswerRobot, firstLookRowInWords } from "../../client/src/lib/firstLookWords";
 import { readJobFacts } from "./jobFacts";
 import { jobThumbnailViewUrl } from "./jobThumbnailTicket";
 import { jobReadingOf, readingActionsOf } from "./siteRobotFit";
-import { firstLookFromStoredPreparation } from "./firstLookTable";
 import { companySimulationUrl, storedCompanySimulation } from "./websiteCompanySimulation";
 import { REMOVED, identifyingDetailsRemoved, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
 import { clarificationOnReply, questionOnReply } from "./jobClarifications";
@@ -29,7 +28,6 @@ import { recordingStatementShares } from "./jobSharedListing";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
 import { companyClipUrl, storedCompanyClip } from "./websiteCompanyClip";
 import { viewableWebsiteScenePreview, websiteScenePreviewCompanyViewerUrl } from "./websiteScenePreview";
-import { loadJobCardAnswerWithRobots } from "./jobCardAnswer";
 import { logger } from "../logger";
 import { decryptFieldValue } from "./field-encryption";
 import { companyMaySeeJobs } from "./companyTerms";
@@ -350,9 +348,8 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     reader.internalTestCompany ? { internalTestCompany: true } : undefined);
   if (!record || !access.listed) return null;
   const { captureId } = siteWalkthroughIdentity(requestId, record);
-  const [answerRow, firstLook, country, known, about, stage, screenings] = await Promise.all([
+  const [answerRow, country, known, about, stage, screenings] = await Promise.all([
     db.collection("inboundRequests").doc(requestId).collection("robotTeamInterest").doc(viewer.companyId).get().then(doc => doc.data()),
-    loadJobCardAnswerWithRobots(requestId, record),
     companyPlaceOf(record),
     knownSiteIdentity(record).catch(() => null),
     aboutTheSite(requestId),
@@ -374,12 +371,6 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
   const simulationPackage = storedCompanySimulation(session, captureId);
   const simulationUrl = simulationPackage ? companySimulationUrl(requestId, captureId, viewer.companyId) : null;
   const viewerUrl = preview ? websiteScenePreviewCompanyViewerUrl(requestId, captureId, viewer.companyId) : null;
-  // The Pipeline's first look in words (the same function the site's page uses), else today's two robots.
-  const table = firstLookFromStoredPreparation(session?.website_preparation, record);
-  const rows: CompanyFirstLookRow[] = table ? table.rows.map(({ verdict, text, robot }) => ({ verdict, text, robot })) : firstLook.robots.map(robot => {
-    const words = firstLookRowInWords(firstLookRowFromAnswerRobot(robot), facts);
-    return { verdict: words.verdict, text: words.text, robot: words.robot };
-  });
   const question = questionOnReply(answerRow);
   const clarification = question ? clarificationOnReply(answerRow, question.id) : undefined;
   // The site's words as this company reads them (`siteWordsForCompany`, `siteReplyForCompany`): each empty (or the reply
@@ -414,9 +405,7 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
   // A rule the site gave that is not shown yet is said so, never as "The site has not said what counts as done yet"
   // (a review of PR #1437).
   const successRulePending = successRead.state !== "shown" && Boolean(siteSuccessRuleSource(brief));
-  // The first look and the simulation each say where they stand instead of showing an empty box.
-  const firstLookStatus = firstLook.summary || rows.length ? null
-    : stage === "no_video" ? FIRST_LOOK_STATUS.no_video : firstLook.reading ? FIRST_LOOK_STATUS.reading : FIRST_LOOK_STATUS.unknown;
+  // The simulation says where it stands instead of showing an empty box.
   const simulationStatus = simulationUrl || viewerUrl ? null : SIMULATION_STATUS[stage ?? "unknown"];
   return {
     schemaVersion: "company_job_page.v1",
@@ -449,10 +438,6 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     simulationDownload: simulationUrl ? { state: "ready", url: simulationUrl,
       ...(simulationPackage?.object_included === false ? { objectIncluded: false as const } : {}) } : { state: "not_finished" },
     simulation: viewerUrl ? { state: "ready", viewerUrl } : { state: "not_finished" },
-    firstLook: firstLook.summary,
-    firstLookRows: rows,
-    firstLookMore: table?.more ?? null,
-    firstLookStatus,
     simulationStatus,
     packetFacts: packet.packetFacts,
     ...(packet.pending ? { packetFactsPending: true as const } : {}),

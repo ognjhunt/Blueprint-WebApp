@@ -177,13 +177,11 @@ export function anonymizedOpportunityDraft(description: string): TaskListingDeta
   return categoryDraft(categories.other);
 }
 
-/** One first-look row in words (`client/src/lib/firstLookWords.ts`), as the company's page shows it. */
-export interface CompanyFirstLookRow { verdict: "fits" | "does_not_fit" | "conditional" | "not_rated"; text: string; robot: string | null }
-
 /**
  * The company's page for one job (package E, E3), for a signed-in approved company only. Never the site's name, typed
  * address, email, phone or submitter name: only the site's own sentence for the job, its quick answers, the country,
- * and the job packet's parts, each when it exists.
+ * and the job packet's parts a company decides on, each when it exists. Not the first look: it stays on the site's own
+ * pages (owner, 2026-11-25).
  */
 export interface CompanyJobPage {
   schemaVersion: "company_job_page.v1";
@@ -227,12 +225,6 @@ export interface CompanyJobPage {
   simulationDownload: { state: "ready"; url: string; objectIncluded?: false } | { state: "not_finished" };
   /** The simulation of the site in the viewer, behind a short ticket, or "not finished yet". */
   simulation: { state: "ready"; viewerUrl: string } | { state: "not_finished" };
-  /** The first look, or null while there is none. */
-  firstLook: JobCardAnswerSummary | null;
-  /** The first look's robots in plain words, resolved with the site's weight answer where it can be. */
-  firstLookRows: CompanyFirstLookRow[];
-  /** "And 27 more." when the first look rated more robots than it lists; null otherwise. */
-  firstLookMore?: string | null;
   /**
    * What the video shows of the job's object, and how sure each figure is (the Pipeline's packet facts, preparation
    * status v9), each line shown only when neither the deterministic passes nor the model pass over free text find
@@ -242,8 +234,6 @@ export interface CompanyJobPage {
   packetFacts: { object: string[]; measured: string[]; estimated: string[] } | null;
   /** The Pipeline has packet facts and the model pass over them has not succeeded yet: none is shown until it has. */
   packetFactsPending?: true;
-  /** Where the first look stands while it has nothing to show; null once it does. */
-  firstLookStatus: string | null;
   /** Where the simulation stands while neither the viewer nor the download is ready; null once one is. */
   simulationStatus: string | null;
   /** What a first site visit must still confirm for this kind of job (`visitMustConfirm`). */
