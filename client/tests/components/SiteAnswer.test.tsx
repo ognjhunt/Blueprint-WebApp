@@ -586,6 +586,16 @@ describe("the deployment companies section, with sends, answers and introduction
         answerAtIso: "2026-11-14T09:00:00.000Z" }) })));
   });
 
+  // Owner, 2026-11-25: the site's screen is cut to whom it meets. Views and responses say where the job stands; how long
+  // the first response took decides nothing, so it is not said.
+  it("says views and responses, and not how long the first response took", () => {
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: { ...activity,
+      startedAtIso: "2026-11-11T09:00:00.000Z", firstAnswerAtIso: "2026-11-12T09:00:00.000Z" } }} />);
+    expect(within(companies()).getByText("Viewed by 3 companies")).toBeVisible();
+    expect(within(companies()).getByText("2 responses")).toBeVisible();
+    expect(companies().textContent).not.toMatch(/first response|1 day/i);
+  });
+
   it("shows a posted job even if nobody viewed or replied yet", () => {
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE,
       companies: { interested: false, sent: null, entries: [] } }} />);
