@@ -33,7 +33,8 @@ describe("the page for deployment companies", () => {
     // Launch copy (2026-11-20): what a live job can include, the answers without a timing promise, and the privacy line
     // where the introduction is explained.
     expect(within(sample).getByRole("heading", { name: "A live job can also include" })).toBeVisible();
-    expect(within(sample).getByText("Choose Apply, Not a fit or Need more details. Once you can download the simulation, you can also choose Tested it: can do or Tested it: cannot yet.")).toBeVisible();
+    expect(within(sample).getByText("Choose Apply, Not a fit or Need more details.", { exact: true })).toBeVisible();
+    expect(sample).not.toHaveTextContent(/Tested it/);
     expect(within(sample).getByText("The site sees your company's name and website when you answer. You see no site name, address or contact details until the site accepts you. Then we email you both each other's details.")).toBeVisible();
     expect(sample).not.toHaveTextContent(/in a minute|busiest/);
     expect(screen.getByRole("link", { name: "See a sample job" })).toHaveAttribute("href", "#sample-job");

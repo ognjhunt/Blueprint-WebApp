@@ -90,7 +90,7 @@ describe("the company's page for one job", () => {
 
     const form = screen.getByRole("form", { name: "Your response" });
     expect(within(form).getByText(COMPANY_RESPONSE_STATEMENT)).toBeInTheDocument();
-    // Without a simulation package the two tested answers are not offered (E9).
+    // Apply, Not a fit and Need more details: no tested answer (owner, 2026-11-25).
     expect(within(form).getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["interested", "declined", "needs_something"]);
     // Nothing is chosen for the company: a first answer starts empty and the browser asks for one.
     for (const radio of within(form).getAllByRole("radio")) { expect(radio).not.toBeChecked(); expect(radio).toBeRequired(); }
@@ -260,6 +260,38 @@ describe("the company's page for one job", () => {
     expect(screen.getByText(/You answered “Need more details” on November 12, 2026\./)).toBeInTheDocument();
   });
 
+  // Owner, 2026-11-25: the form offers no tested answer, and one given before reads as it was given.
+  it("names a tested answer given before, leaves the form unchosen, and asks an older one to apply again", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+      simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?x=1" },
+      myAnswer: { state: "tested_can_do", inputs: "Ran our palletizer on the scene.", updatedAtIso: "2026-11-12T10:00:00.000Z",
+        statementVersion: "company-response-2026-11-12" } }) }) });
+    const { unmount } = render(<CompanyJob />);
+    expect(await screen.findByText("You answered “Tested it: can do” on November 12, 2026. Apply below so the site sees your company's name, "
+      + "website and any estimate with it.")).toBeInTheDocument();
+    let form = screen.getByRole("form", { name: "Your response" });
+    expect(within(form).getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["interested", "declined", "needs_something"]);
+    for (const radio of within(form).getAllByRole("radio")) expect(radio).not.toBeChecked();
+    // The company's own words stay in the box, to send again with a new answer.
+    expect(within(form).getByRole("textbox", { name: "Note to the site" })).toHaveValue("Ran our palletizer on the scene.");
+    unmount();
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+      myAnswer: { state: "tested_cannot_yet", inputs: "The gripper missed.", updatedAtIso: "2026-11-13T10:00:00.000Z",
+        statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION } }) }) });
+    render(<CompanyJob />);
+    expect(await screen.findByText("You answered “Tested it: cannot yet” on November 13, 2026.")).toBeInTheDocument();
+    form = screen.getByRole("form", { name: "Your response" });
+    for (const radio of within(form).getAllByRole("radio")) expect(radio).not.toBeChecked();
+    // Applying is the change that makes it one the site can accept.
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Saved." }) });
+    fireEvent.click(within(form).getByLabelText("Apply"));
+    fireEvent.submit(form);
+    await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("Saved."));
+    // The third request: the two page loads, then the answer.
+    expect(JSON.parse(String((fetchMock.mock.calls[2] as [string, RequestInit])[1].body))).toMatchObject({ state: "interested" });
+    expect(screen.getByText(/^You applied on /)).toBeInTheDocument();
+  });
+
   // Owner, 2026-11-25: rows chosen for this job by its brief, each saying where its value comes from.
   it("marks a brief's estimate as estimated from the video and its quote as the site's words", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ fitSummary: [
@@ -406,7 +438,7 @@ describe("the company's page for one job", () => {
     expect(screen.queryByText(/first look is not ready/)).not.toBeInTheDocument();
   });
 
-  it("offers the two tested answers in the one form once the job has a simulation package", async () => {
+  it("offers only Apply, Not a fit and Need more details, even once the job has a simulation package", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ simulation: { state: "not_finished" },
       simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?x=1" } }) }) });
     render(<CompanyJob />);
@@ -419,13 +451,21 @@ describe("the company's page for one job", () => {
     expect(screen.queryByRole("link", { name: "Report simulation result" })).toBeNull();
     expect(screen.getAllByRole("form")).toHaveLength(1);
     const form = screen.getByRole("form", { name: "Your response" });
-    expect(within(form).getAllByRole("radio").map(radio => radio.getAttribute("value")))
-      .toEqual(["interested", "declined", "needs_something", "tested_can_do", "tested_cannot_yet"]);
+    // The early trial was dropped on 2026-11-14, and the tested answers with it (owner, 2026-11-25).
+    expect(within(form).getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["interested", "declined", "needs_something"]);
+    expect(within(form).getAllByRole("radio").map(radio => radio.closest("label")?.textContent?.trim()))
+      .toEqual(["Apply", "Not a fit", "Need more details"]);
+    // Only the recorded line under the form still names "Tested it: can do": it is what earlier answers agreed to.
+    expect(within(form).getByRole("group", { name: "Will you apply for this job?" })).not.toHaveTextContent(/Tested/);
+    expect(form).not.toHaveTextContent(/What did you test/);
     const note = within(form).getByRole("textbox");
     expect(note).not.toBeRequired();
-    fireEvent.click(within(form).getByLabelText("Tested it: can do"));
-    expect(within(form).getByRole("textbox", { name: "What did you test?" })).toBeRequired();
-    // "Add details" keeps the question and the earliest start; "What you have checked" is gone.
+    fireEvent.click(within(form).getByLabelText("Need more details"));
+    expect(within(form).getByRole("textbox", { name: "What details would help you decide?" })).toBeRequired();
+    // Not a fit takes no details; Apply's "Add details" keeps the question. "What you have checked" is gone.
+    fireEvent.click(within(form).getByLabelText("Not a fit"));
+    expect(within(form).queryByText("Add details")).toBeNull();
+    fireEvent.click(within(form).getByLabelText("Apply"));
     fireEvent.click(within(form).getByText("Add details"));
     expect(within(form).getByLabelText("Question for the site")).toBeInTheDocument();
     expect(within(form).getByLabelText("Earliest start")).toBeInTheDocument();
@@ -441,7 +481,7 @@ describe("the company's page for one job", () => {
     fireEvent.click(within(form).getByLabelText("Apply"));
     fireEvent.submit(form);
     await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("If the site asks to meet you"));
-    fireEvent.click(within(form).getByLabelText("Tested it: can do"));
+    fireEvent.click(within(form).getByLabelText("Not a fit"));
     expect(within(form).queryByRole("status")).toBeNull();
   });
 

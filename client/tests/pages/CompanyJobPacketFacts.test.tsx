@@ -51,11 +51,15 @@ describe("the facts about the object", () => {
 });
 
 describe("a simulation without the job's object", () => {
-  it("is said beside the download, and the tested answers are still offered", async () => {
+  // Owner, 2026-11-25: what the download holds, and no invitation to test it and say so in the answer (no tested answers).
+  it("is said beside the download, with nothing asking what the company tested", async () => {
     show(item({ simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?expires=1&signature=a", objectIncluded: false } }));
     render(<CompanyJob />);
-    expect(await screen.findByText(SIMULATION_WITHOUT_OBJECT)).toBeInTheDocument();
-    expect(screen.getByLabelText("Tested it: can do")).toBeInTheDocument();
+    expect(await screen.findByRole("note")).toHaveTextContent(/^This simulation is the site's room without the job's object in it\.$/);
+    expect(screen.getByText(SIMULATION_WITHOUT_OBJECT)).toBeInTheDocument();
+    expect(screen.queryByText(/what you tested|stand-in/)).toBeNull();
+    expect(screen.queryByLabelText("Tested it: can do")).toBeNull();
+    expect(screen.queryByLabelText("Tested it: cannot yet")).toBeNull();
   });
 
   it("is not said for a package with the object", async () => {

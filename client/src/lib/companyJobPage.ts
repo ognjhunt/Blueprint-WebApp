@@ -236,11 +236,10 @@ export const NO_SUCCESS_RULE = "The site has not said what counts as done yet.";
 
 /**
  * Said beside the download when the Pipeline says the package is the site's room without the job's object
- * (`object_included: false`). The two tested answers stay: a company can test in the site's room with a stand-in of its
- * own, sized from the facts about the object, and a tested answer says what it tested.
+ * (`object_included: false`): what the download holds, and nothing more. No answer asks what a company tested (owner,
+ * 2026-11-25: the tested answers are gone).
  */
-export const SIMULATION_WITHOUT_OBJECT = "This simulation is the site's room without the job's object in it. To test the job, "
-  + "add a stand-in of your own, sized from the facts about the object below, and say what you tested in your answer.";
+export const SIMULATION_WITHOUT_OBJECT = "This simulation is the site's room without the job's object in it.";
 
 /** Said while the facts about the job's object are being checked for names and contact details before they are shown. */
 export const PACKET_FACTS_PENDING = "The facts about the object are being checked for names and contact details. They appear here once that is done.";

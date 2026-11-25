@@ -521,7 +521,7 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).getByText("Viewed by 3 companies")).toBeVisible();
     expect(within(companies()).getByText("2 responses")).toBeVisible();
     expect(lines()[0]).toContain("Company BNeed more detailsAnswered November 12, 2026");
-    expect(lines()[0]).toContain("No reason shared.You can accept Company B if it applies or changes its answer to Tested it: can do.");
+    expect(lines()[0]).toContain("No reason shared.You can accept Company B if it applies.");
     expect(lines()[1]).toContain("Company AAppliedAnswered November 13, 2026");
     expect(lines()[1]).not.toContain("No reason shared.");
     const buttons = within(companies()).getAllByRole("button", { name: "Accept" });
@@ -545,21 +545,45 @@ describe("the deployment companies section, with sends, answers and introduction
     expect(within(companies()).getByText("In their words: “We stack cartons like these every day.”")).toBeVisible();
     expect(lines()[2]).toContain("Company CNot a fitAnswered November 14, 2026No reason shared.");
     // Need more details: no Introduce us (the company agreed to be introduced only after Interested or Tested it: can
-    // do), and the site is told what would make one possible.
+    // do), and the site is told what would make one possible: applying, the one answer a company can change to now.
     expect(within(companies()).getAllByRole("button", { name: "Accept" })).toHaveLength(1);
-    expect(within(companies()).getByText("You can accept Company B if it applies or changes its answer to Tested it: can do.")).toBeVisible();
+    expect(within(companies()).getByText("You can accept Company B if it applies.")).toBeVisible();
+    expect(companies().textContent).not.toMatch(/changes its answer/);
   });
 
-  // A company that tested the simulation and cannot yet may change its answer to "Tested it: can do", not only to
-  // "Interested": the line names both answers an introduction may follow.
-  it("tells the site both answers an introduction may follow, for a company that tested it and cannot yet", () => {
+  // Owner, 2026-11-25: no company can give a tested answer now. One given before reads with its own label, and the site
+  // is told applying is what would let it accept, never a change to an answer the company cannot give.
+  it("reads a stored \"Tested it: cannot yet\" as it was given, and says the company can be accepted if it applies", () => {
     const tested = { ...activity, entries: [{ kind: "answered" as const, alias: "Company D", atIso: "2026-11-14T09:00:00.000Z",
-      state: "tested_cannot_yet" as const, canIntroduce: false }] };
+      state: "tested_cannot_yet" as const, reason: "The gripper slipped on the shrink wrap.", canIntroduce: false }] };
     render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: tested }} />);
     expect(within(companies()).getByText("Tested it: cannot yet", { exact: true })).toBeVisible();
-    expect(within(companies()).getByText("You can accept Company D if it applies or changes its answer to Tested it: can do."))
-      .toBeVisible();
+    expect(within(companies()).getByText("What they checked").nextElementSibling).toHaveTextContent("The gripper slipped on the shrink wrap.");
+    expect(within(companies()).getByText("You can accept Company D if it applies.")).toBeVisible();
     expect(within(companies()).queryByRole("button", { name: "Accept" })).toBeNull();
+  });
+
+  // A stored "Tested it: can do" stays one the site can accept, side by side with the applicants (owner, 2026-11-25).
+  it("keeps a stored \"Tested it: can do\" acceptable, beside applicants, with its own label", async () => {
+    fetchMock.mockResolvedValue(response({ ok: true, introducedAtIso: "2026-11-15T09:00:00.000Z" }));
+    const tested = { ...activity, entries: [activity.entries[1],
+      { kind: "answered" as const, alias: "Company E", atIso: "2026-11-14T09:00:00.000Z", state: "tested_can_do" as const,
+        reason: "Ran our palletizer on the scene.", canIntroduce: true, applicant: { name: "Stackwell Robotics", website: "https://stackwell.example" },
+        details: { startWindow: "within_month" as const } }] };
+    render(<SiteAnswer token="owner-token" answer={{ ...readyAnswer, ...VISIBLE, companies: tested }} />);
+    const entry = within(responses()!).getAllByRole("listitem")[1];
+    expect(within(entry).getByRole("heading", { name: "Stackwell Robotics" })).toBeVisible();
+    expect(within(entry).getByText("Tested it: can do", { exact: true })).toHaveClass("opportunity-label-ready");
+    expect(within(entry).getByText("What they checked").nextElementSibling).toHaveTextContent("Ran our palletizer on the scene.");
+    expect(within(entry).queryByText(/You can accept .* if it applies/)).toBeNull();
+    // Compared with the other company the site can accept, then accepted with the same one press.
+    const table = within(companies()).getByRole("table", { name: "Compare applicants" });
+    expect(within(table).getByRole("rowheader", { name: "Stackwell Robotics" })).toBeVisible();
+    expect(within(table).getAllByRole("rowheader")).toHaveLength(2);
+    fireEvent.click(within(entry).getByRole("button", { name: "Accept" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/owner-token/introductions",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ alias: "E", statementVersion: "introduction-request-2026-11-24",
+        answerAtIso: "2026-11-14T09:00:00.000Z" }) })));
   });
 
   it("shows a posted job even if nobody viewed or replied yet", () => {

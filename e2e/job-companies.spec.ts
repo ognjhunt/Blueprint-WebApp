@@ -173,6 +173,8 @@ test("a signed-in company opens a job from the library, watches the video and an
   const form = page.getByRole("form", { name: "Your response" });
   await expect(form).toBeInViewport();
   await expect(form.getByText(statement, { exact: true })).toBeVisible();
+  await expect(form.getByRole("radio")).toHaveCount(3);
+  await expect(form.getByLabel(/Tested it/)).toHaveCount(0);
   await form.getByLabel("Apply").check();
   await form.getByRole("textbox", { name: "Note to the site" }).fill("We palletize cartons like these today.");
   await form.getByRole("button", { name: "Send" }).click();

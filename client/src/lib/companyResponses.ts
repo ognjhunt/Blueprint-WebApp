@@ -18,19 +18,22 @@
  */
 
 /**
- * The answers a company can give (package E, E9). `declined` is the stored name of "Not a fit" (kept from before). The
- * two tested answers are offered only when the job has a simulation to download (`TESTED_RESPONSE_STATES`).
+ * Every answer a company's answer can be stored as (package E, E9). `declined` is the stored name of "Not a fit" (kept
+ * from before). The two tested answers are no longer offered (owner, 2026-11-25; the early trial was dropped on
+ * 2026-11-14): the company's form offers `FIT_RESPONSE_STATES` only. They stay here so an answer stored in either still
+ * reads with its own label everywhere, and a stored "Tested it: can do" can still be accepted.
  */
 export const COMPANY_RESPONSE_STATES = ["interested", "declined", "needs_something", "tested_can_do", "tested_cannot_yet"] as const;
-/** Answers that need the job's simulation package. */
+/** The two tested answers: no company can give one now; one already stored reads and is accepted as before. */
 export const TESTED_RESPONSE_STATES: readonly CompanyResponseState[] = ["tested_can_do", "tested_cannot_yet"];
-/** Replies a company can give after reviewing the job and its video. */
+/** The answers the company's form offers: Apply, Not a fit and Need more details. */
 export const FIT_RESPONSE_STATES = COMPANY_RESPONSE_STATES.filter(state => !TESTED_RESPONSE_STATES.includes(state));
 /**
  * Answers beside which a site may ask for an introduction (E6, as E9 reads it). Not "Need more details": the Terms a
  * company accepted, and the line under its answer, say a site gets its name and contact details only after it answered
- * Interested or Tested it: can do. Meeting a company that would need something first takes a new line and new Terms
- * the company accepts (owner); until then the site reads why, and the company can change its answer.
+ * Interested or Tested it: can do (a stored one: no company can give it now). Meeting a company that would need something
+ * first takes a new line and new Terms the company accepts (owner); until then the site reads why, and the company can
+ * change its answer.
  */
 export const INTRODUCIBLE_RESPONSE_STATES: readonly CompanyResponseState[] = ["interested", "tested_can_do"];
 /** Answers that may become an introduction when the company changes its answer: the site is told so. */
@@ -318,12 +321,11 @@ export const companyNotApprovedNow = (name: string) =>
 /** Under an answer that is not a yes and carries no words the site may read: said plainly, nothing invented. */
 export const NO_REASON_SHOWN = "No reason shared.";
 /**
- * Under an answer that may become an introduction when the company changes it (`MAY_CHANGE_RESPONSE_STATES`): either
- * answer an introduction may follow (`INTRODUCIBLE_RESPONSE_STATES`), so a "Tested it: cannot yet" is not told that only
- * "Interested" would do.
+ * Under an answer that may become an introduction when the company changes it (`MAY_CHANGE_RESPONSE_STATES`): applying is
+ * the one answer a company can change to now that the form offers no tested answer (owner, 2026-11-25), so a stored
+ * "Tested it: cannot yet" is told the same.
  */
-export const introductionIfChanged = (alias: string) => `You can accept ${alias} if it applies or changes its answer to `
-  + `${COMPANY_RESPONSE_LABELS.tested_can_do}.`;
+export const introductionIfChanged = (alias: string) => `You can accept ${alias} if it applies.`;
 
 /** A cheap shape check for the job page: anything else is dropped, never shown. */
 export function isSiteCompanyActivity(value: unknown): value is SiteCompanyActivity {

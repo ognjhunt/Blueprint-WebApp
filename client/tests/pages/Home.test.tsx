@@ -65,7 +65,7 @@ describe("Site-led homepage", () => {
     fireEvent.click(within(card).getByRole("tab", { name: "Warehouse" }));
     expect(within(card).getByRole("tabpanel")).toHaveTextContent(
       /Picking small parcels.*6 views.*3 responses.*Company A.*Applied.*Company B.*Need more details.*Company C.*Not a fit/);
-    // No example shows a "Tested it" answer: no company can give one until a job's simulation can be downloaded.
+    // No example shows a "Tested it" answer: no company can give one (owner, 2026-11-25).
     for (const tab of within(card).getAllByRole("tab")) {
       fireEvent.click(tab);
       expect(within(card).getByRole("tabpanel")).not.toHaveTextContent(/Tested it/);

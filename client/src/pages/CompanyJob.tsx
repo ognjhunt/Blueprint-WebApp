@@ -8,7 +8,7 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { companyApplicationHref, companyJobReturnPath, companyJobSignInHref } from "@/lib/authReturnPath";
 import { CHARGE_MODELS, CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATE_LIMITS, ESTIMATE_UNITS, INTRODUCIBLE_RESPONSE_STATES, SIMILAR_JOBS, SIMILAR_JOBS_LABELS,
   VISIT_NOTE_LIMIT, isApplicationEstimate, type ApplicationEstimate, type ChargeModel, type SimilarJobs } from "@/lib/companyResponses";
-import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, COMPANY_START_WINDOWS, FIT_RESPONSE_STATES, TESTED_RESPONSE_STATES,
+import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, COMPANY_START_WINDOWS, FIT_RESPONSE_STATES,
   companyQuestionOverdue, companyQuestionWaiting, companyResponseNeedsNote, type CompanyReplyDetails, type CompanyResponseState, type CompanyStartWindow } from "@/lib/companyResponses";
 import { JobCardAnswer } from "@/components/site/JobCardAnswer";
 import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
@@ -333,7 +333,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
         </section>
       </div>
 
-      {user && <CompanyAnswerForm key={page.id} jobId={page.id} user={user} page={page} tested={simulationReady} />}
+      {user && <CompanyAnswerForm key={page.id} jobId={page.id} user={user} page={page} />}
     </div>
   </div>;
 }
@@ -431,15 +431,16 @@ function CompanyJobVideo({ url, poster, width, height, onTicketEnded }: { url: s
 }
 
 /**
- * The one answer form: the answers and the company's words, with the recorded line under it (E5). Once the simulation
- * can be downloaded it also offers the two tested answers. Nothing is chosen for the company: a first answer starts
- * empty and the browser asks for one; a later visit shows the answer it gave.
+ * The one answer form: Apply, Not a fit or Need more details and the company's words, with the recorded line under it
+ * (E5). It offers no tested answer (owner, 2026-11-25). Nothing is chosen for the company: a first answer starts empty
+ * and the browser asks for one; a later visit shows the answer it gave, and a stored tested answer, which the form no
+ * longer offers, is named above the form and left unchosen.
  */
-function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user: User; page: CompanyJobPage; tested: boolean }) {
+function CompanyAnswerForm({ jobId, user, page }: { jobId: string; user: User; page: CompanyJobPage }) {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const prior = page.myAnswer;
-  const [answer, setAnswer] = useState<CompanyResponseState | null>(prior && (tested || !TESTED_RESPONSE_STATES.includes(prior.state)) ? prior.state : null);
+  const [answer, setAnswer] = useState<CompanyResponseState | null>(prior && FIT_RESPONSE_STATES.includes(prior.state) ? prior.state : null);
   const [inputs, setInputs] = useState(prior?.inputs ?? "");
   const [details, setDetails] = useState<CompanyReplyDetails>(prior?.details ?? {});
   // The estimate's two ends as typed (dollars and cents; a dollar sign and thousands commas allowed), kept apart from the
@@ -448,9 +449,8 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
   const [estimateHigh, setEstimateHigh] = useState(prior?.details?.estimate ? String(prior.details.estimate.highUsd) : "");
   // The answer on record: the page's, then the one just saved, so "You answered" never names an answer it replaced.
   const [mine, setMine] = useState(page.myAnswer);
-  const testedAnswer = answer !== null && TESTED_RESPONSE_STATES.includes(answer);
-  const noteRequired = answer !== null && (testedAnswer || companyResponseNeedsNote(answer));
-  const noteLabel = testedAnswer ? "What did you test?" : noteRequired ? "What details would help you decide?" : "Note to the site";
+  const noteRequired = answer !== null && companyResponseNeedsNote(answer);
+  const noteLabel = noteRequired ? "What details would help you decide?" : "Note to the site";
   const formLabel = "Your response";
   // The field a refusal points at, with a count so the same field is focused again on the next refusal.
   const [invalid, setInvalid] = useState<{ field: AnswerField; n: number } | null>(null);
@@ -509,7 +509,7 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
     <h2>Your response</h2>
     {mine && <p className="ms-field-hint">{mine.state === "interested" ? "You applied" : `You answered “${COMPANY_RESPONSE_LABELS[mine.state]}”`}{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
       {(mine.state === "interested" || mine.state === "tested_can_do") && mine.statementVersion !== page.responseStatement.version
-        ? " Send it again below so the site sees your company's name, website and any estimate with it." : ""}</p>}
+        ? ` ${mine.state === "interested" ? "Send it again" : "Apply"} below so the site sees your company's name, website and any estimate with it.` : ""}</p>}
     {page.pendingQuestion && <p className="ms-field-hint" role="status">{Date.parse(page.pendingQuestion.replyByIso) <= Date.now()
       ? companyQuestionOverdue(dateInWords(page.pendingQuestion.replyByIso), page.pendingQuestion.reminded)
       : companyQuestionWaiting(dateInWords(page.pendingQuestion.askedAtIso), dateInWords(page.pendingQuestion.replyByIso))}</p>}
@@ -521,7 +521,7 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
     </div>}
     <form onSubmit={submit} className="ms-form" aria-label={formLabel}>
       <fieldset className="company-answer-options"><legend>Will you apply for this job?</legend>
-        {(tested ? [...FIT_RESPONSE_STATES, ...TESTED_RESPONSE_STATES] : FIT_RESPONSE_STATES).map(state => <label key={state}><input type="radio" name="state" value={state} required
+        {FIT_RESPONSE_STATES.map(state => <label key={state}><input type="radio" name="state" value={state} required
           checked={answer === state} onChange={() => choose(state)} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
       </fieldset>
       <label>{noteLabel}

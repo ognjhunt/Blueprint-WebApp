@@ -19,18 +19,16 @@ export const HOME_SUB_LINE = "Film one repetitive job and find out who wants to 
 
 /**
  * The answers the company form offers (`CompanyJob.tsx`), said the same way on every public page, built from the form's
- * own labels so they cannot drift: the three everyday answers in one sentence, and the two tested ones in a short second
- * sentence of the page's own ("Once the simulation can be downloaded, … can also answer …"), because a company can give
- * them only once the job's simulation can be downloaded (launch copy, 2026-11-20). No page says Blueprint tests anything:
- * Blueprint runs no company's robot software.
+ * own labels so they cannot drift (launch copy, 2026-11-20). The form offers no tested answer (owner, 2026-11-25), so no
+ * page names one. No page says Blueprint tests anything: Blueprint runs no company's robot software.
  */
 export const EVERYDAY_ANSWERS = `${ANSWER.interested}, ${ANSWER.declined} or ${ANSWER.needs_something}`;
-export const TESTED_ANSWERS = `${ANSWER.tested_can_do} or ${ANSWER.tested_cannot_yet}`;
 /**
- * The answers a site may accept (`INTRODUCIBLE_RESPONSE_STATES`), said as the site reads them: "applied" is the
- * company's "Apply" (owner, 2026-11-23: a company applies, the site sees its applicants and accepts).
+ * The answer a site accepts, said as the site reads it: "applied" is the company's "Apply" (owner, 2026-11-23: a
+ * company applies, the site sees its applicants and accepts). A stored "Tested it: can do", which no company can give
+ * now, is accepted the same way, and its own page says so beside it.
  */
-export const INTRODUCIBLE_ANSWERS = `applied or answered ${ANSWER.tested_can_do}`;
+export const INTRODUCIBLE_ANSWERS = "applied";
 
 export const START_JOB = "Start a job";
 export const FIRST_LOOK_WHEN_READY = "We add a first look at which robots could fit when we have enough detail.";
