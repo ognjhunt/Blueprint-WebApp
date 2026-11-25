@@ -293,7 +293,7 @@ describe("JobFacts", () => {
       expect(screen.queryByText("Where does the robot pick up the load?")).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "A few times a day" }));
       expect(await screen.findByText("How many hours a day does this job run?")).toBeVisible();
-      expect(bodyOf(fetchMock, 0)).toEqual({ custom: "how_often_moved", code: 1 });
+      expect(bodyOf(fetchMock, 0)).toEqual({ custom: "how_often_moved", code: 1, version: "0123456789abcdef" });
       fireEvent.click(screen.getByRole("button", { name: "Two shifts" }));
       expect(await screen.findByText(/Thanks\. Your answers help companies decide\./)).toBeVisible();
       expect(bodyOf(fetchMock, 1)).toEqual({ key: "hours", code: "two_shifts" });
@@ -308,7 +308,7 @@ describe("JobFacts", () => {
       expect(screen.getByRole("button", { name: "Once a week or less" })).toHaveAttribute("aria-pressed", "true");
       fireEvent.click(screen.getByRole("button", { name: "Not sure" }));
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-      expect(bodyOf(fetchMock, 0)).toEqual({ custom: "how_often_moved", code: "unsure" });
+      expect(bodyOf(fetchMock, 0)).toEqual({ custom: "how_often_moved", code: "unsure", version: "0123456789abcdef" });
     });
 
     it("asks the catalog's questions when the brief asks none", () => {

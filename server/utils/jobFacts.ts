@@ -34,19 +34,24 @@ export function parseJobFactTap(body: unknown): { ok: true; tap: JobFactTap } | 
 }
 
 /** One tap on a question of the job's brief: the row's id, and the index of the choice tapped or "unsure". */
-export type CustomJobFactTap = { id: string; code: CustomJobFactAnswer };
+export type CustomJobFactTap = { id: string; code: CustomJobFactAnswer; version: string };
+
+/** The brief's version as the site's page received it (`siteJobBriefPayload`): 16 hex characters. */
+const BRIEF_VERSION = /^[0-9a-f]{16}$/;
 
 /**
- * Exactly `{ custom, code }`: a brief row's id and a choice index or "unsure". Whether the job's current brief asks
- * that question, with that many choices, is checked when it is saved (`saveCustomJobFactTap`).
+ * Exactly `{ custom, code, version }`: a brief row's id, a choice index or "unsure", and the version of the brief the
+ * site's page showed. Whether the job's current brief is that version and asks that question, with that many choices,
+ * is checked when it is saved (`saveCustomJobFactTap`).
  */
 export function parseCustomJobFactTap(body: unknown): { ok: true; tap: CustomJobFactTap } | { ok: false; reason: JobFactTapRefusal } {
   if (!body || typeof body !== "object" || Array.isArray(body)) return { ok: false, reason: "body_not_object" };
   const raw = body as Record<string, unknown>;
-  if (Object.keys(raw).some(field => field !== "custom" && field !== "code")) return { ok: false, reason: "unexpected_field" };
+  if (Object.keys(raw).some(field => field !== "custom" && field !== "code" && field !== "version")) return { ok: false, reason: "unexpected_field" };
   if (typeof raw.custom !== "string" || !CUSTOM_JOB_FACT_ID.test(raw.custom)) return { ok: false, reason: "unknown_question" };
   if (!isCustomJobFactAnswer(raw.code)) return { ok: false, reason: "unknown_answer" };
-  return { ok: true, tap: { id: raw.custom, code: raw.code } };
+  if (typeof raw.version !== "string" || !BRIEF_VERSION.test(raw.version)) return { ok: false, reason: "unknown_question" };
+  return { ok: true, tap: { id: raw.custom, code: raw.code, version: raw.version } };
 }
 
 /** The stored answers of a job record, known codes only, or null. For the site's and the company's payloads. */
@@ -55,7 +60,8 @@ export function readJobFacts(record: Record<string, unknown> | null | undefined)
 }
 
 export class JobFactsRefused extends Error {
-  constructor(readonly code: "job_missing" | "consent_withdrawn" | "store_unavailable" | "unknown_question" | "unknown_answer") { super(code); }
+  constructor(readonly code: "job_missing" | "consent_withdrawn" | "store_unavailable" | "unknown_question" | "unknown_answer"
+    | "brief_changed") { super(code); }
 }
 
 /**
@@ -88,11 +94,14 @@ export async function saveJobFactTap(requestId: string, tap: JobFactTap, now = n
  * Write one tap on a question of the job's brief, in one transaction that re-reads the job and its sentence: refused
  * for a withdrawn site, and refused (nothing written) unless the brief the site's page shows now asks that question
  * (`siteJobBriefOf`: current, and used) and the choice is one of its choices. The catalog answers stay as they are.
+ * The tap names the version of the brief the site saw: a brief written again since (its choices may have moved, so the
+ * same index may name another answer) refuses it as `brief_changed`, so the site's page reloads its questions rather
+ * than record an answer the site did not give (Codex review, 2026-11-25).
  */
 export async function saveCustomJobFactTap(requestId: string, tap: CustomJobFactTap, now = new Date()): Promise<JobFacts> {
   if (!db) throw new JobFactsRefused("store_unavailable");
   const store = db;
-  const { siteJobBriefOf } = await import("./jobBrief");
+  const [{ siteJobBriefOf }, { siteJobBriefPayload }] = await Promise.all([import("./jobBrief"), import("../../client/src/lib/jobBrief")]);
   const ref = store.collection("inboundRequests").doc(requestId);
   const briefRef = store.collection("siteTaskBriefs").doc(requestId);
   return store.runTransaction(async tx => {
@@ -100,7 +109,9 @@ export async function saveCustomJobFactTap(requestId: string, tap: CustomJobFact
     if (!snapshot.exists) throw new JobFactsRefused("job_missing");
     const record = (snapshot.data() ?? {}) as Record<string, any>;
     if (projectWebsiteCaptureRights(record).consent_revoked) throw new JobFactsRefused("consent_withdrawn");
-    const row = siteJobBriefOf(record, briefSnapshot.data() ?? null)?.rows.find(item => item.id === tap.id);
+    const shown = siteJobBriefOf(record, briefSnapshot.data() ?? null);
+    if (shown && siteJobBriefPayload(shown).version !== tap.version) throw new JobFactsRefused("brief_changed");
+    const row = shown?.rows.find(item => item.id === tap.id);
     if (row?.evidence !== "ask_site") throw new JobFactsRefused("unknown_question");
     if (tap.code !== "unsure" && tap.code >= row.choices.length) throw new JobFactsRefused("unknown_answer");
     const current = readJobFacts(record);
