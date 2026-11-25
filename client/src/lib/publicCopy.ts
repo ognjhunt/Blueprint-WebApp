@@ -19,18 +19,16 @@ export const HOME_SUB_LINE = "Film one repetitive job and find out who wants to 
 
 /**
  * The answers the company form offers (`CompanyJob.tsx`), said the same way on every public page, built from the form's
- * own labels so they cannot drift: the three everyday answers in one sentence, and the two tested ones in a short second
- * sentence of the page's own ("Once the simulation can be downloaded, … can also answer …"), because a company can give
- * them only once the job's simulation can be downloaded (launch copy, 2026-11-20). No page says Blueprint tests anything:
- * Blueprint runs no company's robot software.
+ * own labels so they cannot drift (launch copy, 2026-11-20). The form offers no tested answer (owner, 2026-11-25), so no
+ * page names one. No page says Blueprint tests anything: Blueprint runs no company's robot software.
  */
 export const EVERYDAY_ANSWERS = `${ANSWER.interested}, ${ANSWER.declined} or ${ANSWER.needs_something}`;
-export const TESTED_ANSWERS = `${ANSWER.tested_can_do} or ${ANSWER.tested_cannot_yet}`;
 /**
- * The answers a site may accept (`INTRODUCIBLE_RESPONSE_STATES`), said as the site reads them: "applied" is the
- * company's "Apply" (owner, 2026-11-23: a company applies, the site sees its applicants and accepts).
+ * The answer a site accepts, said as the site reads it: "applied" is the company's "Apply" (owner, 2026-11-23: a
+ * company applies, the site sees its applicants and accepts). A stored "Tested it: can do", which no company can give
+ * now, is accepted the same way, and its own page says so beside it.
  */
-export const INTRODUCIBLE_ANSWERS = `applied or answered ${ANSWER.tested_can_do}`;
+export const INTRODUCIBLE_ANSWERS = "applied";
 
 export const START_JOB = "Start a job";
 export const FIRST_LOOK_WHEN_READY = "We add a first look at which robots could fit when we have enough detail.";
@@ -57,7 +55,6 @@ export const SAMPLE_JOB = {
   credit: "Video: Mixkit, free license. Sound removed, as on every job.",
   liveAlso: [
     "The site's answers to a few questions about the job, such as the heaviest item and the peak rate.",
-    "A first look on paper at which kinds of robot most likely fit, from published specifications.",
     // "where it can be built" (round 2, 2026-11-24): the Pipeline ships the site's room without the object when the
     // object cannot be built, and says so on the company's page.
     "A simulation of the site with the job's object in it where it can be built, when it is ready, to download and open in your own tools.",
@@ -68,7 +65,7 @@ export const SAMPLE_JOB = {
 
 export const HOW_STEPS = [
   { key: "video", title: "Film the job", line: "Use your phone to show one full round of a job that repeats." },
-  { key: "packet", title: "Companies review it", line: "We share your video and job description with approved companies, with a first look and a simulation when ready." },
+  { key: "packet", title: "Companies review it", line: "We share your video and job description with approved companies, with a simulation when ready." },
   { key: "companies", title: "Choose who to meet", line: "Responses appear on your job page. If a company is interested, you can ask for an introduction." },
 ] as const;
 

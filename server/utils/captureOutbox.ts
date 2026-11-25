@@ -2,6 +2,7 @@ import { jobAlertIsCurrent, type JobAlertContext } from "./newJobAlerts";
 import { companyIntroductionEmailEnd, HELD_STATUS, introductionEmailCheck, settleHeldSiteIntroductions } from "./jobIntroductionGate";
 import { outcomeQuestionIsCurrent } from "./jobOutcomeGate";
 import { withdrawalNoticeIsCurrent } from "./withdrawalCompanyNotice";
+import { simulationReadyNoticeIsCurrent } from "./simulationReadyNotice";
 /**
  * Durable delivery for site lifecycle and evaluation notices once enqueued.
  *
@@ -95,7 +96,9 @@ export type OutboxKind =
   /** Both sides, at 14, 45 and 90 days after an introduction: what happened (E8). */
   | "job_outcome_question"
   /** Company: a job it was sent was withdrawn; delete any copy (the site's recording statement asks it; `withdrawalCompanyNotice.ts`). */
-  | "job_withdrawn_company";
+  | "job_withdrawn_company"
+  /** Company: the simulation of a job it answered or opened is ready; once per job (owner, 2026-11-25; `simulationReadyNotice.ts`). */
+  | "company_simulation_ready";
 
 /** `held`: the site's "Meet {company}" email, waiting for the company's introduction email to be sent (H2). */
 export type OutboxStatus = "pending" | "claimed" | "dispatching" | "unknown" | "sent" | "failed" | "cancelled" | "review_required" | "held";
@@ -500,8 +503,9 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       }
       const currentOutcomeQuestion = await outcomeQuestionIsCurrent(entry, tx);
       const currentWithdrawalNotice = await withdrawalNoticeIsCurrent(entry, tx);
+      const currentSimulationNotice = await simulationReadyNoticeIsCurrent(entry, tx);
       if (accessNotice === "obsolete" || !currentCaptureNotice || !currentJobAlert || !currentClarification || !currentReplyReminder
-        || !currentIntroduction || !currentOutcomeQuestion || !currentWithdrawalNotice) {
+        || !currentIntroduction || !currentOutcomeQuestion || !currentWithdrawalNotice || !currentSimulationNotice) {
         // An introduction that may no longer go ahead is cancelled as a whole (G3): the other email, the record and its
         // billable event, in this transaction. Not from a row whose earlier dispatch may already have reached someone.
         if (!currentIntroduction && !uncertain) introduction.cancel?.(tx);

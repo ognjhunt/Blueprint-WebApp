@@ -2,13 +2,17 @@
  * The one-click links in the outcome questions (PACKAGE_E E8).
  *
  * `GET /api/job-outcomes/:token` shows a small confirm page and records nothing: email scanners
- * follow links. `POST` (the page's one button) records the answer the link carries and redirects to
- * the thank-you page. The signed, single-purpose token is the credential, so the page is a plain form
- * with no CSRF header; a forged post would need the token itself. A link reveals nothing but the
- * answer it carries: no name, no job, no company. Rate limiting is the global `/api` limiter.
+ * follow links. `POST` (the page's button) records the answer the link carries and redirects to
+ * the thank-you page. On a "Not going ahead" link the page has one button per reason
+ * (`NOT_GOING_AHEAD_REASONS`, and "Rather not say"), each a form whose action names its reason
+ * (`?reason=`), so the reason is one press too. The signed, single-purpose token is the credential, so
+ * the page is a plain form with no CSRF header; a forged post would need the token itself, and could
+ * only choose among the fixed reasons. A link reveals nothing but the answer it carries: no name, no
+ * job, no company. Rate limiting is the global `/api` limiter.
  */
 import { Router, type Response } from "express";
-import { OUTCOME_STATE_LABELS } from "../../client/src/lib/jobOutcomeStates";
+import { NOT_GOING_AHEAD_REASONS, NOT_GOING_AHEAD_REASON_LABELS, OUTCOME_STATE_LABELS, RATHER_NOT_SAY_LABEL, isNotGoingAheadReason }
+  from "../../client/src/lib/jobOutcomeStates";
 import { logger } from "../logger";
 import { recordOutcomeAnswer } from "../utils/jobOutcomes";
 import { JOB_OUTCOME_TOKEN_PATTERN, verifyJobOutcomeToken } from "../utils/jobOutcomeToken";
@@ -23,6 +27,8 @@ export const OUTCOME_NOT_RECORDED = "We couldn't record that just now.";
 export const OUTCOME_NOT_RECORDED_NEXT = "Please open the link again shortly.";
 export const OUTCOME_CONFIRM_HEADING = "Record your answer";
 export const OUTCOME_CONFIRM_BUTTON = "Record this answer";
+/** Above the reason buttons on a "Not going ahead" link. */
+export const OUTCOME_REASON_QUESTION = "What is the main reason? Press one.";
 export const OUTCOME_THANKS_PATH = "/job-outcome/thanks";
 
 const page = (body: string) => `<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -46,22 +52,30 @@ router.get("/:token", (req, res) => {
   const token = String(req.params.token || "");
   const payload = verifyJobOutcomeToken(token);
   if (!payload || !JOB_OUTCOME_TOKEN_PATTERN.test(token)) return notWorking(res);
-  // The label is one of five fixed strings and the token matched its character pattern: nothing here needs escaping.
-  return send(res, 200, page(`<h1>${OUTCOME_CONFIRM_HEADING}</h1><p>Your answer: <strong>${OUTCOME_STATE_LABELS[payload.state]}</strong></p>
+  // Every label is a fixed string and the token matched its character pattern: nothing here needs escaping.
+  const answer = `<h1>${OUTCOME_CONFIRM_HEADING}</h1><p>Your answer: <strong>${OUTCOME_STATE_LABELS[payload.state]}</strong></p>`;
+  if (payload.state !== "not_going_ahead")
+    return send(res, 200, page(`${answer}
 <form method="post" action="/api/job-outcomes/${token}"><button type="submit">${OUTCOME_CONFIRM_BUTTON}</button></form>`));
+  const button = (reason: string | null, label: string) => `<form method="post" action="/api/job-outcomes/${token}${reason ? `?reason=${reason}` : ""}" style="margin:0 0 8px"><button type="submit">${label}</button></form>`;
+  return send(res, 200, page(`${answer}<p>${OUTCOME_REASON_QUESTION}</p>
+${NOT_GOING_AHEAD_REASONS.map(reason => button(reason, NOT_GOING_AHEAD_REASON_LABELS[reason])).join("\n")}
+${button(null, RATHER_NOT_SAY_LABEL)}`));
 });
 
 router.post("/:token", async (req, res) => {
   const token = String(req.params.token || "");
   try {
-    const result = await recordOutcomeAnswer(token);
+    // The reason a "Not going ahead" page's button names; anything else is not recorded (`recordOutcomeAnswer`).
+    const pressed = typeof req.query.reason === "string" ? req.query.reason : (req.body as { reason?: unknown } | undefined)?.reason;
+    const result = await recordOutcomeAnswer(token, new Date(), { reason: isNotGoingAheadReason(pressed) ? pressed : undefined });
     if (!result.ok) {
       if (result.reason === "store_unavailable") return notRecorded(res);
       return notWorking(res);
     }
     res.setHeader("Cache-Control", "no-store");
     if (result.finalAlready) return res.redirect(303, `${OUTCOME_THANKS_PATH}?already=${result.finalAlready}`);
-    return res.redirect(303, `${OUTCOME_THANKS_PATH}?answer=${result.state}`);
+    return res.redirect(303, `${OUTCOME_THANKS_PATH}?answer=${result.state}${result.notGoingAheadReason ? `&reason=${result.notGoingAheadReason}` : ""}`);
   } catch (error) {
     logger.warn({ error }, "Could not record an outcome answer");
     return notRecorded(res);

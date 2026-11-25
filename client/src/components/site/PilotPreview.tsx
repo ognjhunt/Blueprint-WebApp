@@ -14,8 +14,8 @@ import { LOOP, scenes, useSceneClock, type Illustration } from "@/components/sit
  * many companies opened it, and up to three answers, each an alias and one of the real answer labels
  * (`SITE_RESPONSE_LABELS`), as the site sees them. Every site, job, count and answer is made up and the card says
  * "Example" in words at all times. No company names, product or robot names, prices, percentages or "how sure".
- * Three examples, each leading with an answer a company can give today; "Tested it" answers need a downloadable
- * simulation, so the card shows none of them (ledger AL02, EL03, 2026-11-23).
+ * Three examples, each leading with an answer a company can give today; no company can give a "Tested it" answer
+ * (owner, 2026-11-25), so the card shows none of them (ledger AL02, EL03, 2026-11-23).
  */
 type Example = Illustration & { job: string; views: number; answers: CompanyResponseState[] };
 

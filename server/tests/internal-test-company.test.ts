@@ -145,9 +145,11 @@ beforeAll(async () => {
   const { default: testJobs } = await import("../routes/internal-test-jobs");
   const { default: testCompany } = await import("../routes/internal-test-company");
   const { default: worlds } = await import("../routes/site-worlds");
+  const { default: outcomes } = await import("../routes/job-outcomes");
   const app = express();
   app.set("trust proxy", 1);
   app.use(express.json({ limit: "2mb" }));
+  app.use("/api/job-outcomes", outcomes);
   app.use("/api/inbound-request", intake);
   app.use("/api/self-capture/uploads", uploads);
   app.use("/api/site-task-brief", brief);
@@ -193,8 +195,11 @@ function mp4(): Buffer {
   return Buffer.concat([header, Buffer.from("internal-test-footage-bytes")]);
 }
 
-/** A whole internal test job, with the company clip and simulation the Pipeline publishes for one (internal basis). */
-async function createTestJob() {
+/**
+ * A whole internal test job, with the company clip and simulation the Pipeline publishes for one (internal basis). With
+ * `simulation: false` the simulation is left for the caller to publish later (`publishSimulation`).
+ */
+async function createTestJob(options: { simulation?: boolean } = {}) {
   sequence += 1;
   await sharedUploadBucket.bucket.file("internal-test-footage/pexels-854533/walkthrough.mp4").save(mp4(), { resumable: false });
   const created = await signedPost("/api/internal/pipeline/test-jobs", { idempotency_key: `company-run-${sequence}-key`,
@@ -215,9 +220,10 @@ async function createTestJob() {
   const { recordWebsiteCompanySimulation } = await import("../utils/websiteCompanySimulation");
   await recordWebsiteCompanyClip(jobId, `site-${jobId}`, captureId,
     { ...clip, clip_digest: crossRuntimeArtifactDigest(clip, "clip_digest") } as never);
-  await recordWebsiteCompanySimulation(jobId, `site-${jobId}`, captureId,
+  const publishSimulation = () => recordWebsiteCompanySimulation(jobId, `site-${jobId}`, captureId,
     { ...simulation, simulation_digest: crossRuntimeArtifactDigest(simulation, "simulation_digest") } as never);
-  return { jobId, captureId };
+  if (options.simulation !== false) await publishSimulation();
+  return { jobId, captureId, publishSimulation };
 }
 
 const ensureTestCompany = () => signedPost("/api/internal/pipeline/test-company", {});
@@ -232,6 +238,11 @@ const csrf = { cookie: "csrf_token=itc-test", "x-csrf-token": "itc-test" };
 async function companyPage(email: string, jobId: string) {
   const response = await fetch(`${base}/api/site-worlds/jobs/${jobId}`, { headers: signIn(email) });
   return { status: response.status, body: await response.json() as Record<string, any> };
+}
+/** The job summary PDF, with the page's own checks (`site-worlds.ts`). */
+async function companySummary(email: string, jobId: string) {
+  const response = await fetch(`${base}/api/site-worlds/jobs/${jobId}/summary.pdf`, { headers: signIn(email) });
+  return { status: response.status, type: response.headers.get("content-type") };
 }
 async function answerOnWebsite(email: string, jobId: string, body: Record<string, unknown> = {}) {
   const { COMPANY_RESPONSE_STATEMENT_VERSION } = await import("../../client/src/lib/companyResponses");
@@ -324,6 +335,7 @@ describe("the internal test company on an internal test job, end to end", () => 
     const page = await companyPage(INBOX, jobId);
     expect(page.status, JSON.stringify(page.body)).toBe(200);
     expect(page.body.item).toMatchObject({ id: jobId, video: { state: "ready" }, simulationDownload: { state: "ready" } });
+    expect(await companySummary(INBOX, jobId)).toEqual({ status: 200, type: "application/pdf" });
     const { companyMediaRefusal } = await import("../utils/companyJobPage");
     expect(await companyMediaRefusal(jobId, captureId, TEST_COMPANY_ID)).toBeNull();
     // And answers on it, as any company does.
@@ -406,6 +418,80 @@ describe("the internal test company on an internal test job, end to end", () => 
     expect(outwardEmails().every(message => message.to === INBOX)).toBe(true);
   });
 
+  it("hears once at the inbox that a test job's simulation is ready, after it answered; a real company never does", async () => {
+    seedNorth();
+    expect((await ensureTestCompany()).status).toBe(201);
+    const { jobId, publishSimulation } = await createTestJob({ simulation: false });
+    expect((await signedPost("/api/internal/pipeline/test-company/send", { job_id: jobId })).status).toBe(200);
+    expect((await signedPost("/api/internal/pipeline/test-company/answer", { job_id: jobId, state: "interested",
+      inputs: "Blueprint's own test answer, from the internal route." })).status).toBe(200);
+    // A real company's view forged onto the test job: it is never a recipient.
+    state.docs.set(`inboundRequests/${jobId}/companyViews/${NORTH_ID}`, { openedAtIso: "2026-11-25T10:00:00.000Z" });
+    await deliver();
+    seams.sendEmail.mockClear();
+    await publishSimulation();
+    const { queueSimulationReadyNotices, simulationReadyNoticeKey } = await import("../utils/simulationReadyNotice");
+    expect(await queueSimulationReadyNotices(jobId)).toEqual({ queued: 1, closed: true });
+    expect(rows(jobId).filter(row => row.kind === "company_simulation_ready").map(row => [row.key, row.to]))
+      .toEqual([[simulationReadyNoticeKey(jobId, TEST_COMPANY_ID), INBOX]]);
+    await deliver();
+    expect(rows(jobId).filter(row => row.kind === "company_simulation_ready").map(row => row.status)).toEqual(["sent"]);
+    expect(emailsTo(INBOX).map(message => message.subject)).toEqual(["The simulation of the site is ready"]);
+    expect(emailsTo(NORTH.email)).toEqual([]);
+  });
+
+  it("asks both sides what happened after the introduction, at the inbox only, records a press, and bills nothing", async () => {
+    seedRealJob();
+    expect((await ensureTestCompany()).status).toBe(201);
+    const { jobId } = await createTestJob();
+    // Nothing to ask before the introduction.
+    expect(await signedPost("/api/internal/pipeline/test-company/outcome-questions", { job_id: jobId }))
+      .toMatchObject({ status: 409, body: { code: "internal_test_company_not_introduced" } });
+    expect((await signedPost("/api/internal/pipeline/test-company/answer", { job_id: jobId, state: "interested",
+      inputs: "Blueprint's own test answer, from the internal route." })).status).toBe(200);
+    expect((await signedPost("/api/internal/pipeline/test-company/accept", { job_id: jobId })).status).toBe(200);
+    await deliver();
+    const eventPath = `billableEvents/introduction-${jobId}-${TEST_COMPANY_ID}`;
+    const event = structuredClone(doc(eventPath));
+    const events = () => [...state.docs.keys()].filter(key => key.startsWith("billableEvents/")).sort();
+    const eventsBefore = events();
+    seams.sendEmail.mockClear();
+
+    expect((await signedPost("/api/internal/pipeline/test-company/outcome-questions", { job_id: jobId }, { sign: false })).status).toBe(401);
+    expect(await signedPost("/api/internal/pipeline/test-company/outcome-questions", { job_id: REAL_JOB }))
+      .toMatchObject({ status: 409, body: { code: "not_an_internal_test_job" } });
+    expect((await signedPost("/api/internal/pipeline/test-company/outcome-questions", { job_id: jobId, day: 7 })).status).toBe(400);
+    const asked = await signedPost("/api/internal/pipeline/test-company/outcome-questions", { job_id: jobId });
+    expect(asked.status, JSON.stringify(asked.body)).toBe(200);
+    expect(asked.body).toMatchObject({ ok: true, day: 14, queued: [`job-outcome-question:${jobId}:${TEST_COMPANY_ID}:site:d14`,
+      `job-outcome-question:${jobId}:${TEST_COMPANY_ID}:company:d14`] });
+    await deliver();
+    expect(rows(jobId).filter(row => row.kind === "job_outcome_question").map(row => row.status)).toEqual(["sent", "sent"]);
+    expect(outwardEmails().map(message => [message.to, message.subject]).sort()).toEqual([
+      [INBOX, "How did it go with Blueprint internal test company?"], [INBOX, "How did it go with Blueprint internal test site?"]]);
+
+    // The company presses "Not going ahead", then a reason, on its confirm page: one answer, recorded on the introduction.
+    const link = (asked.body.answers.company as Array<{ state: string; url: string }>).find(item => item.state === "not_going_ahead")!;
+    const path = new URL(link.url).pathname;
+    expect((await fetch(`${base}${path}`)).status).toBe(200);
+    const pressed = await fetch(`${base}${path}?reason=timing`, { method: "POST", redirect: "manual" });
+    expect(pressed.status).toBe(303);
+    expect(doc(`inboundRequests/${jobId}/introductions/${TEST_COMPANY_ID}`).latestOutcomeBySide)
+      .toEqual({ company: { state: "not_going_ahead", atIso: expect.any(String), reason: "timing" } });
+    // Never billable: the test event is as it was, and no event was added.
+    expect(doc(eventPath)).toEqual(event);
+    expect(events()).toEqual(eventsBefore);
+    const { isMadeBillableEvent } = await import("../utils/billableEvents");
+    expect(isMadeBillableEvent(doc(eventPath))).toBe(false);
+    // The next date asks the site side only: the company said "Not going ahead". (The sweep's own rule for the pair is
+    // pinned in `job-outcomes.test.ts`.)
+    expect(await signedPost("/api/internal/pipeline/test-company/outcome-questions", { job_id: jobId, day: 45 }))
+      .toMatchObject({ status: 200, body: { queued: [`job-outcome-question:${jobId}:${TEST_COMPANY_ID}:site:d45`] } });
+    await deliver();
+    expect(outwardEmails().every(message => message.to === INBOX)).toBe(true);
+    expect(outwardEmails()).toHaveLength(3);
+  });
+
   it("a site's reply to the test company's question reaches the inbox", async () => {
     expect((await ensureTestCompany()).status).toBe(201);
     const { jobId } = await createTestJob();
@@ -441,12 +527,15 @@ describe("a real company never reaches a test job, and the test company never re
     // The real job is listed for a real company: the baseline.
     expect(await loadCompanyJobPage(REAL_JOB, { companyId: NORTH_ID })).not.toBeNull();
     expect(await companyMediaRefusal(REAL_JOB, REAL_CAPTURE, NORTH_ID)).toBeNull();
-    // The test company: not the real job, through the route signed in with the inbox, nor its media.
+    // The test company: not the real job, through the route signed in with the inbox, nor its media or its summary.
     expect((await companyPage(INBOX, REAL_JOB)).status).toBe(404);
+    expect((await companySummary(INBOX, REAL_JOB)).status).toBe(404);
+    expect((await companySummary(NORTH.email, REAL_JOB)).status).toBe(200);
     expect(await loadCompanyJobPage(REAL_JOB, { companyId: TEST_COMPANY_ID })).toBeNull();
     expect(await companyMediaRefusal(REAL_JOB, REAL_CAPTURE, TEST_COMPANY_ID)).toBe("unavailable");
-    // A real company: not the test job, nor its media.
+    // A real company: not the test job, nor its media or its summary.
     expect(await loadCompanyJobPage(test.jobId, { companyId: NORTH_ID })).toBeNull();
+    expect((await companySummary(NORTH.email, test.jobId)).status).toBe(404);
     expect(await companyMediaRefusal(test.jobId, test.captureId, NORTH_ID)).toBe("unavailable");
     // The test company has no library of real jobs.
     const library = await fetch(`${base}/api/site-worlds/tasks`, { headers: signIn(INBOX) });

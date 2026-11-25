@@ -173,16 +173,17 @@ test("after an introduction: each side's answer is recorded whatever the other s
   const [aId, bId] = [a, b].map(company => companyIdOf(company.email));
   const toCompany = (id: string, email: string) => day14.find(row => row.to === email.toLowerCase() && row.idempotencyKey.includes(`${id}:company`))!;
   const siteAbout = (id: string) => day14.find(row => row.idempotencyKey.includes(`${id}:site`))!;
-  // Company A says Not going ahead; then the site, on its own day-14 link about A, says Installed: both are recorded.
+  // Company A says Not going ahead; then the site, on its own day-14 link about A, says Not going ahead too, with a
+  // reason: both are recorded, each on its own.
   const companyAnswer = await request.post(linkFor(toCompany(aId, a.email), "Not going ahead")!, { maxRedirects: 0 });
   expect(companyAnswer.headers().location).toMatch(/\?answer=not_going_ahead$/);
-  const siteAnswer = await request.post(linkFor(siteAbout(aId), "Installed")!, { maxRedirects: 0 });
+  const siteAnswer = await request.post(`${linkFor(siteAbout(aId), "Not going ahead")!}?reason=timing`, { maxRedirects: 0 });
   expect(siteAnswer.status()).toBe(303);
   // Never the other side's answer: the site is thanked for its own.
-  expect(siteAnswer.headers().location).toMatch(/\?answer=installed$/);
+  expect(siteAnswer.headers().location).toMatch(/\?answer=not_going_ahead&reason=timing$/);
   const introA = await firestoreDoc(request, `inboundRequests/${requestId}/introductions/${aId}`);
   expect(((introA?.outcomes as Array<{ by: string; state: string }>) ?? []).map(item => `${item.by}:${item.state}`))
-    .toEqual(["company:not_going_ahead", "site:installed"]);
+    .toEqual(["company:not_going_ahead", "site:not_going_ahead"]);
   // Company B says Not going ahead; the site says nothing about B. The site's later questions about B are still asked.
   await request.post(linkFor(toCompany(bId, b.email), "Not going ahead")!, { maxRedirects: 0 });
   await deliverOutbox(request);

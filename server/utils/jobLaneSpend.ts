@@ -11,8 +11,9 @@
  * counted, so every other admission of the job (a preparation reservation, a scene intake, a video reading) sees them.
  *
  * The lanes held here, each with its job's id: the model pass over free text (`free_text_redaction`,
- * `freeTextScreening.ts`), the follow-up picker (`site_task_follow_up`, `siteTaskFollowUp.ts`) and the job brief
- * (`job_brief`, `jobBrief.ts`).
+ * `freeTextScreening.ts`), the follow-up picker (`site_task_follow_up`, `siteTaskFollowUp.ts`), the job brief
+ * (`job_brief`, `jobBrief.ts`) and the job brief's lessons, held against the job the company answered
+ * (`job_brief_lesson`, `jobBriefLessons.ts`).
  *
  * Why a ledger of its own (`inboundRequests/{job}/modelLaneReservations`), with the preparation rows' shape
  * (`admission.maximum_cost_usd`, `settlement.actual_cost_usd`), rather than rows in `website_preparation_reservations`:

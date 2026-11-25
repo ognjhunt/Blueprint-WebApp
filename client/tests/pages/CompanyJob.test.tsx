@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { COMPANY_APPLICATION_VERSION, LIBRARY_MODEL_TERMS_VERSION } from "@/lib/legalAcceptance";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompanyJobPage } from "@/types/taskBrowse";
@@ -6,18 +6,22 @@ import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, estimat
 
 /**
  * The company's page for one job (package E, E3 and E5): the site's sentence, its answers, the country, the video
- * (or "The video is being prepared."), the first look, the simulation link, and the answer form with the recorded line.
+ * (or "The video is being prepared."), the simulation link, and the answer form with the recorded line. No first look
+ * and no tested answer (owner, 2026-11-25: the page is cut to whether the company applies).
  */
 const auth = vi.hoisted(() => ({ loading: false, currentUser: { uid: "u1", email: "team@example.test" } as null | { uid: string; email: string } }));
 vi.mock("@/contexts/AuthContext", () => ({ useOptionalAuth: () => auth }));
-vi.mock("@/lib/firebaseAuthHeaders", () => ({ withFirebaseAuthHeaders: async (_user: unknown, headers: Record<string, string> = {}) => headers }));
+// The account's sign-in as a marker header, so a test can see which requests carry it.
+vi.mock("@/lib/firebaseAuthHeaders", () => ({ withFirebaseAuthHeaders: async (user: unknown, headers: Record<string, string> = {}) =>
+  user ? { ...headers, Authorization: "Bearer test-token" } : headers }));
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 vi.mock("wouter", () => ({ useParams: () => ({ jobId: "job-1" }) }));
 const linkSignIn = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/companySignInLink", async (actual) => ({ ...(await actual<typeof import("@/lib/companySignInLink")>()),
   signInWithCompanyLink: linkSignIn }));
 
-const { default: CompanyJob, SITE_ANSWERS_HINT, typedEstimate, ESTIMATE_INVALID, DECLINED_COMPANY_LINE } = await import("@/pages/CompanyJob");
+const { default: CompanyJob, SITE_ANSWERS_HINT, typedEstimate, ESTIMATE_INVALID, DECLINED_COMPANY_LINE, SAVED_FILE_URL_REVOKE_DELAY_MS } = await import("@/pages/CompanyJob");
+const { JOB_SUMMARY_DOWNLOAD_LABEL, JOB_SUMMARY_UNAVAILABLE } = await import("@/lib/companyJobPage");
 
 const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   schemaVersion: "company_job_page.v1", id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
@@ -27,14 +31,13 @@ const item = (overrides: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
     { key: "perHour", label: "Times an hour", value: null, state: "not_stated", estimateBelow: true },
     { key: "hours", label: "Hours a day", value: "Two shifts", state: "stated" },
     { key: "timing", label: "When", value: null, state: "unsure" }],
-  firstLookStatus: null, simulationStatus: null,
+  simulationStatus: null,
   visitMustConfirm: ["How pallets arrive, where they are staged and how full ones leave."],
   aboutSite: ["The site's name, street address and contact details come only with an introduction the site asks for."],
   publishedAtIso: "2026-11-12T10:00:00.000Z", sentence: "Stack 12 kg cartons onto the pallet. Call [removed]",
   jobFacts: ["Weight: 5 to 15 kg (11 to 33 lb)"], country: "United States",
   video: { state: "ready", url: "/api/company-media/jobs/job-1/video.mp4?x=1", width: 1280, height: 720, durationSeconds: 4 },
-  simulation: { state: "ready", viewerUrl: "/splat-viewer/index.html?content=x" }, simulationDownload: { state: "not_finished" }, firstLook: null,
-  firstLookRows: [{ verdict: "fits", text: "Fits.", robot: "Universal Robots UR20" }], myAnswer: null,
+  simulation: { state: "ready", viewerUrl: "/splat-viewer/index.html?content=x" }, simulationDownload: { state: "not_finished" }, myAnswer: null,
   packetFacts: { object: ["Starts: about 54 cm above the floor."], measured: ["Registration residual: 8 cm."],
     estimated: ["Weight: about 3.1 kg (0.34 to 28 kg). An estimate, not weighed."] },
   responseStatement: { version: COMPANY_RESPONSE_STATEMENT_VERSION, text: COMPANY_RESPONSE_STATEMENT }, ...overrides });
@@ -70,7 +73,6 @@ describe("the company's page for one job", () => {
     expect(top).not.toHaveAttribute("target");
     expect(top.closest(".company-job-actions")).not.toBeNull();
     expect(screen.getAllByRole("link", { name: /View the simulation/ })).toHaveLength(1);
-    expect(screen.getByText("Fits.")).toBeInTheDocument();
     // What the video shows of the object and how sure each figure is, beside the site's own unchecked answers.
     expect(screen.getByText(SITE_ANSWERS_HINT)).toBeInTheDocument();
     expect(within(screen.getByRole("list", { name: "The object and where it goes" })).getByText("Starts: about 54 cm above the floor.")).toBeInTheDocument();
@@ -83,14 +85,14 @@ describe("the company's page for one job", () => {
     expect(screen.queryByText(/does not show/)).toBeNull();
     // The page ends with the form: nothing of the job sits after it (owner, 2026-11-25: what sat below it was missed).
     const respond = screen.getByRole("region", { name: "Your response" });
-    for (const part of ["The video", "First look", "The object and how sure we are", "A visit must confirm"])
+    for (const part of ["The video", "The object and how sure we are", "A visit must confirm"])
       expect(screen.getByRole("region", { name: part }).compareDocumentPosition(respond) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(respond.nextElementSibling).toBeNull();
     expect(screen.queryByRole("link", { name: /download/i })).toBeNull();
 
     const form = screen.getByRole("form", { name: "Your response" });
     expect(within(form).getByText(COMPANY_RESPONSE_STATEMENT)).toBeInTheDocument();
-    // Without a simulation package the two tested answers are not offered (E9).
+    // Apply, Not a fit and Need more details: no tested answer (owner, 2026-11-25).
     expect(within(form).getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["interested", "declined", "needs_something"]);
     // Nothing is chosen for the company: a first answer starts empty and the browser asks for one.
     for (const radio of within(form).getAllByRole("radio")) { expect(radio).not.toBeChecked(); expect(radio).toBeRequired(); }
@@ -260,6 +262,38 @@ describe("the company's page for one job", () => {
     expect(screen.getByText(/You answered “Need more details” on November 12, 2026\./)).toBeInTheDocument();
   });
 
+  // Owner, 2026-11-25: the form offers no tested answer, and one given before reads as it was given.
+  it("names a tested answer given before, leaves the form unchosen, and asks an older one to apply again", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+      simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?x=1" },
+      myAnswer: { state: "tested_can_do", inputs: "Ran our palletizer on the scene.", updatedAtIso: "2026-11-12T10:00:00.000Z",
+        statementVersion: "company-response-2026-11-12" } }) }) });
+    const { unmount } = render(<CompanyJob />);
+    expect(await screen.findByText("You answered “Tested it: can do” on November 12, 2026. Apply below so the site sees your company's name, "
+      + "website and any estimate with it.")).toBeInTheDocument();
+    let form = screen.getByRole("form", { name: "Your response" });
+    expect(within(form).getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["interested", "declined", "needs_something"]);
+    for (const radio of within(form).getAllByRole("radio")) expect(radio).not.toBeChecked();
+    // The company's own words stay in the box, to send again with a new answer.
+    expect(within(form).getByRole("textbox", { name: "Note to the site" })).toHaveValue("Ran our palletizer on the scene.");
+    unmount();
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+      myAnswer: { state: "tested_cannot_yet", inputs: "The gripper missed.", updatedAtIso: "2026-11-13T10:00:00.000Z",
+        statementVersion: COMPANY_RESPONSE_STATEMENT_VERSION } }) }) });
+    render(<CompanyJob />);
+    expect(await screen.findByText("You answered “Tested it: cannot yet” on November 13, 2026.")).toBeInTheDocument();
+    form = screen.getByRole("form", { name: "Your response" });
+    for (const radio of within(form).getAllByRole("radio")) expect(radio).not.toBeChecked();
+    // Applying is the change that makes it one the site can accept.
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, nextAction: "Saved." }) });
+    fireEvent.click(within(form).getByLabelText("Apply"));
+    fireEvent.submit(form);
+    await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("Saved."));
+    // The third request: the two page loads, then the answer.
+    expect(JSON.parse(String((fetchMock.mock.calls[2] as [string, RequestInit])[1].body))).toMatchObject({ state: "interested" });
+    expect(screen.getByText(/^You applied on /)).toBeInTheDocument();
+  });
+
   // Owner, 2026-11-25: rows chosen for this job by its brief, each saying where its value comes from.
   it("marks a brief's estimate as estimated from the video and its quote as the site's words", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ fitSummary: [
@@ -288,19 +322,29 @@ describe("the company's page for one job", () => {
     expect(screen.getByText("The simulation of the site is not finished yet.")).toBeInTheDocument();
   });
 
-  it("says where the simulation stands under its buttons, and shows no first look or object box with nothing in it", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ firstLookRows: [],
-      firstLookStatus: "The video is being read. Our first look follows.", simulation: { state: "not_finished" },
+  it("says where the simulation stands under its buttons, and shows no object box or success-rule box with nothing in it", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ simulation: { state: "not_finished" },
       simulationStatus: "The simulation is being built from the site's video.", packetFacts: null }) }) });
     render(<CompanyJob />);
     expect(within(await screen.findByRole("region", { name: "Simulation of the site" })).getByRole("status"))
       .toHaveTextContent("The simulation is being built from the site's video.");
     // Owner, 2026-11-25: "is all of this truly needed?" A box that only says it has nothing yet is left out.
-    expect(screen.queryByRole("region", { name: "First look" })).toBeNull();
     expect(screen.queryByRole("region", { name: "The object and how sure we are" })).toBeNull();
-    expect(screen.queryByText(/Our first look/)).toBeNull();
-    // No success rule from the site: the box says so rather than vanishing.
-    expect(screen.getByText("The site has not said what counts as done yet.")).toBeInTheDocument();
+    // No success rule from the site: no box at all, and no line saying the site has not said.
+    const job = screen.getByRole("region", { name: "The job" });
+    expect(within(job).getByText("Stack 12 kg cartons onto the pallet. Call [removed]")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "What counts as done" })).toBeNull();
+    expect(document.querySelector(".company-job-success")).toBeNull();
+    expect(screen.queryByText(/has not said what counts as done/)).toBeNull();
+  });
+
+  it("shows what counts as done when the site said it", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+      successRule: "Every carton is on the pallet, label out." }) }) });
+    render(<CompanyJob />);
+    const heading = await screen.findByRole("heading", { name: "What counts as done" });
+    expect(heading.nextElementSibling).toHaveTextContent("Every carton is on the pallet, label out.");
+    expect(screen.queryByText("What counts as done can't be shown right now.")).toBeNull();
   });
 
   it("names the questions the site skipped on one line, not a row each", async () => {
@@ -334,7 +378,11 @@ describe("the company's page for one job", () => {
     const signInHref = "/sign-in?next=%2Fjobs%2Fjob-1";
     // The four-field application is right here, pointed back at this job (no extra page to find).
     expect(main.getByRole("form", { name: "Deployment company application" })).toBeInTheDocument();
-    expect(within(main.getByRole("list", { name: "What an approved company sees" })).getAllByRole("listitem")).toHaveLength(4);
+    const sees = main.getByRole("list", { name: "What an approved company sees" });
+    expect(within(sees).getAllByRole("listitem").map(line => line.textContent)).toEqual(["The site's video of the job, without sound, and its description",
+      "Its answers about weight, size, rate and hours", "A simulation of the site to open in your own tools, when it is ready"]);
+    // The first look is the site's own (owner, 2026-11-25): the gate promises none.
+    expect(screen.getByRole("main")).not.toHaveTextContent(/first look/i);
     expect(main.getByText(/brings you back to this job/)).toBeInTheDocument();
     expect(main.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
     expect(within(screen.getByRole("navigation", { name: "Account" })).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", signInHref);
@@ -394,23 +442,29 @@ describe("the company's page for one job", () => {
     expect(screen.getByRole("link", { name: "Apply to see jobs" })).toHaveAttribute("href", "/jobs?next=%2Fjobs%2Fjob-1#partner-application");
   });
 
-  it("shows a conditional first-look row and the count of the rest, from the shared first look", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({
+  // Owner, 2026-11-25: the first look stays on the site's own pages. A payload of before still carrying one shows none.
+  it("shows no first look on the company's page, even from a payload that still carries one", async () => {
+    const before = { ...item(), firstLook: { headline: "Most likely to fit: Universal Robots UR20" },
       firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 11.6 kg.", robot: "Universal Robots UR10e" }],
-      firstLookMore: "And 27 more." }) }) });
+      firstLookMore: "And 27 more.", firstLookStatus: "The video is being read. Our first look follows." };
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: before }) });
     render(<CompanyJob />);
-    expect(await screen.findByText("Fits if the item weighs under 11.6 kg.")).toBeInTheDocument();
-    expect(screen.getByText("Universal Robots UR10e:")).toBeInTheDocument();
-    expect(screen.getByText("And 27 more.")).toBeInTheDocument();
-    // Rows of robots on paper are a first look: the page does not also say the first look is not ready.
-    expect(screen.queryByText(/first look is not ready/)).not.toBeInTheDocument();
+    const page = await screen.findByRole("region", { name: "Job" });
+    expect(screen.queryByRole("region", { name: "First look" })).toBeNull();
+    expect(screen.queryByRole("list", { name: "Robots on paper" })).toBeNull();
+    expect(page).not.toHaveTextContent(/first look|Universal Robots|Fits if the item|And 27 more|Most likely to fit/i);
   });
 
-  it("offers the two tested answers in the one form once the job has a simulation package", async () => {
+  it("offers only Apply, Not a fit and Need more details, even once the job has a simulation package", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ simulation: { state: "not_finished" },
-      simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?x=1" } }) }) });
+      simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?x=1", sizeBytes: 170_400_000,
+        fileName: "simulation-1a2b3c4d.zip" } }) }) });
     render(<CompanyJob />);
-    expect(await screen.findByRole("link", { name: "Download the simulation" })).toHaveAttribute("href", "/api/company-media/jobs/job-1/simulation.zip?x=1");
+    // Sized, and saved under the package's version (owner, 2026-11-25).
+    const download = await screen.findByRole("link", { name: "Download the simulation (170 MB)" });
+    expect(download).toHaveAttribute("href", "/api/company-media/jobs/job-1/simulation.zip?x=1");
+    expect(download).toHaveAttribute("download", "simulation-1a2b3c4d.zip");
+    expect(download.closest(".company-job-actions")).not.toBeNull();
     // No viewer, no view button.
     expect(screen.queryByRole("link", { name: "View the simulation" })).toBeNull();
     expect(screen.getByText("A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.")).toBeInTheDocument();
@@ -419,13 +473,21 @@ describe("the company's page for one job", () => {
     expect(screen.queryByRole("link", { name: "Report simulation result" })).toBeNull();
     expect(screen.getAllByRole("form")).toHaveLength(1);
     const form = screen.getByRole("form", { name: "Your response" });
-    expect(within(form).getAllByRole("radio").map(radio => radio.getAttribute("value")))
-      .toEqual(["interested", "declined", "needs_something", "tested_can_do", "tested_cannot_yet"]);
+    // The early trial was dropped on 2026-11-14, and the tested answers with it (owner, 2026-11-25).
+    expect(within(form).getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["interested", "declined", "needs_something"]);
+    expect(within(form).getAllByRole("radio").map(radio => radio.closest("label")?.textContent?.trim()))
+      .toEqual(["Apply", "Not a fit", "Need more details"]);
+    // Only the recorded line under the form still names "Tested it: can do": it is what earlier answers agreed to.
+    expect(within(form).getByRole("group", { name: "Will you apply for this job?" })).not.toHaveTextContent(/Tested/);
+    expect(form).not.toHaveTextContent(/What did you test/);
     const note = within(form).getByRole("textbox");
     expect(note).not.toBeRequired();
-    fireEvent.click(within(form).getByLabelText("Tested it: can do"));
-    expect(within(form).getByRole("textbox", { name: "What did you test?" })).toBeRequired();
-    // "Add details" keeps the question and the earliest start; "What you have checked" is gone.
+    fireEvent.click(within(form).getByLabelText("Need more details"));
+    expect(within(form).getByRole("textbox", { name: "What details would help you decide?" })).toBeRequired();
+    // Not a fit takes no details; Apply's "Add details" keeps the question. "What you have checked" is gone.
+    fireEvent.click(within(form).getByLabelText("Not a fit"));
+    expect(within(form).queryByText("Add details")).toBeNull();
+    fireEvent.click(within(form).getByLabelText("Apply"));
     fireEvent.click(within(form).getByText("Add details"));
     expect(within(form).getByLabelText("Question for the site")).toBeInTheDocument();
     expect(within(form).getByLabelText("Earliest start")).toBeInTheDocument();
@@ -441,7 +503,7 @@ describe("the company's page for one job", () => {
     fireEvent.click(within(form).getByLabelText("Apply"));
     fireEvent.submit(form);
     await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("If the site asks to meet you"));
-    fireEvent.click(within(form).getByLabelText("Tested it: can do"));
+    fireEvent.click(within(form).getByLabelText("Not a fit"));
     expect(within(form).queryByRole("status")).toBeNull();
   });
 
@@ -467,6 +529,65 @@ describe("the company's page for one job", () => {
 });
 
 // Owner, 2026-11-23: a new-job email's link signs a signed-out company in on the way to the job.
+describe("the job summary download (owner, 2026-11-25)", () => {
+  const pdf = () => new Blob(["%PDF-1.4 fixture"], { type: "application/pdf" });
+  function saving() {
+    const createObjectURL = vi.fn(() => "blob:summary");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL, revokeObjectURL }));
+    const clicked = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    return { createObjectURL, revokeObjectURL, clicked };
+  }
+
+  it("sits in the top row and saves the PDF, fetched with the account's sign-in, as job-summary-<short job ref>.pdf", async () => {
+    const { createObjectURL, revokeObjectURL, clicked } = saving();
+    try {
+      fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item({ id: "capture-6f0c2a1e-3b7d" }) }) });
+      render(<CompanyJob />);
+      const button = await screen.findByRole("button", { name: JOB_SUMMARY_DOWNLOAD_LABEL });
+      expect(button.closest(".company-job-actions")).not.toBeNull();
+      fetchMock.mockResolvedValueOnce({ ok: true, status: 200, blob: async () => pdf() });
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      // The save runs to its end inside act: fetched, saved, and the button free again.
+      await act(async () => { fireEvent.click(button); });
+      await vi.waitFor(() => expect(clicked).toHaveBeenCalledTimes(1));
+      const [path, init] = fetchMock.mock.calls.at(-1) as [string, RequestInit];
+      expect(path).toBe("/api/site-worlds/jobs/capture-6f0c2a1e-3b7d/summary.pdf");
+      expect(init.headers).toMatchObject({ Authorization: "Bearer test-token" });
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      const anchor = clicked.mock.contexts[0] as HTMLAnchorElement;
+      expect(anchor.download).toBe("job-summary-6f0c2a1e.pdf");
+      expect(anchor.href).toBe("blob:summary");
+      // The save gets time to start before its address is let go.
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(SAVED_FILE_URL_REVOKE_DELAY_MS);
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:summary");
+      await vi.waitFor(() => expect(button).toBeEnabled());
+      expect(screen.queryByRole("alert")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+      clicked.mockRestore();
+    }
+  });
+
+  it("says so when the summary cannot be made, and reloads the page when the job is refused, which then says why", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ item: item() }) });
+    render(<CompanyJob />);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({ error: "The job summary could not be made just now. Try again." }) });
+    fireEvent.click(await screen.findByRole("button", { name: JOB_SUMMARY_DOWNLOAD_LABEL }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(JOB_SUMMARY_UNAVAILABLE);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // The site withdrew: the summary is refused as the page is, and the page, loaded again, says the job is gone.
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ error: "This job is not available." }) });
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ access: { status: "approved", signedIn: true,
+      emailVerified: true, allowed: true, staff: false } }) });
+    fireEvent.click(screen.getByRole("button", { name: JOB_SUMMARY_DOWNLOAD_LABEL }));
+    expect(await screen.findByRole("heading", { name: "This job is no longer available" })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([path]) => path)).toEqual(["/api/site-worlds/jobs/job-1", "/api/site-worlds/jobs/job-1/summary.pdf",
+      "/api/site-worlds/jobs/job-1/summary.pdf", "/api/site-worlds/jobs/job-1"]);
+  });
+});
+
 describe("opening a job from its email", () => {
   beforeEach(() => { linkSignIn.mockReset(); window.history.replaceState(null, "", "/jobs/job-1?link=emailed-token&from=q%3Dx"); });
 

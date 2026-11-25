@@ -183,6 +183,24 @@ export function newJobEmail(params: { to: string; jobUrl: string; kind?: string 
   };
 }
 
+/**
+ * The one email to a company that answered or opened a job when that job's simulation becomes ready (owner, 2026-11-25;
+ * `simulationReadyNotice.ts`): the job's title as its page leads with it, and its link. Never the site's name, place,
+ * contact or sentence.
+ */
+export const SIMULATION_READY_EMAIL_SUBJECT = "The simulation of the site is ready";
+export const SIMULATION_READY_EMAIL_BODY = "The simulation of the site is ready for a job you opened on Blueprint. Open the job to see it.";
+const SIMULATION_READY_LINE = "You get this email once for each job you opened. Turn job emails off in Settings or unsubscribe below.";
+
+export function simulationReadyEmail(params: { to: string; jobUrl: string; title?: string | null }) {
+  const title = params.title?.trim() && !GENERIC_TITLES.has(params.title.trim()) ? params.title.trim() : null;
+  return {
+    subject: SIMULATION_READY_EMAIL_SUBJECT,
+    body: appendCommercialEmailFooter({ text: [SIMULATION_READY_EMAIL_BODY, ...(title ? ["", `Job: ${title}`] : []), "",
+      "Open the job:", params.jobUrl, "", SIMULATION_READY_LINE].join("\n"), email: params.to, scope: "optional_updates" }),
+  };
+}
+
 /** Audit B-03: the one email to a company that accepted the Terms after jobs were sent. Nothing about any site. */
 export const OPEN_JOBS_EMAIL_SUBJECT = "Jobs on Blueprint you can open now";
 export const OPEN_JOBS_EMAIL_BODY = "Sites posted jobs before you could see them. Open Find jobs to see each job packet and respond.";

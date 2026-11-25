@@ -24,12 +24,23 @@ import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import { RECORDING_VERSIONS_THAT_SHARE } from "./teamJobAccess";
 import { forwardableRange, rangeCoversWholeFile, verifiedWholeFile } from "./websiteCompanyClip";
 import { isInternalTestJob, isInternalTestRecordingGrant } from "./internalTestJob";
+import { owedSimulationReadyNotice, SIMULATION_READY_NOTICE_FIELD } from "./simulationReadyNoticeMarker";
 
 export const COMPANY_SIMULATION_FIELD = "company_simulation";
 /** The contract's `MAX_PACKAGE_BYTES`. */
 export const MAX_COMPANY_SIMULATION_BYTES = 536_870_912;
-/** The name the company's browser saves it under (contract section 2): neutral, names nothing. */
-export const COMPANY_SIMULATION_FILENAME = "simulation.zip";
+/**
+ * The name the company's browser saves it under: neutral, names nothing of the site, and carries the package's version,
+ * the first 8 hex of its digest (owner, 2026-11-25), so an old and a new package of a job never share a name in a
+ * Downloads folder: `simulation-1a2b3c4d.zip`. The job console saves it with the job's id before the version, for staff
+ * who download many jobs' packages (`simulation-<job id>-1a2b3c4d.zip`); both routes send the first name.
+ */
+export function companySimulationFileName(reference: Pick<WebsiteCompanySimulation, "digest">, jobId?: string): string {
+  const version = reference.digest.slice("sha256:".length, "sha256:".length + 8);
+  const job = jobId ? `${jobId.replace(/[^A-Za-z0-9._-]/g, "-")}-` : "";
+  return `simulation-${job}${version}.zip`;
+}
+
 const TICKET_DOMAIN = "website_company_simulation_download";
 
 const sha = z.string().regex(/^sha256:[a-f0-9]{64}$/);
@@ -115,7 +126,12 @@ export async function recordWebsiteCompanySimulation(requestId: string, sceneId:
     } else if (prior && record.updated_at_epoch < prior.updated_at_epoch) {
       throw new Error("website_company_simulation_stale");
     } else {
-      transaction.set(sessionRef, { [COMPANY_SIMULATION_FIELD]: record, updated_at_iso: new Date().toISOString() }, { merge: true });
+      const atIso = new Date().toISOString();
+      transaction.set(sessionRef, { [COMPANY_SIMULATION_FIELD]: record, updated_at_iso: atIso }, { merge: true });
+      // The capture's first simulation: the companies that already answered or opened the job are owed one email saying
+      // so (`simulationReadyNotice.ts`), queued by the acceptance route and the sweep. A newer revision owes nothing.
+      if (!prior) transaction.set(requestRef, { [SIMULATION_READY_NOTICE_FIELD]: owedSimulationReadyNotice({ captureId,
+        simulationRevision: record.simulation_revision, atIso }) }, { merge: true });
     }
     return { schema_version: "website_company_simulation_acceptance.v1", accepted: true as const,
       simulation_revision: record.simulation_revision, simulation_digest: record.simulation_digest };
@@ -184,7 +200,7 @@ export async function fetchCompanySimulation(requestId: string, reference: Websi
     return { ok: false, status: 503 };
   }
   const headers: Record<string, string> = { "Content-Type": "application/zip", "Accept-Ranges": "bytes",
-    "Content-Disposition": `attachment; filename="${COMPANY_SIMULATION_FILENAME}"` };
+    "Content-Disposition": `attachment; filename="${companySimulationFileName(reference)}"` };
   const length = response.headers.get("content-length");
   if (length) headers["Content-Length"] = length;
   if (response.status === 206) headers["Content-Range"] = contentRange!;

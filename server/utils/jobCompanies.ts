@@ -735,7 +735,7 @@ export async function loadAdminJobCompanies(requestId: string): Promise<AdminJob
       recordedBy: data.recordedBy === "operator" ? "operator" as const : data.recordedBy === "company" ? "company" as const
         : "before_c1" as const }))
     .sort((a, b) => String(a.updatedAtIso).localeCompare(String(b.updatedAtIso)));
-  const [introductionRows, events, { latestOutcome, OUTCOME_STATE_LABELS }] = await Promise.all([
+  const [introductionRows, events, { latestOutcome, outcomeLabel }] = await Promise.all([
     readAll(jobRef.collection(INTRODUCTIONS_COLLECTION)),
     import("./billableEvents").then(({ listJobBillableEvents }) => listJobBillableEvents(requestId)),
     import("./jobOutcomes")]);
@@ -747,7 +747,7 @@ export async function loadAdminJobCompanies(requestId: string): Promise<AdminJob
       requestedAtIso: String(data.requestedAtIso ?? ""),
       ...(typeof data.cancelledAtIso === "string" ? { cancelledAtIso: data.cancelledAtIso, cancelReason: text(data.cancelReason) } : {}),
       latestOutcome: latest ? { by: latest.by, state: latest.state, atIso: latest.atIso,
-        label: (OUTCOME_STATE_LABELS as Record<string, string>)[latest.state] ?? latest.state } : null };
+        label: outcomeLabel(latest.state, latest.reason) } : null };
   }).sort((a, b) => a.requestedAtIso.localeCompare(b.requestedAtIso));
   const billableEvents = events.map(event => ({ id: event.id, kind: event.kind, companyId: event.companyId,
     company: text(names.get(event.companyId)?.company), atIso: event.atIso, madeAtIso: text(event.madeAtIso), priceUsd: null,

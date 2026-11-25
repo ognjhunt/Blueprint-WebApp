@@ -282,6 +282,10 @@ router.post("/creator-captures/:captureId/company-simulation", createPipelineSyn
     const { request_id: requestId, scene_id: sceneId, simulation } = parsed.data;
     try {
       const accepted = await recordWebsiteCompanySimulation(requestId, sceneId, String(req.params.captureId), simulation);
+      // The companies that already answered or opened the job hear once that its simulation is ready, at once rather
+      // than at the next sweep (`simulationReadyNotice.ts`). Not awaited: the Pipeline never waits for an email.
+      void import("../utils/simulationReadyNotice").then(({ queueSimulationReadyNoticesSoon }) => queueSimulationReadyNoticesSoon(requestId))
+        .catch(() => undefined);
       res.setHeader("Cache-Control", "no-store");
       return res.json(accepted);
     } catch (error) {

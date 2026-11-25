@@ -9,10 +9,10 @@
  * One site is planted with distinctive fake identity in every place the website stores it (contact, request, place
  * metadata, display metadata, top-level copies), in the site's own sentence and answers, in the video reader's free
  * text, in the capture session and in stored listing text. Then:
- * - before an introduction, nothing a company receives (library list, card, job page, every signed media link and
- *   its headers, the 3D viewer's files, the answer route, its own access state, every email the outbox sends it, the
- *   withdrawal notice) carries any planted value, nor ANY email address (other than Blueprint's and the recipient's
- *   own), phone number or street address (other than Blueprint's own postal line);
+ * - before an introduction, nothing a company receives (library list, card, job page, the job summary PDF, every
+ *   signed media link and its headers, the 3D viewer's files, the answer route, its own access state, every email the
+ *   outbox sends it, the withdrawal notice) carries any planted value, nor ANY email address (other than Blueprint's and
+ *   the recipient's own), phone number or street address (other than Blueprint's own postal line);
  * - after the site asks to meet one company, exactly one email carries the site's details: the introduction email to
  *   that company. Its pages still carry none; the other company gets nothing.
  */
@@ -32,6 +32,7 @@ import { INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION as INTRODUCTION_REQUE
 import { COMPANY_RESPONSE_STATEMENT_VERSION } from "../../client/src/lib/companyResponses";
 import { COMPANY, COMPANY_POSTAL_LINE } from "../../client/src/data/company";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
+import { pdfLinks, pdfText } from "./helpers/pdfText";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -255,6 +256,13 @@ async function everythingFetchable(record: { email: string }): Promise<Array<[st
   await take("the company's access state", "/api/robot-team-access/me");
   const page = await take("the job page", `/api/site-worlds/jobs/${ID}`);
   expect(page.status).toBe(200);
+  // The job summary (owner, 2026-11-25): its bytes and headers, and the words it draws, read back line by line.
+  const summary = await take("the job summary PDF", `/api/site-worlds/jobs/${ID}/summary.pdf`);
+  expect(summary.status).toBe(200);
+  const pdf = Buffer.from(summary.text, "latin1");
+  // It carries the site's words as the page does, with the site's identity taken out, so the sweep reads real content.
+  expect(pdfText(pdf).replace(/\n/g, " ")).toContain("Stack 12 kg cartons onto the pallet at the site");
+  seen.push(["the job summary's text", pdfText(pdf)], ["the job summary's links", pdfLinks(pdf).join("\n")]);
   const item = JSON.parse(page.text).item;
   expect(item.video.state).toBe("ready");
   expect(item.simulationDownload.state).toBe("ready");

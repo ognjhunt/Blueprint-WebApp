@@ -141,6 +141,33 @@ describe("the Pipeline's company simulation callback", () => {
   });
 });
 
+describe("the simulation-ready notice (owner, 2026-11-25)", () => {
+  it("is owed by the capture's first simulation only, and the route queues it at once for a company that answered", async () => {
+    const { createHash } = await import("node:crypto");
+    const { currentTermsAcceptance, sharedCompanyClip, sharedJobListing, passedPrivacyScreen } = await import("./helpers/sharedJob");
+    const email = "contact@answered.example";
+    const companyId = createHash("sha256").update(email).digest("hex");
+    state.docs.set(`robotTeamAccess/${companyId}`, { status: "approved", partnerRole: "deployment", email, company: "Answered Robotics",
+      termsAcceptance: currentTermsAcceptance(), termsAcceptedByUid: "uid-answered", decidedAtIso: "2026-11-02T00:00:00.000Z" });
+    seed({ public_task_listing: sharedJobListing(), capture_privacy_screen: passedPrivacyScreen("req1") });
+    state.docs.set(SESSION, { ...(state.docs.get(SESSION) as Record<string, unknown>), company_clip: sharedCompanyClip(CAPTURE) });
+    state.docs.set("siteTaskBriefs/req1", { requestId: "req1", summary: "Stack cartons onto the pallet", confirmedAtIso: null });
+    state.docs.set(`${REQUEST}/robotTeamInterest/${companyId}`, { state: "interested", email });
+    expect((await publish(sealed())).status).toBe(200);
+    const key = `captureOutbox/company_simulation_ready:req1:${companyId}`;
+    for (let i = 0; i < 200 && !state.docs.has(key); i += 1) await new Promise(resolve => setTimeout(resolve, 10));
+    expect(state.docs.get(key)).toMatchObject({ kind: "company_simulation_ready", to: email, status: "pending",
+      subject: "The simulation of the site is ready" });
+    expect((state.docs.get(REQUEST) as Record<string, any>).company_simulation_ready_notice).toMatchObject({ owed: false, queued: 1,
+      captureId: CAPTURE, simulationRevision: sealed().simulation_revision });
+    // A replay or a newer revision of the stored simulation owes nothing more.
+    expect((await publish(sealed())).status).toBe(200);
+    const next = sealed({ simulation_revision: `sha256:${"3".repeat(64)}`, digest: `sha256:${"4".repeat(64)}`, updated_at_epoch: 1_794_600_000 });
+    expect((await publish(next)).status).toBe(200);
+    expect((state.docs.get(REQUEST) as Record<string, any>).company_simulation_ready_notice).toMatchObject({ owed: false, queued: 1 });
+  });
+});
+
 describe("the Pipeline's company clip callback: a record that fails its schema is a named refusal", () => {
   it("answers 409 website_company_clip_invalid, one of the contract's answers, never a 400 outside it", async () => {
     seed();

@@ -31,9 +31,11 @@ describe("the questions page", () => {
   it("promises no response from a company", () => {
     render(<Beta />);
     expect(screen.getByRole("region", { name: "Deployment companies" }))
-      .toHaveTextContent("A company can choose Apply, Not a fit or Need more details. Once the simulation can be downloaded, it can also choose Tested it: can do or Tested it: cannot yet. We can't promise any will say yes.");
+      .toHaveTextContent("A company can choose Apply, Not a fit or Need more details. We can't promise any will say yes.");
     expect(screen.getByRole("region", { name: "Deployment companies" }))
-      .toHaveTextContent("You see each company's name and website with its answer. Press Accept beside a company that applied or answered Tested it: can do to meet it. We email the company your email address and the place you gave us, and email you theirs.");
+      .toHaveTextContent("You see each company's name and website with its answer. To meet a company that applied, press Accept beside it. We email the company your email address and the place you gave us, and email you theirs.");
+    // The form offers no tested answer (owner, 2026-11-25), so the page names none.
+    expect(screen.getByRole("region", { name: "Deployment companies" })).not.toHaveTextContent(/Tested it|once the simulation can be downloaded/i);
   });
 
   it("says who sees the video, what stays with us, how to stop, and who we are", () => {

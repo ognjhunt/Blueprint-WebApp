@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "wouter";
-import { ArrowLeft, ArrowDown, Download, Eye, MapPin } from "lucide-react";
+import { ArrowLeft, ArrowDown, Download, Eye, FileText, MapPin } from "lucide-react";
 import type { User } from "firebase/auth";
 import { useOptionalAuth } from "@/contexts/AuthContext";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
@@ -8,29 +8,32 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { companyApplicationHref, companyJobReturnPath, companyJobSignInHref } from "@/lib/authReturnPath";
 import { CHARGE_MODELS, CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATE_LIMITS, ESTIMATE_UNITS, INTRODUCIBLE_RESPONSE_STATES, SIMILAR_JOBS, SIMILAR_JOBS_LABELS,
   VISIT_NOTE_LIMIT, isApplicationEstimate, type ApplicationEstimate, type ChargeModel, type SimilarJobs } from "@/lib/companyResponses";
-import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, COMPANY_START_WINDOWS, FIT_RESPONSE_STATES, TESTED_RESPONSE_STATES,
+import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_LABELS, COMPANY_START_LABELS, COMPANY_START_WINDOWS, FIT_RESPONSE_STATES,
   companyQuestionOverdue, companyQuestionWaiting, companyResponseNeedsNote, type CompanyReplyDetails, type CompanyResponseState, type CompanyStartWindow } from "@/lib/companyResponses";
-import { JobCardAnswer } from "@/components/site/JobCardAnswer";
 import { MinimalSiteLayout } from "@/components/site/MinimalSiteLayout";
 import { CompanyTermsPrompt } from "@/components/site/CompanyTermsPrompt";
 import { RobotTeamEarlyAccess } from "@/components/site/RobotTeamEarlyAccess";
 import { jobTitleForDisplay, type CompanyJobPage } from "@/types/taskBrowse";
-import { ESTIMATE_BELOW, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_SURE, NO_SUCCESS_RULE, PACKET_FACTS_PENDING, SIMULATION_WITHOUT_OBJECT,
-  type FitSummaryRow } from "@/lib/companyJobPage";
+import { JOB_PAGE_HEADINGS, JOB_SUMMARY_DOWNLOAD_LABEL, JOB_SUMMARY_UNAVAILABLE, NOTHING_TESTED_AT_SITE, NOT_STATED, NOT_STATED_YET,
+  PACKET_FACTS_PENDING, SIMULATION_DOWNLOAD_HINT, SIMULATION_NOT_FINISHED, SIMULATION_WITHOUT_OBJECT,
+  SITE_ANSWERS_HINT, SITE_DESCRIPTION_CANT_BE_SHOWN, VIDEO_PREPARING, fitRowMarks, fitRowValue, fitRowsShown, jobSummaryFileName,
+  sharedOnInWords, simulationDownloadLabel, type FitSummaryRow } from "@/lib/companyJobPage";
 import { SITE_REPLY_BEING_PREPARED, SITE_REPLY_LIMIT, SUCCESS_RULE_CANT_BE_SHOWN } from "@/lib/companiesRead";
 import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
 import { SIGN_IN_LINK_ENDED, signInWithCompanyLink, takeSignInLinkFromAddress } from "@/lib/companySignInLink";
 import { PartnerApplication } from "@/components/site/PartnerApplication";
 import { COMPANY } from "@/data/company";
 
-/** The job page for a visitor who is not signed in: what the job holds and how to see it (owner, 2026-11-23). */
+/**
+ * The job page for a visitor who is not signed in: what the job holds and how to see it (owner, 2026-11-23). No first
+ * look: it is the site's own, and the company's page does not show it (owner, 2026-11-25).
+ */
 export const GATE_HEADING = "Apply to see this job";
 export const GATE_WHAT_YOU_SEE = "The site shared this job with the robot deployment companies Blueprint approves. Approved companies see:";
 export const GATE_UNLOCKS = [
   "The site's video of the job, without sound, and its description",
   "Its answers about weight, size, rate and hours",
-  "A first look at which kinds of robot most likely fit",
-  "A simulation of the site to test in your own tools, when it is ready",
+  "A simulation of the site to open in your own tools, when it is ready",
 ] as const;
 export const GATE_RETURN = "Apply below. Once you're approved, the link we email you brings you back to this job.";
 /** A declined company opening a job: why it cannot see it, and where to write (stress test, 2026-11-24). */
@@ -59,18 +62,13 @@ function PublicJobFacts({ jobId }: { jobId: string }) {
   return facts ? <p className="company-job-gate-facts">{facts}</p> : null;
 }
 
-/** Said while the sound-free copy of the site's video is not ready. */
 /** The job library: the signed-in list on the companies' page, at its own section. */
 export const JOB_LIBRARY_URL = BROWSE_JOBS_PATH;
-export const VIDEO_PREPARING = "The video is being prepared.";
 /** Under the words box: the site reads them, with the company's identity and people's names taken out first
  * (`jobCompanies.companyWordsForSite`). */
 export const WORDS_REACH_SITE = "The site reads these words, with your company's name, people's names and contact details taken out.";
-export const SIMULATION_NOT_FINISHED = "The simulation of the site is not finished yet.";
-/** Under the simulation's buttons once its download is ready. */
-export const SIMULATION_DOWNLOAD_HINT = "A 3D simulation of the site, to test in your own tools. Open scene.usda first; the README inside explains each file.";
-/** Under the site's quick answers: they are its own statements. */
-export const SITE_ANSWERS_HINT = "The site's own answers. Blueprint has not checked them.";
+/** The page's words the job summary repeats live in `@/lib/companyJobPage`, so the two say the same thing. */
+export { SIMULATION_DOWNLOAD_HINT, SIMULATION_NOT_FINISHED, SITE_ANSWERS_HINT, VIDEO_PREPARING };
 
 /**
  * The video's and the download's addresses carry a short ticket (`expires`, in seconds; `server/utils/
@@ -117,12 +115,13 @@ function dateInWords(value: string): string {
 }
 
 /**
- * The company's page for one job (package E, E3). Everything on it comes from the server's closed payload
- * (`server/utils/companyJobPage.ts`): the site's sentence, its quick answers, the country, the video, what the video
- * shows of the object and how sure each figure is, the first look, and the simulation, each when it exists, and the
- * answer form. The only download offered is the
- * simulation package (E9); the video is played, with its download control hidden (which discourages saving; it cannot
- * prevent it).
+ * The company's page for one job (package E, E3), cut to the one thing a company decides on it: whether to apply (owner,
+ * 2026-11-25). Everything on it comes from the server's closed payload (`server/utils/companyJobPage.ts`): the site's
+ * sentence, its quick answers, the country, the video, what the video shows of the object and how sure each figure is,
+ * and the simulation, each when it exists, and the answer form. No first look: it stays on the site's own pages. Two
+ * downloads are offered: the simulation package (E9) and the job summary, a PDF of the page's words
+ * (`JobSummaryDownload`). The video is played, with its download control hidden (which discourages saving; it cannot
+ * prevent it), so the site keeps custody of it.
  */
 export default function CompanyJob() {
   const { jobId = "" } = useParams();
@@ -252,7 +251,6 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
     <button className="ms-button" onClick={() => setRetry(retry + 1)}>Try again</button></div></div>;
 
   const simulationReady = page.simulationDownload?.state === "ready";
-  const firstLookShown = page.firstLookRows.length > 0 || Boolean(page.firstLook);
   // One column of what the job is, beside the form; the page ends with the form (owner, 2026-11-25: the cards that sat
   // below the form were missed, and took more room than they were worth).
   return <div className="bare-screen company-job company-job-ready" role="region" aria-label="Job">
@@ -261,7 +259,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
     <div className="opportunity-meta">
       {page.country && <span><MapPin size={15} aria-hidden="true" />{page.country}</span>}
       {page.headlineFacts.map(fact => <span key={fact}>{fact}</span>)}
-      {dateInWords(page.publishedAtIso) && <span>Shared {dateInWords(page.publishedAtIso)}</span>}
+      {sharedOnInWords(page.publishedAtIso) && <span>{sharedOnInWords(page.publishedAtIso)}</span>}
     </div>
     {page.aboutSite.length > 0 && <ul className="company-job-about" aria-label="About the site">
       {page.aboutSite.map(line => <li key={line}>{line}</li>)}</ul>}
@@ -269,7 +267,10 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
       {user && <a className="ms-button" href="#answer-this-job">Apply or respond<ArrowDown size={16} aria-hidden="true" /></a>}
       {/* Seen in the browser first, with no download (owner, 2026-11-25). */}
       {page.simulation.state === "ready" && <a className="company-job-download" href={page.simulation.viewerUrl}><Eye size={16} aria-hidden="true" />View the simulation</a>}
-      {page.simulationDownload?.state === "ready" && <a className="company-job-download" href={page.simulationDownload.url} download><Download size={16} aria-hidden="true" />Download the simulation</a>}
+      {/* Named by the package's version and sized, so an old and a new package are never confused (owner, 2026-11-25). */}
+      {page.simulationDownload?.state === "ready" && <a className="company-job-download" href={page.simulationDownload.url}
+        download={page.simulationDownload.fileName ?? ""}><Download size={16} aria-hidden="true" />{simulationDownloadLabel(page.simulationDownload.sizeBytes)}</a>}
+      {user && <JobSummaryDownload user={user} jobId={page.id} onRefused={refreshTickets} />}
     </div>
     {/* What the download holds, or where the simulation stands, in a line under its buttons. */}
     {(simulationReady || page.simulation.state !== "ready") && <section className="company-job-simulation" aria-label="Simulation of the site">
@@ -282,58 +283,51 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
     <div className="company-job-grid">
       <div className="company-job-overview">
         <section aria-label="The job">
-          <h2>The job, in the site's words</h2>
-          {page.sentence ? <blockquote>{page.sentence}</blockquote> : <p>The site's description can't be shown right now.</p>}
-          <div className="company-job-success"><h3>What counts as done</h3><p>{page.successRule || (page.successRulePending ? SUCCESS_RULE_CANT_BE_SHOWN : NO_SUCCESS_RULE)}</p></div>
+          <h2>{JOB_PAGE_HEADINGS.job}</h2>
+          {page.sentence ? <blockquote>{page.sentence}</blockquote> : <p>{SITE_DESCRIPTION_CANT_BE_SHOWN}</p>}
+          {/* Only when the site said, or while its rule is being prepared: no box saying the site has not said. */}
+          {(page.successRule || page.successRulePending) && <div className="company-job-success"><h3>{JOB_PAGE_HEADINGS.done}</h3>
+            <p>{page.successRule || SUCCESS_RULE_CANT_BE_SHOWN}</p></div>}
         </section>
 
         <section aria-label="At a glance">
-          <h2>At a glance</h2>
+          <h2>{JOB_PAGE_HEADINGS.glance}</h2>
           <FitSummary rows={page.fitSummary} />
           {page.fitSummary.some(row => row.state === "stated" || row.state === "unsure") && <p className="ms-field-hint">{SITE_ANSWERS_HINT}</p>}
         </section>
 
         {/* The Pipeline's facts about the object, only once there are some (or while they are being checked). */}
         {(page.packetFacts || page.packetFactsPending) && <section aria-label="The object and how sure we are">
-          <h2>The object, and how sure we are</h2>
+          <h2>{JOB_PAGE_HEADINGS.object}</h2>
           {page.packetFacts ? <>
             {page.packetFacts.object.length > 0 && <ul aria-label="The object and where it goes">
               {page.packetFacts.object.map(line => <li key={line}>{line}</li>)}</ul>}
-            {page.packetFacts.measured.length > 0 && <><h3>Measured</h3>
+            {page.packetFacts.measured.length > 0 && <><h3>{JOB_PAGE_HEADINGS.measured}</h3>
               <ul aria-label="Measured">{page.packetFacts.measured.map(line => <li key={line}>{line}</li>)}</ul></>}
-            {page.packetFacts.estimated.length > 0 && <><h3>Estimated</h3>
+            {page.packetFacts.estimated.length > 0 && <><h3>{JOB_PAGE_HEADINGS.estimated}</h3>
               <ul aria-label="Estimated">{page.packetFacts.estimated.map(line => <li key={line}>{line}</li>)}</ul></>}
           </> : <p role="status">{PACKET_FACTS_PENDING}</p>}
         </section>}
 
         <section aria-label="The video">
-          <h2>The video</h2>
+          <h2>{JOB_PAGE_HEADINGS.video}</h2>
           {page.video.state === "ready"
             ? <CompanyJobVideo url={page.video.url} poster={page.thumbnailUrl ?? undefined} width={page.video.width}
                 height={page.video.height} onTicketEnded={refreshTickets} />
             : <p>{VIDEO_PREPARING}</p>}
         </section>
 
-        {/* Robots on paper, once there are some; nothing while the first look is not ready. */}
-        {firstLookShown && <section aria-label="First look">
-          <h2>First look</h2>
-          {page.firstLookRows.length > 0 && <ul aria-label="Robots on paper">{page.firstLookRows.map((row, index) =>
-            <li key={`${index}-${row.robot}`}>{row.robot ? <strong>{row.robot}: </strong> : null}{row.text}</li>)}</ul>}
-          {page.firstLookMore ? <p className="ms-field-hint">{page.firstLookMore}</p> : null}
-          {page.firstLook ? <JobCardAnswer answer={page.firstLook} titled={false} /> : null}
-        </section>}
-
         {/* The same for every job of its kind, so folded: one line until a company opens it. */}
         <section aria-label="A visit must confirm" className="company-job-visit">
           <details>
-            <summary>What a visit must confirm</summary>
+            <summary>{JOB_PAGE_HEADINGS.visit}</summary>
             <ul aria-label="What a visit must confirm">{page.visitMustConfirm.map(line => <li key={line}>{line}</li>)}</ul>
           </details>
           <p className="ms-field-hint">{NOTHING_TESTED_AT_SITE}</p>
         </section>
       </div>
 
-      {user && <CompanyAnswerForm key={page.id} jobId={page.id} user={user} page={page} tested={simulationReady} />}
+      {user && <CompanyAnswerForm key={page.id} jobId={page.id} user={user} page={page} />}
     </div>
   </div>;
 }
@@ -345,19 +339,58 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
  */
 function FitSummary({ rows }: { rows: FitSummaryRow[] }) {
   if (rows.length === 0) return <p>{NOT_STATED}.</p>;
-  const skipped = rows.filter(row => row.state === "not_stated" && !row.estimateBelow);
-  const shown = rows.filter(row => !skipped.includes(row));
+  const { shown, skipped } = fitRowsShown(rows);
   return <div className="company-fit" aria-label="The site's answers">
     {shown.length > 0 && <dl className="company-fit-summary">{shown.map(row => <div key={row.key}
       className={row.state === "stated" || row.state === "from_video" ? undefined : "company-fit-missing"}>
       <dt>{row.label}</dt>
-      <dd>{row.value ?? (row.state === "unsure" ? NOT_SURE : NOT_STATED)}
-        {row.state === "from_video" && <span className="ms-field-hint">{row.source === "video_estimate" ? " (estimated from the video)" : " (from the video)"}</span>}
-        {row.source === "site_sentence" && <span className="ms-field-hint"> (the site's words)</span>}
-        {row.estimateBelow && <span className="ms-field-hint"> · {ESTIMATE_BELOW}</span>}</dd>
+      <dd>{fitRowValue(row)}{fitRowMarks(row).map(mark => <span key={mark} className="ms-field-hint">{mark}</span>)}</dd>
     </div>)}</dl>}
-    {skipped.length > 0 && <p className="company-fit-skipped"><strong>{NOT_STATED} yet:</strong> {skipped.map(row => row.label).join(" · ")}</p>}
+    {skipped.length > 0 && <p className="company-fit-skipped"><strong>{NOT_STATED_YET}</strong> {skipped.map(row => row.label).join(" · ")}</p>}
   </div>;
+}
+
+/**
+ * How long a saved file's object URL lives after the save starts. Revoking it at once can cancel the save in Safari and
+ * older Firefox; FileSaver.js waits 40 seconds for the same reason (as the job console's package download does).
+ */
+export const SAVED_FILE_URL_REVOKE_DELAY_MS = 40_000;
+
+/**
+ * "Download the job summary (PDF)": the page's words as a PDF a company can forward inside its own team
+ * (`server/utils/companyJobSummary.ts`). Fetched with the account's sign-in (an address alone cannot carry it), under
+ * every check the page itself has, and saved as `job-summary-<short job ref>.pdf`. A refusal (a withdrawn job, the Terms)
+ * reloads the page, which then says why.
+ */
+function JobSummaryDownload({ user, jobId, onRefused }: { user: User; jobId: string; onRefused: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  async function download() {
+    if (busy) return;
+    setBusy(true); setFailed(false);
+    try {
+      const response = await fetch(`/api/site-worlds/jobs/${encodeURIComponent(jobId)}/summary.pdf`, { headers: await withFirebaseAuthHeaders(user) });
+      if (!response.ok) {
+        setFailed(true);
+        if (response.status === 403 || response.status === 404) onRefused();
+        return;
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = jobSummaryFileName(jobId);
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), SAVED_FILE_URL_REVOKE_DELAY_MS);
+    } catch { setFailed(true); }
+    finally { setBusy(false); }
+  }
+  return <>
+    <button type="button" className="company-job-download" onClick={() => void download()} disabled={busy}>
+      <FileText size={16} aria-hidden="true" />{JOB_SUMMARY_DOWNLOAD_LABEL}</button>
+    {failed && <p className="company-job-actions-note ms-field-hint" role="alert">{JOB_SUMMARY_UNAVAILABLE}</p>}
+  </>;
 }
 
 /** Said when the estimate's two ends cannot be read as US dollars from low to high. */
@@ -431,15 +464,16 @@ function CompanyJobVideo({ url, poster, width, height, onTicketEnded }: { url: s
 }
 
 /**
- * The one answer form: the answers and the company's words, with the recorded line under it (E5). Once the simulation
- * can be downloaded it also offers the two tested answers. Nothing is chosen for the company: a first answer starts
- * empty and the browser asks for one; a later visit shows the answer it gave.
+ * The one answer form: Apply, Not a fit or Need more details and the company's words, with the recorded line under it
+ * (E5). It offers no tested answer (owner, 2026-11-25). Nothing is chosen for the company: a first answer starts empty
+ * and the browser asks for one; a later visit shows the answer it gave, and a stored tested answer, which the form no
+ * longer offers, is named above the form and left unchosen.
  */
-function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user: User; page: CompanyJobPage; tested: boolean }) {
+function CompanyAnswerForm({ jobId, user, page }: { jobId: string; user: User; page: CompanyJobPage }) {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const prior = page.myAnswer;
-  const [answer, setAnswer] = useState<CompanyResponseState | null>(prior && (tested || !TESTED_RESPONSE_STATES.includes(prior.state)) ? prior.state : null);
+  const [answer, setAnswer] = useState<CompanyResponseState | null>(prior && FIT_RESPONSE_STATES.includes(prior.state) ? prior.state : null);
   const [inputs, setInputs] = useState(prior?.inputs ?? "");
   const [details, setDetails] = useState<CompanyReplyDetails>(prior?.details ?? {});
   // The estimate's two ends as typed (dollars and cents; a dollar sign and thousands commas allowed), kept apart from the
@@ -448,9 +482,8 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
   const [estimateHigh, setEstimateHigh] = useState(prior?.details?.estimate ? String(prior.details.estimate.highUsd) : "");
   // The answer on record: the page's, then the one just saved, so "You answered" never names an answer it replaced.
   const [mine, setMine] = useState(page.myAnswer);
-  const testedAnswer = answer !== null && TESTED_RESPONSE_STATES.includes(answer);
-  const noteRequired = answer !== null && (testedAnswer || companyResponseNeedsNote(answer));
-  const noteLabel = testedAnswer ? "What did you test?" : noteRequired ? "What details would help you decide?" : "Note to the site";
+  const noteRequired = answer !== null && companyResponseNeedsNote(answer);
+  const noteLabel = noteRequired ? "What details would help you decide?" : "Note to the site";
   const formLabel = "Your response";
   // The field a refusal points at, with a count so the same field is focused again on the next refusal.
   const [invalid, setInvalid] = useState<{ field: AnswerField; n: number } | null>(null);
@@ -509,7 +542,7 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
     <h2>Your response</h2>
     {mine && <p className="ms-field-hint">{mine.state === "interested" ? "You applied" : `You answered “${COMPANY_RESPONSE_LABELS[mine.state]}”`}{mine.updatedAtIso ? ` on ${dateInWords(mine.updatedAtIso)}` : ""}.
       {(mine.state === "interested" || mine.state === "tested_can_do") && mine.statementVersion !== page.responseStatement.version
-        ? " Send it again below so the site sees your company's name, website and any estimate with it." : ""}</p>}
+        ? ` ${mine.state === "interested" ? "Send it again" : "Apply"} below so the site sees your company's name, website and any estimate with it.` : ""}</p>}
     {page.pendingQuestion && <p className="ms-field-hint" role="status">{Date.parse(page.pendingQuestion.replyByIso) <= Date.now()
       ? companyQuestionOverdue(dateInWords(page.pendingQuestion.replyByIso), page.pendingQuestion.reminded)
       : companyQuestionWaiting(dateInWords(page.pendingQuestion.askedAtIso), dateInWords(page.pendingQuestion.replyByIso))}</p>}
@@ -521,7 +554,7 @@ function CompanyAnswerForm({ jobId, user, page, tested }: { jobId: string; user:
     </div>}
     <form onSubmit={submit} className="ms-form" aria-label={formLabel}>
       <fieldset className="company-answer-options"><legend>Will you apply for this job?</legend>
-        {(tested ? [...FIT_RESPONSE_STATES, ...TESTED_RESPONSE_STATES] : FIT_RESPONSE_STATES).map(state => <label key={state}><input type="radio" name="state" value={state} required
+        {FIT_RESPONSE_STATES.map(state => <label key={state}><input type="radio" name="state" value={state} required
           checked={answer === state} onChange={() => choose(state)} /> {COMPANY_RESPONSE_LABELS[state]}</label>)}
       </fieldset>
       <label>{noteLabel}

@@ -19,12 +19,12 @@ const { default: CompanyJob } = await import("@/pages/CompanyJob");
 
 const item = (change: Partial<CompanyJobPage> = {}): CompanyJobPage => ({
   schemaVersion: "company_job_page.v1", id: "job-1", title: "Carton palletizing opportunity", taskFamily: "Pallet handling",
-  headline: "Stack cartons on pallets", headlineFacts: [], fitSummary: [], firstLookStatus: null, simulationStatus: null,
+  headline: "Stack cartons on pallets", headlineFacts: [], fitSummary: [], simulationStatus: null,
   visitMustConfirm: [], aboutSite: [],
   publishedAtIso: "2026-11-12T10:00:00.000Z", sentence: "Stack cartons onto the pallet.", jobFacts: [], country: "United States",
   video: { state: "preparing" }, simulation: { state: "not_finished" },
-  simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?expires=1&signature=a" }, firstLook: null,
-  firstLookRows: [], myAnswer: null, packetFacts: null, notShown: [],
+  simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?expires=1&signature=a" },
+  myAnswer: null, packetFacts: null, notShown: [],
   responseStatement: { version: COMPANY_RESPONSE_STATEMENT_VERSION, text: COMPANY_RESPONSE_STATEMENT }, ...change } as CompanyJobPage);
 const fetchMock = vi.fn();
 const show = (page: CompanyJobPage) => fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ item: page }) });
@@ -51,11 +51,15 @@ describe("the facts about the object", () => {
 });
 
 describe("a simulation without the job's object", () => {
-  it("is said beside the download, and the tested answers are still offered", async () => {
+  // Owner, 2026-11-25: what the download holds, and no invitation to test it and say so in the answer (no tested answers).
+  it("is said beside the download, with nothing asking what the company tested", async () => {
     show(item({ simulationDownload: { state: "ready", url: "/api/company-media/jobs/job-1/simulation.zip?expires=1&signature=a", objectIncluded: false } }));
     render(<CompanyJob />);
-    expect(await screen.findByText(SIMULATION_WITHOUT_OBJECT)).toBeInTheDocument();
-    expect(screen.getByLabelText("Tested it: can do")).toBeInTheDocument();
+    expect(await screen.findByRole("note")).toHaveTextContent(/^This simulation is the site's room without the job's object in it\.$/);
+    expect(screen.getByText(SIMULATION_WITHOUT_OBJECT)).toBeInTheDocument();
+    expect(screen.queryByText(/what you tested|stand-in/)).toBeNull();
+    expect(screen.queryByLabelText("Tested it: can do")).toBeNull();
+    expect(screen.queryByLabelText("Tested it: cannot yet")).toBeNull();
   });
 
   it("is not said for a package with the object", async () => {

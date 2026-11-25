@@ -101,6 +101,7 @@ test("a signed-in company opens a job from the library, watches the video and an
   const errors = await blockOutside(page);
   const answers: unknown[] = [];
   const videoRequests: string[] = [];
+  const summaryRequests: string[] = [];
   const statement = "The site is told your answer. If you answer Interested or Tested it: can do and the site asks for an introduction, we give the site your company's name and your contact details, and give you theirs.";
   const videoUrl = `/api/company-media/jobs/${JOB}/video.mp4?capture=walkthrough-${JOB}&viewer=${NORTH}&expires=1&signature=x`;
   await page.route("**/api/**", async route => {
@@ -121,14 +122,18 @@ test("a signed-in company opens a job from the library, watches the video and an
       fitSummary: [{ key: "weight", label: "Weight", value: "5 to 15 kg (11 to 33 lb)", state: "stated" },
         { key: "perHour", label: "Times an hour", value: null, state: "not_stated" },
         { key: "hours", label: "Hours a day", value: "Two shifts", state: "stated" }],
-      firstLookStatus: null, simulationStatus: "The simulation is being built from the site's video.",
+      simulationStatus: "The simulation is being built from the site's video.",
       visitMustConfirm: ["How pallets arrive, where they are staged and how full ones leave."],
       aboutSite: ["The site's name, street address and contact details come only with an introduction the site asks for."],
       video: { state: "ready", url: videoUrl, width: 640, height: 360, durationSeconds: 1 },
-      simulation: { state: "not_finished" }, firstLook: null,
-      firstLookRows: [{ verdict: "conditional", text: "Fits if the item weighs under 20 kg.", robot: "Universal Robots UR20" }],
-      packetFacts: null,
+      simulation: { state: "not_finished" }, packetFacts: null,
       myAnswer: null, responseStatement: { version: "company-response-2026-11-12", text: statement } } } });
+    // The job summary (owner, 2026-11-25): the page's words as a PDF, behind the page's own checks.
+    if (url.pathname === `/api/site-worlds/jobs/${JOB}/summary.pdf`) {
+      summaryRequests.push(request.method());
+      return route.fulfill({ status: 200, headers: { "content-type": "application/pdf", "cache-control": "private, no-store",
+        "content-disposition": 'attachment; filename="job-summary-c1.pdf"' }, body: Buffer.from("%PDF-1.4\n%%EOF\n") });
+    }
     if (url.pathname === `/api/company-media/jobs/${JOB}/video.mp4`) {
       videoRequests.push(url.search);
       return route.fulfill({ status: 200, headers: { "content-type": "video/mp4", "cache-control": "private, no-store" }, body: Buffer.from("not-a-real-mp4") });
@@ -154,6 +159,9 @@ test("a signed-in company opens a job from the library, watches the video and an
   // A skipped question is named on one line under the answers, not given a row (owner, 2026-11-25).
   await expect(glance.getByText("Not stated yet: Times an hour")).toBeVisible();
   await expect(page.getByText("The simulation is being built from the site's video.")).toBeVisible();
+  // Cut to whether to apply (owner, 2026-11-25): no first look, and no "What counts as done" box the site left empty.
+  await expect(page.getByRole("region", { name: "First look" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "What counts as done" })).toHaveCount(0);
   // The visit list is the same for every job of its kind: folded to one line until opened (owner, 2026-11-25).
   await expect(page.getByRole("list", { name: "What a visit must confirm" })).toBeHidden();
   await page.getByText("What a visit must confirm", { exact: true }).click();
@@ -163,16 +171,26 @@ test("a signed-in company opens a job from the library, watches the video and an
   await expect(video).toHaveAttribute("controlsList", /nodownload/);
   await expect.poll(() => videoRequests.length).toBeGreaterThan(0);
 
+  // The job summary saves as a PDF named by a short job reference, from the top row, with nothing of the site in its name.
+  const summary = page.getByRole("button", { name: "Download the job summary (PDF)" });
+  await expect(summary).toBeVisible();
+  const [saved] = await Promise.all([page.waitForEvent("download"), summary.click()]);
+  expect(saved.suggestedFilename()).toBe("job-summary-c1.pdf");
+  expect(summaryRequests).toEqual(["GET"]);
+
   // Back at the top, as a company arrives on the page at phone width.
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.setViewportSize({ width: 390, height: 844 });
   const answerLink = page.getByRole("link", { name: "Apply or respond", exact: true });
   await expect(answerLink).toBeInViewport();
+  await expect(summary).toBeInViewport();
   await answerLink.click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const form = page.getByRole("form", { name: "Your response" });
   await expect(form).toBeInViewport();
   await expect(form.getByText(statement, { exact: true })).toBeVisible();
+  await expect(form.getByRole("radio")).toHaveCount(3);
+  await expect(form.getByLabel(/Tested it/)).toHaveCount(0);
   await form.getByLabel("Apply").check();
   await form.getByRole("textbox", { name: "Note to the site" }).fill("We palletize cartons like these today.");
   await form.getByRole("button", { name: "Send" }).click();

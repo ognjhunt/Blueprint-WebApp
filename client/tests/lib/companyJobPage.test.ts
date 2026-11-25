@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { VISIT_MUST_CONFIRM, answerSpeedInWords, fitSummary, jobHeadline, publicJobKind, rateInWords, visitMustConfirm } from "@/lib/companyJobPage";
+import { VISIT_MUST_CONFIRM, answerSpeedInWords, fitRowMarks, fitRowValue, fitRowsShown, fitSummary, jobHeadline, jobSummaryFileName,
+  publicJobKind, rateInWords, sharedOnInWords, simulationDownloadLabel, visitMustConfirm, type FitSummaryRow } from "@/lib/companyJobPage";
 import { READER_JOB_KINDS } from "@/lib/jobFacts";
 
 /**
@@ -54,6 +55,43 @@ describe("the fit summary", () => {
     expect(rateInWords({ perHour: "60_300", hours: "two_shifts", updatedAtIso: "" })).toEqual(["60 to 300 times an hour", "Two shifts"]);
     expect(rateInWords({ perHour: "unsure", updatedAtIso: "" })).toEqual([]);
     expect(rateInWords(null)).toEqual([]);
+  });
+});
+
+describe("At a glance as the page and the job summary show it", () => {
+  const rows: FitSummaryRow[] = [
+    { key: "object", label: "Object", value: "cartons", state: "from_video" },
+    { key: "brief:weight", label: "Weight", value: "about 9 kg", state: "from_video", source: "video_estimate" },
+    { key: "brief:what", label: "What", value: "“blue cartons”", state: "stated", source: "site_sentence" },
+    { key: "perHour", label: "Times an hour", value: null, state: "not_stated", estimateBelow: true },
+    { key: "hours", label: "Hours a day", value: null, state: "unsure" },
+    { key: "size", label: "Size", value: null, state: "not_stated" },
+  ];
+
+  it("says each row's value and its marks, and names the skipped questions apart", () => {
+    expect(rows.map(row => `${fitRowValue(row)}${fitRowMarks(row).join("")}`)).toEqual([
+      "cartons (from the video)", "about 9 kg (estimated from the video)", "“blue cartons” (the site's words)",
+      "Not stated · Blueprint's estimate is below", "Not sure", "Not stated"]);
+    const { shown, skipped } = fitRowsShown(rows);
+    expect(shown.map(row => row.label)).toEqual(["Object", "Weight", "What", "Times an hour", "Hours a day"]);
+    expect(skipped.map(row => row.label)).toEqual(["Size"]);
+  });
+});
+
+describe("the job page's downloads", () => {
+  it("says the simulation's size in whole megabytes, under one megabyte as that, and nothing it does not know", () => {
+    expect(simulationDownloadLabel(170_400_000)).toBe("Download the simulation (170 MB)");
+    expect(simulationDownloadLabel(170_600_000)).toBe("Download the simulation (171 MB)");
+    expect(simulationDownloadLabel(536_870_912)).toBe("Download the simulation (537 MB)");
+    expect(simulationDownloadLabel(400_000)).toBe("Download the simulation (under 1 MB)");
+    for (const unknown of [undefined, null, 0, Number.NaN]) expect(simulationDownloadLabel(unknown)).toBe("Download the simulation");
+  });
+
+  it("names the job summary by a short job reference, and says the day the job was shared", () => {
+    expect(jobSummaryFileName("capture-6f0c2a1e-3b7d-4c55-9e21-8a4d0b6c1f99")).toBe("job-summary-6f0c2a1e.pdf");
+    expect(sharedOnInWords("2026-11-12T10:00:00.000Z")).toBe("Shared November 12, 2026");
+    expect(sharedOnInWords("")).toBe("");
+    expect(sharedOnInWords("not a date")).toBe("");
   });
 });
 

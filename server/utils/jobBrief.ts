@@ -4,10 +4,12 @@
  *
  * What it is written from is only what the job record already holds: the site's sentence and success rule, the video
  * reading (kind, object, other items, the link reading's summary and what it could not see, the estimates), the site's
- * quick answers and the catalog of quick questions. Text only, on the small tier at low effort. The digest of those
- * inputs (`jobBriefDigest`) is stored with the brief; a brief whose digest no longer matches is not used, and a new one
- * is written. The site's quick answers are sent as context but are not in the digest, so answering a question never
- * rewrites the questions being answered.
+ * quick answers and the catalog of quick questions; and the lessons from companies' answers on earlier jobs of the same
+ * kind (`jobBriefLessons.ts`). Text only, on the small tier at low effort. The digest of those inputs (`jobBriefDigest`)
+ * is stored with the brief; a brief whose digest no longer matches is not used, and a new one is written. The site's
+ * quick answers are sent as context but are not in the digest, so answering a question never rewrites the questions
+ * being answered. Nor are the lessons: a brief already written stays as it is when the lessons of its kind change (no
+ * job's brief is written again because another company answered another job); the next brief written reads them.
  *
  * When it runs: the coverage review starts it once the walkthrough's reading is stored (`captureCoverageReview.ts`), and
  * the company's job page and the site's job page start it, without waiting, for a job that has a reading and no current
@@ -93,7 +95,8 @@ function sourcesOf(record: Record<string, any> | null | undefined, brief: { summ
 /**
  * The digest of what a brief is written from: the site's sentence and success rule as stored, the reading, its
  * estimates, the link reading's words and the catalog's questions. A change to any of them is a new brief. The site's
- * quick answers are not in it.
+ * quick answers are not in it, and neither are the lessons (`JobBriefInput.lessons`): existing briefs are not written
+ * again when the lessons change.
  */
 export function jobBriefDigest(sources: JobBriefSources): string {
   return createHash("sha256").update(JSON.stringify([JOB_BRIEF_SCHEMA_VERSION, sources.sentence, sources.successRule,
@@ -164,8 +167,12 @@ const ESTIMATE_VALUES: ReadonlyArray<[JobBriefEstimateField, (estimates: JobBrie
   ["cycle_seconds", e => e.cycleSeconds],
 ];
 
-/** The lane's input: only data already held, the site's words and the reading's names through the deterministic pass. */
-function taskInputOf(record: Record<string, any>, sources: JobBriefSources, known: Parameters<typeof siteWordsDeterministic>[1]): JobBriefInput {
+/**
+ * The lane's input: only data already held, the site's words and the reading's names through the deterministic pass, and
+ * the lessons of the job's kind as read (context only: not in the digest).
+ */
+function taskInputOf(record: Record<string, any>, sources: JobBriefSources, known: Parameters<typeof siteWordsDeterministic>[1],
+  lessons: JobBriefInput["lessons"]): JobBriefInput {
   const plain = (text: string) => siteWordsDeterministic(text, known).replace(/\s+/g, " ").trim();
   const facts = readJobFacts(record);
   const videoEstimates: JobBriefInput["videoEstimates"] = {};
@@ -186,6 +193,7 @@ function taskInputOf(record: Record<string, any>, sources: JobBriefSources, know
       return answer ? [{ key, answer }] : [];
     }),
     catalog: JOB_FACT_KEYS.map(key => ({ key, label: JOB_FACT_SHORT_LABELS[key], question: JOB_FACT_QUESTIONS[key] })),
+    lessons,
   };
 }
 
@@ -345,9 +353,10 @@ async function writeOnce(requestId: string): Promise<StoredJobBrief | null> {
   // Without the site's identity its words cannot go through the deterministic pass: nothing is sent this time.
   const known = await knownSiteIdentity(record).catch(() => null);
   if (!known) return null;
-  const input = taskInputOf(record, sources, known);
-  const [{ jobBriefTask }, { laneRunMaximumUsd, settleJobLaneSpend }] = await Promise.all([
-    import("../agents/tasks/job-brief"), import("./jobLaneSpend")]);
+  const [{ jobBriefTask }, { laneRunMaximumUsd, settleJobLaneSpend }, { lessonsForJobBrief }] = await Promise.all([
+    import("../agents/tasks/job-brief"), import("./jobLaneSpend"), import("./jobBriefLessons")]);
+  // The lessons of the job's kind as they are now: read for this run only, never part of the digest.
+  const input = taskInputOf(record, sources, known, await lessonsForJobBrief(sources.reading.kind));
   const maximumUsd = await laneRunMaximumUsd("job_brief", Buffer.byteLength(jobBriefTask.build_prompt(input), "utf8"),
     { scripted: Boolean(writerOverride) });
   if (maximumUsd === null) return null;

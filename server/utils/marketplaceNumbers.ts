@@ -42,7 +42,7 @@
  */
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { INTRODUCIBLE_RESPONSE_STATES, isCompanyResponseState, type CompanyResponseState } from "../../client/src/lib/companyResponses";
-import { OUTCOME_STATES, OUTCOME_STATE_LABELS } from "../../client/src/lib/jobOutcomeStates";
+import { EARLIER_OUTCOME_STATES, OUTCOME_STATES, OUTCOME_STATE_LABELS } from "../../client/src/lib/jobOutcomeStates";
 import type { MarketplaceDuration, MarketplaceJobRow, MarketplaceJobSpend, MarketplaceLaneSpend, MarketplaceNumbers,
   MarketplaceOutcomeRow, MarketplaceShare, MarketplaceStep, MarketplaceUsdSpread, MarketplaceUse, MarketplaceWindow }
   from "../../client/src/types/marketplaceNumbers";
@@ -168,6 +168,9 @@ export const OUTCOME_READERS: readonly OutcomeReader[] = [
   { key: "pilot", label: "Pilot (marked by the site)", recorded: introduction => Boolean(instant(object(introduction.progress).pilotAtIso)) },
   ...OUTCOME_STATES.map((state): OutcomeReader => ({ key: `answer_${state}`, label: OUTCOME_STATE_LABELS[state],
     recorded: introduction => outcomesOf(introduction).some(record => record.state === state) })),
+  // Answers the follow-up offered before 2026-11-25 still count where they were given.
+  ...EARLIER_OUTCOME_STATES.map((state): OutcomeReader => ({ key: `answer_${state}`, label: `${OUTCOME_STATE_LABELS[state]} (earlier answer)`,
+    recorded: introduction => outcomesOf(introduction).some(record => record.state === state) })),
 ];
 
 /** The ledgers the cap counts, as the page names them; model lanes are `model_lane:<lane>`. */
@@ -181,6 +184,7 @@ const MODEL_LANE_LABELS: Readonly<Record<string, string>> = {
   free_text_redaction: "Checking words for names and contact details",
   site_task_follow_up: "Follow-up question picker",
   job_brief: "Job brief",
+  job_brief_lesson: "Lessons from companies' answers",
 };
 const laneLabel = (key: string) => LEDGER_LABELS.find(([ledger]) => ledger === key)?.[1]
   ?? (key.startsWith("model_lane:") ? MODEL_LANE_LABELS[key.slice(11)] ?? `Model lane: ${key.slice(11) || "unnamed"}` : key);

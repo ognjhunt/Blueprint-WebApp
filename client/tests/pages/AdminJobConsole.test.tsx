@@ -38,7 +38,8 @@ const testJob: AdminJobDetail = {
   standing: { phase: "simulation_ready", phrase: "Simulation ready", siteSees: null, companies: null,
     pipeline: "The Pipeline reports: the simulation package is published." },
   simulationPackageUrl: "/api/admin/jobs/job-t/simulation.zip",
-  simulationPackage: { files: ["README.txt", "scene.usda"], sizeBytes: 2_000_000, builtAtIso: "2026-11-16T21:40:00.000Z" },
+  simulationPackage: { files: ["README.txt", "scene.usda"], sizeBytes: 2_000_000, builtAtIso: "2026-11-16T21:40:00.000Z",
+    fileName: "simulation-job-t-1a2b3c4d.zip" },
   scenePreviewViewUrl: null,
   cost: { spentOrHeldUsd: 18.42, unreadable: [] },
   stops: [],
@@ -240,6 +241,8 @@ describe("a job's page", () => {
       fireEvent.click(button);
       await vi.waitFor(() => expect(clicked).toHaveBeenCalledTimes(1));
       expect(createObjectURL).toHaveBeenCalledTimes(1);
+      // Saved under the job's id and the package's version (owner, 2026-11-25), never a name two packages could share.
+      expect((clicked.mock.contexts[0] as HTMLAnchorElement).download).toBe("simulation-job-t-1a2b3c4d.zip");
       const [, init] = fetchMock.mock.calls.find(([url]) => String(url) === zip)!;
       expect((init as RequestInit).headers).toMatchObject({ Authorization: "Bearer token" });
       // The save gets time to start: the object URL is not revoked with the click, only after the delay.

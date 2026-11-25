@@ -1,6 +1,6 @@
 /**
- * The thank-you page after an outcome answer is recorded (PACKAGE_E E8). It shows the answer and
- * nothing else: no job, no name, no company.
+ * The thank-you page after an outcome answer is recorded (PACKAGE_E E8). It shows the answer (and the reason given with
+ * "Not going ahead") and nothing else: no job, no name, no company.
  */
 import { OUTCOME_STATE_LABELS, isOutcomeState, outcomeThanks } from "@/lib/jobOutcomeStates";
 
@@ -9,11 +9,13 @@ import { OUTCOME_STATE_LABELS, isOutcomeState, outcomeThanks } from "@/lib/jobOu
 export const outcomeAlreadyRecorded = (label: string) => `You already told us: ${label}. Nothing more is needed.`;
 
 export function outcomeThanksSentence(search: string): string {
-  let answer: string | null = null, already: string | null = null;
-  try { const params = new URLSearchParams(search); answer = params.get("answer"); already = params.get("already"); }
-  catch { answer = null; }
+  let answer: string | null = null, already: string | null = null, reason: string | null = null;
+  try {
+    const params = new URLSearchParams(search);
+    answer = params.get("answer"); already = params.get("already"); reason = params.get("reason");
+  } catch { answer = null; }
   if (isOutcomeState(already)) return outcomeAlreadyRecorded(OUTCOME_STATE_LABELS[already]);
-  return isOutcomeState(answer) ? outcomeThanks(answer) : "Thanks.";
+  return isOutcomeState(answer) ? outcomeThanks(answer, reason) : "Thanks.";
 }
 
 export default function JobOutcomeThanks() {
