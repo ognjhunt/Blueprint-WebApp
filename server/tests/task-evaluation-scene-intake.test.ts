@@ -483,6 +483,54 @@ describe("the website job window is one policy value", () => {
   });
 });
 
+it("takes a several-object job's further objects from the Pipeline's own intake only, and forwards them as sent", async () => {
+  sponsoredCapture();
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+  const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+  });
+  const grant = await (await post("scene-sponsorship")).json();
+  const further = [
+    { rank: 2, subject: { description: "tote", geometry_origin: "removed_before_reconstruction" } },
+    { rank: 4, subject: { description: "carton", geometry_origin: "synthetic_design" } },
+  ];
+  const request = (additional_objects: unknown) => ({
+    schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
+    owner: grant.owner, consent: grant.consent,
+    source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
+    task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
+      subject: { description: "box", geometry_origin: "removed_before_reconstruction" }, additional_objects },
+    execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
+      max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
+      allowed_providers: ["vast", "openai"] },
+  });
+  // Ranks out of order or repeated, an empty or over-long list, a field the contract does not name, an object of
+  // another origin, a test environment on a further object: each refused before anything is queued.
+  for (const bad of [
+    [further[1], further[0]], [further[0], further[0]], [],
+    Array.from({ length: 8 }, (_, index) => ({ rank: index + 2, subject: further[0].subject })),
+    [{ ...further[0], rank: 1 }], [{ ...further[0], pose: [0, 0, 0] }],
+    [{ rank: 2, subject: { description: "tote", geometry_origin: "captured_mesh" } }],
+    [{ rank: 2, subject: { ...further[0].subject, test_environment: {} } }],
+  ]) expect((await post("prepared-scene", { request: request(bad) })).status, JSON.stringify(bad)).not.toBe(202);
+  expect([...store.rows.keys()].filter(key => key.startsWith("taskEvaluationSceneIntakes/"))).toHaveLength(0);
+
+  const accepted_ = request(further);
+  expect((await post("prepared-scene", { request: accepted_ })).status).toBe(202);
+  const fetcher = vi.fn(async (_url: any, init: any) => new Response(JSON.stringify(accepted(JSON.parse(init.body)))));
+  vi.stubGlobal("fetch", fetcher);
+  await processSceneIntakeQueue();
+  expect(stored()[1].state).toBe("accepted");
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual(accepted_);
+
+  // The public command never names them: a release that does not build them would ignore them.
+  const { sceneIntakeCommand } = await import("../utils/taskEvaluationSceneIntake");
+  expect(sceneIntakeCommand.safeParse({ ...command(), task: { ...command().task, additional_objects: further } }).success)
+    .toBe(false);
+  expect(sceneIntakeCommand.safeParse(command()).success).toBe(true);
+});
+
 it("derives a supplementary preparation binding without renewing the original allowance or expiry", async () => {
   sponsoredCapture();
   const root = await loadWebsiteSceneSponsorship("req1", true);

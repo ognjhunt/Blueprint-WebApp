@@ -249,6 +249,49 @@ const sceneExecution = z.object(sceneExecutionFields).strict().superRefine(scene
 export const websiteSceneExecution = z.object({ ...sceneExecutionFields,
   automatic_budget_extension: z.literal(true).optional() }).strict().superRefine(scenePolicyCandidatesMatchPurpose);
 
+const pickAndPlaceFields = {
+  task_id: identifier,
+  strategy: z.literal("pick_and_place"),
+  subject: mapping,
+  support: mapping,
+  destination: taskDestination,
+  success: taskSuccess,
+};
+const articulatedTask = z
+  .object({
+    task_id: identifier,
+    strategy: z.literal("articulated_open_close"),
+    subject: mapping,
+    support: mapping,
+    articulation: taskArticulation,
+    success: articulatedTaskSuccess,
+  })
+  .strict();
+
+/** The most further objects one job builds besides its scored one: the build plan ranks up to eight. */
+export const ADDITIONAL_OBJECTS_MAX = 7;
+/**
+ * The further objects a several-object job builds and composes back into the scene besides `task.subject`, the
+ * top-ranked object the success rule scores (owner, 2026-11-25: "the success rule scores the top-ranked object and
+ * says so"). Each names its rank in the job's build plan (2 to 8, rising; a rank left out is an object left in the
+ * scan as filmed) and a subject of the same kind as `task.subject`. Left out entirely for a one-object job, so its
+ * request and digests are unchanged. Only the Pipeline's own sponsored intake may name it
+ * (`sponsoredSceneRequest`, `validateWebsiteSponsoredIntake`); the public command may not, since a Pipeline release
+ * that does not build them would ignore them.
+ */
+export const additionalObjects = z
+  .array(z.object({ rank: z.number().int().min(2).max(ADDITIONAL_OBJECTS_MAX + 1), subject: mapping }).strict())
+  .min(1)
+  .max(ADDITIONAL_OBJECTS_MAX)
+  .refine((rows) => rows.every((row, index) => index === 0 || row.rank > rows[index - 1].rank),
+    { message: "Further objects are listed by rank, each once." });
+/** A pick-and-place task as the Pipeline's own sponsored intake sends it, with any further objects. */
+export const sponsoredSceneTask = z.discriminatedUnion("strategy", [
+  taskFamilyIntakeTask,
+  z.object({ ...pickAndPlaceFields, additional_objects: additionalObjects.optional() }).strict(),
+  articulatedTask,
+]);
+
 export const sceneIntakeCommand = z
   .object({
     submission_id: identifier,
@@ -257,26 +300,8 @@ export const sceneIntakeCommand = z
     collision_same_frame_confirmed: z.literal(true).optional(),
     task: z.discriminatedUnion("strategy", [
       taskFamilyIntakeTask,
-      z
-        .object({
-          task_id: identifier,
-          strategy: z.literal("pick_and_place"),
-          subject: mapping,
-          support: mapping,
-          destination: taskDestination,
-          success: taskSuccess,
-        })
-        .strict(),
-      z
-        .object({
-          task_id: identifier,
-          strategy: z.literal("articulated_open_close"),
-          subject: mapping,
-          support: mapping,
-          articulation: taskArticulation,
-          success: articulatedTaskSuccess,
-        })
-        .strict(),
+      z.object(pickAndPlaceFields).strict(),
+      articulatedTask,
     ]),
     execution: sceneExecution,
     consent: z
@@ -471,7 +496,7 @@ type SceneIntakeRequest = {
   owner: ReturnType<typeof sceneOwner>;
   source: { kind: "mesh" | "gaussian_splat" | "capture_bundle" | "public_scene"; binding_id: string; content_digest: string;
     collision_mesh?: { binding_id: string; content_digest: string; rights_reference: string; frame_relation: "owner_declared_common_frame" } };
-  task: z.infer<typeof sceneIntakeCommand>["task"];
+  task: z.infer<typeof sceneIntakeCommand>["task"] | z.infer<typeof sponsoredSceneTask>;
   execution: z.infer<typeof sceneIntakeCommand>["execution"];
   consent: z.infer<typeof sceneIntakeCommand>["consent"] & { rights_reference: string; accepted_by: string; accepted_at_epoch: number };
 };
