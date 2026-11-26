@@ -150,6 +150,13 @@ it("cannot inherit Meta or Google disclosure from the Atlas/OpenAI source approv
   expect(state.writes).toHaveLength(1);
 });
 
+it("never admits a reservation that asks for a hold ahead it does not count", async () => {
+  await authorize();
+  await expect(reserveOwnedCaptureAtlasSpend(state.record.session_id, binding,
+    { ...spend("c", 1, "openai"), held_ahead_usd: 20 })).rejects.toThrow("provider_not_authorized");
+  expect(state.writes).toHaveLength(1);
+});
+
 it.each(["authorization", "reservation"])(
   "local-only privacy overrides external-processing/provider flags during %s", async operation => {
     if (operation === "reservation") await authorize();

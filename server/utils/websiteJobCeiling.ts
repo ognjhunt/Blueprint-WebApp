@@ -24,6 +24,9 @@
  * reservation, in the plan's order (Pipeline `website_build_budget`). This check admits each while it fits; one
  * refused here, or by the native ledger's paid-request count (which refuses with the same code), and every
  * lower-ranked generated one, the Pipeline keeps as filmed, named, as "the job reached its limit on paid work".
+ * The Pipeline reserves them before the scan is reconstructed, so each names what the scored object still needs
+ * (`held_ahead_usd`: its scene intake's allowance and the scan's share left), which the reservation counts beside its
+ * quote here and never holds (`reserveWebsitePreparationSpend`): a further object never takes the scored one's money.
  */
 import capContract from "../../contracts/pipeline/website-job-spend-cap.v1.json";
 import { parseBetaPolicyScreeningPublication, screeningMoneyMicros, SCREENING_LEGACY_SITE_LIMIT_USD } from "./betaPolicyScreeningContract";

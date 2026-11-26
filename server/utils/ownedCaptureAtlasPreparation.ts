@@ -150,7 +150,9 @@ export async function reserveOwnedCaptureAtlasSpend(captureId: string, input: Co
     if (command.task_context_digest !== binding.task_context_digest || command.source_video_digest !== binding.source_video_digest)
       throw new Error("owned_capture_atlas_spend_binding_invalid");
     if (!(command.provider === "world_labs_atlas" && command.resource_class === "provider_reconstruction_api"
-      || command.provider === "openai" && command.resource_class === "openai_api_candidate") || command.atlas_auxiliary)
+      || command.provider === "openai" && command.resource_class === "openai_api_candidate") || command.atlas_auxiliary
+      // A hold ahead is a website job's (its scored object's allowance under the job's cap): this ledger never counts one.
+      || command.held_ahead_usd !== undefined)
       throw new Error("owned_capture_atlas_provider_not_authorized");
     const reservations = control.reservations || {}, key = command.allocation_binding_digest.slice(7);
     if (reservations[key]) {

@@ -2063,6 +2063,32 @@ it("reserves image edits and SAM against the same sponsor cap and checks the sel
   await expect(reserveWebsitePreparationSpend("req1", image)).rejects.toThrow("provider_terms_not_configured_or_changed");
 });
 
+// Several objects per job, stage 6 (owner decision 2026-11-23): a further object's $12 ARTISAN reservation is checked
+// with what the scored object still needs counted beside it (`held_ahead_usd`), never written as a hold.
+it("refuses a further object's reservation that would take the scored object's allowance, and holds only its quote", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  spentElsewhere(8);  // the scan so far
+  const ceiling = (additionalCostUsd: number) => assertWithinWebsiteJobCeiling({
+    record: store.rows.get("inboundRequests/req1"), additionalCostUsd,
+    reader: transactionJobLedgerReader(dbAdmin as any, { get: (ref: any) => ref.get() }, "req1") });
+  // The scored object's scene intake will hold its $20 allowance; held ahead, $8 + $12 + $20 fits the job's $40.
+  const extra = (key: string) => ({ task_context_digest: grant.task_context_digest, allocation_binding_digest: sha(key),
+    resource_class: "openai_api_candidate" as const, provider: "openai" as const, maximum_cost_usd: 12, request_count: 1,
+    held_ahead_usd: grant.max_total_spend_usd });
+  const first = await reserveWebsitePreparationSpend("req1", extra("c"));
+  expect(first).toMatchObject({ status: "admitted", maximum_cost_usd: 12, held_ahead_usd: 20 });
+  expect(await reserveWebsitePreparationSpend("req1", extra("c"))).toEqual({ ...first, status: "already_reserved" });
+  await expect(reserveWebsitePreparationSpend("req1", { ...extra("c"), held_ahead_usd: 19 })).rejects.toThrow("idempotency_conflict");
+  // A second $12 would leave $8 for an allowance of $20: refused, though without the hold ahead it would fit.
+  await expect(reserveWebsitePreparationSpend("req1", extra("d"))).rejects.toThrow("budget_exhausted");
+  const { held_ahead_usd: _held, ...plain } = extra("d");
+  await ceiling(plain.maximum_cost_usd);
+  // Nothing of the hold ahead is held: the job counts $8 and the first row's $12, so the scored object's intake fits.
+  expect((await ceiling(20)).spend.total_micros).toBe(20_000_000);
+  await expect(ceiling(20.000001)).rejects.toThrow("website_scene_preparation_budget_exhausted");
+});
+
 it("funds a single Marble operation from the same upstream cap with explicit World Labs terms", async () => {
   sponsoredCapture();
   const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
