@@ -509,6 +509,11 @@ export const preparationSpendRequest = z.object({
   source_video_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(),
   atlas_auxiliary: z.literal(true).optional(),
   maximum_cost_usd: money, request_count: z.number().int().min(1).max(32),
+  // Several objects per job, stage 6 (owner decision 2026-11-23): what the job's scored object still needs from its
+  // cap (its scene intake's allowance, not yet held, and the scan's share left), counted beside this quote when the
+  // cap is checked and never written as a hold, so a further object's reservation never takes that money. Echoed on
+  // the admission: a WebApp that answers without it never counted it.
+  held_ahead_usd: money.optional(),
 }).strict().refine(value => (["meta", "google"].includes(value.provider) && value.resource_class === "evaluator_api")
   || (value.provider === "openai" && value.resource_class === "openai_api_candidate")
   || (["world_labs", "world_labs_atlas"].includes(value.provider) && value.resource_class === "provider_reconstruction_api")
@@ -968,8 +973,11 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       throw new Error("website_scene_preparation_budget_exhausted");
     // Owner decision 2026-11-19, one cap at $40: what the job already spent or holds on every ledger (every
     // provider, every retry), plus this call's quote, must fit under the job's cap. It is the only dollar check.
+    // A further object's reservation also counts what the scored object still needs (`held_ahead_usd`): checked
+    // here, never held, so the row below counts only its own quote.
     const job = await checkWebsiteJobCeiling({ record,
-      reader: transactionJobLedgerReader(store, transaction, requestId), additionalCostUsd: command.maximum_cost_usd });
+      reader: transactionJobLedgerReader(store, transaction, requestId),
+      additionalCostUsd: command.maximum_cost_usd + (command.held_ahead_usd ?? 0) });
     // A record whose figure cannot be read is counted as unbounded (so nothing more is admitted) and reported
     // once per job, whatever this admission decides (so a refusal records it too).
     const recordUnreadable = await websiteJobSpendUnreadableAlert(store, transaction, requestId, job.spend,
