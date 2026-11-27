@@ -36,7 +36,8 @@ vi.stubGlobal("fetch", fetchSpy);
 
 const slack = await import("../utils/slack");
 const early = await import("../utils/robotTeamEarlyAccess");
-const { notifyOwnerOfApplication } = await import("../utils/ownerApplicationNotice");
+const { notifyOwnerOfApplication, OWNER_APPLICATION_EMAIL_DAILY_CAP, OWNER_APPLICATION_EMAIL_LAST_LINES } =
+  await import("../utils/ownerApplicationNotice");
 const { remindWaitingAccessApplications } = await import("../utils/accessApplicationReminder");
 const { checkNewCompanyApplication } = await import("../utils/companyCheck");
 const { deliverOutbox } = await import("../utils/captureOutbox");
@@ -135,6 +136,54 @@ describe("with no Slack webhook set", () => {
     expect(record.status).toBe("applied");
     expect(record.companyCheck).toMatchObject({ outcome: "needs_owner", reasons: ["webmail"] });
     expect(ownerRows()).toEqual([]);
+  });
+});
+
+// Review, 2026-11-27: the owner's emails share the plan customers' emails use (100 a day), and the form has no global
+// cap. A burst of applications queues at most the day's ceiling; the last one says so; every application is still saved.
+describe("the daily ceiling on the owner's application emails", () => {
+  const burst = (count: number) => Array.from({ length: count }, (_, index) => `ops${index}@burst.example.com`);
+
+  it("a burst of applications queues at most the ceiling, the last one says no more today, and each is still saved", async () => {
+    expect(OWNER_APPLICATION_EMAIL_DAILY_CAP).toBe(10);
+    const emails = burst(15);
+    for (const email of emails) {
+      await apply(email);
+      await notifyOwnerOfApplication({ email, check: { outcome: "needs_owner", reasons: ["no_model"] } });
+    }
+    for (const email of emails) expect(state.docs.get(`robotTeamAccess/${early.accessRecordId(email)}`)).toBeTruthy();
+    const rows = ownerRows();
+    expect(rows).toHaveLength(10);
+    const byId = (email: string) => rows.find(row => row.key.endsWith(early.accessRecordId(email)));
+    for (const email of emails.slice(0, 9)) expect(byId(email)?.body).not.toContain(OWNER_APPLICATION_EMAIL_LAST_LINES[0]);
+    const last = byId(emails[9])!;
+    for (const line of OWNER_APPLICATION_EMAIL_LAST_LINES) expect(last.body).toContain(line);
+    expect(last.body).toContain("Blueprint sends at most 10 a day");
+    expect(last.body.trim().endsWith("https://tryblueprint.io/admin/robot-team-access")).toBe(true);
+    expectLinkOnly(last, early.accessRecordId(emails[9]));
+    for (const email of emails.slice(10)) expect(byId(email)).toBeUndefined();
+    // The ceiling is one durable counter for the day, not in-process memory.
+    const counters = [...state.docs.entries()].filter(([key]) => key.startsWith("durableDailyCaps/ops_access_application_email__"));
+    expect(counters.map(([, value]) => (value as { used: number }).used)).toEqual([10]);
+  });
+
+  it("a second ring for an application already emailed is not counted again", async () => {
+    for (let ring = 0; ring < 12; ring++) await notifyOwnerOfApplication({ email: APPLICANT });
+    expect(ownerRows()).toHaveLength(1);
+    const [[, counter]] = [...state.docs.entries()].filter(([key]) => key.startsWith("durableDailyCaps/ops_access_application_email__"));
+    expect((counter as { used: number }).used).toBe(1);
+    await notifyOwnerOfApplication({ email: "ops@another.example.com" });
+    expect(ownerRows()).toHaveLength(2);
+  });
+
+  it("past the ceiling, a reminder no channel took keeps no marker, so a later pass tries again", async () => {
+    for (const email of burst(10)) { await apply(email); await notifyOwnerOfApplication({ email }); }
+    expect(ownerRows()).toHaveLength(10);
+    const { id } = await apply(APPLICANT);
+    waitedSinceLastWeek(id);
+    expect(await remindWaitingAccessApplications({ now })).toEqual({ waiting: 1, reminded: 0, emailed: 0 });
+    expect(markers()).toEqual([]);
+    expect(ownerRows()).toHaveLength(10);
   });
 });
 

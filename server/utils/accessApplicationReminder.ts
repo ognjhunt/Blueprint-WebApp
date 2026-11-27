@@ -11,7 +11,7 @@ import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { appBaseUrl } from "./intakeOpsNotice";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
-import { queueOwnerApplicationEmail } from "./ownerApplicationNotice";
+import { queueOwnerApplicationEmail, type OwnerApplicationEmailResult } from "./ownerApplicationNotice";
 import { ROBOT_TEAM_ACCESS_COLLECTION } from "./robotTeamEarlyAccess";
 
 export const ACCESS_ANSWER_WORKING_DAYS = 3;
@@ -68,7 +68,7 @@ export async function remindWaitingAccessApplications(options: {
   now?: () => number;
   alert?: (key: string, message: string) => Promise<unknown>;
   /** Queues the owner's email for one application; "queued" or "already_queued" means the email channel took it. */
-  email?: (recordId: string) => Promise<"queued" | "already_queued" | "not_queued">;
+  email?: (recordId: string) => Promise<OwnerApplicationEmailResult>;
 } = {}): Promise<{ waiting: number; reminded: number; emailed: number }> {
   const store = options.store === undefined ? (dbAdmin as unknown as Store | null) : options.store;
   if (!store) return { waiting: 0, reminded: 0, emailed: 0 };
@@ -104,8 +104,10 @@ export async function remindWaitingAccessApplications(options: {
     Promise.all(fresh.map((id) => Promise.resolve(email(id)).catch(() => "not_queued" as const))),
   ]);
   const slackSent = Boolean((result as { sent?: unknown } | undefined)?.sent);
-  const emailed = fresh.filter((_, index) => emails[index] !== "not_queued");
-  const untold = slackSent ? [] : fresh.filter((_, index) => emails[index] === "not_queued");
+  // "capped": today's ceiling on the owner's emails took it out (`ownerApplicationNotice.ts`): not emailed.
+  const notEmailed = (index: number) => emails[index] === "not_queued" || emails[index] === "capped";
+  const emailed = fresh.filter((_, index) => !notEmailed(index));
+  const untold = slackSent ? [] : fresh.filter((_, index) => notEmailed(index));
   // Neither channel took these: release their markers so the next monitor pass tries again.
   await Promise.all(untold.map((id) => store.collection(REMINDER_COLLECTION).doc(id).delete().catch((error: unknown) => {
     logger.warn({ err: error, id }, "Could not release an undelivered application reminder marker");
