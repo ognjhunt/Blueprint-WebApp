@@ -111,6 +111,8 @@ export interface CompanyCheckDeps {
   fetchPage: (url: string) => Promise<{ status: number; finalUrl: string; html: string }>;
   /** The model's answer, or null when no provider is set up ("no_model") or it did not answer ("model_unavailable"). */
   askModel: (input: { websiteHost: string; pageText: string }) => Promise<ModelAnswer | "no_model" | "model_unavailable">;
+  /** Whether a model provider is set up at all; asked before the day's check is counted. Absent: assumed set up. */
+  modelConfigured?: () => Promise<boolean>;
 }
 
 const defaultDeps: CompanyCheckDeps = {
@@ -119,6 +121,10 @@ const defaultDeps: CompanyCheckDeps = {
     const page = await fetchPinnedPublicText(url, { maxBytes: 1024 * 1024, timeoutMs: 10_000, maxRedirects: 3,
       contentTypes: /^(?:text\/html|application\/xhtml\+xml)(?:;|$)/ });
     return { status: page.status, finalUrl: page.finalUrl, html: page.text };
+  },
+  async modelConfigured() {
+    const { getStructuredProviderOrder } = await import("../agents/provider-config");
+    return getStructuredProviderOrder("company_website_check").length > 0;
   },
   async askModel(input) {
     const { getStructuredProviderOrder } = await import("../agents/provider-config");
@@ -208,14 +214,17 @@ export async function assessCompany(record: Pick<RobotTeamAccessRecord, "email" 
     return needsOwner(["website_unreadable"]);
   }
   note("website", page.status >= 200 && page.status < 300, `HTTP ${page.status} at ${websiteHost(page.finalUrl) ?? "unknown host"}`);
-  if (page.status < 200 || page.status >= 300) return needsOwner(["website_unreadable"]);
   // The page must still be the company's own: a site that sends visitors to another domain is not evidence about it.
+  // Checked before the page's status, so a brand site sent to a parent page that errors says so, not "unreadable".
   const onDomain = domainMatch(record.email, page.finalUrl).matches;
   note("still_on_domain", onDomain, onDomain ? "yes" : "redirected_off_domain");
   if (!onDomain) return needsOwner(["redirected_off_domain"]);
+  if (page.status < 200 || page.status >= 300) return needsOwner(["website_unreadable"]);
   const text = pageText(page.html);
   note("page_text", text.length >= MIN_PAGE_TEXT, `${text.length} characters of text`);
   if (text.length < MIN_PAGE_TEXT) return needsOwner(["website_no_text"]);
+  // No model set up: nothing to count against the day (money is counted only when the model can be asked).
+  if (deps.modelConfigured && !await deps.modelConfigured()) { note("model", false, "no_model"); return needsOwner(["no_model"]); }
   const dayShare = await counting.dayShare(now);
   note("day_share", dayShare, dayShare ? "ok" : "cap");
   if (!dayShare) return needsOwner(["daily_check_cap"]);

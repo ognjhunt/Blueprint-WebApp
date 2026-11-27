@@ -61,6 +61,8 @@ const SITES: Record<string, Record<string, { status: number; type?: string; loca
     "/brands/arm": { status: 200, body: page(`<h1>Our brands</h1><p>${ROBOT_SENTENCE}</p>`) } },
   // A brand that sends visitors to its parent's site.
   "outreach-fixture-brand.com": { "/": { status: 301, location: "https://outreach-fixture-parent.com/brands/arm" } },
+  // A brand that sends visitors to a parent page that is gone.
+  "outreach-fixture-oldbrand.com": { "/": { status: 301, location: "https://outreach-fixture-parent.com/brands/gone" } },
   // An apex that sends visitors to its own www.
   "outreach-fixture-apex.com": { "/": { status: 301, location: "https://www.outreach-fixture-apex.com/" } },
   "www.outreach-fixture-apex.com": { "/": { status: 200, body: page(`<p>${ROBOT_SENTENCE}</p>`) } },
@@ -167,6 +169,13 @@ describe("the rule on its production fetch and model (fixture website, stubbed m
     expect(model.run).not.toHaveBeenCalled();
   });
 
+  it("says redirected_off_domain, not website_unreadable, for a brand sent to a parent page that errors", async () => {
+    modelSays(YES);
+    const { record } = await applyAndCheck("ops@outreach-fixture-oldbrand.com", "https://outreach-fixture-oldbrand.com");
+    expect(record.companyCheck).toMatchObject({ outcome: "needs_owner", reasons: ["redirected_off_domain"] });
+    expect(model.run).not.toHaveBeenCalled();
+  });
+
   it("sends a free-mail address to the owner (webmail) without reading the site", async () => {
     const { record } = await applyAndCheck("someone@gmail.com", "https://outreach-fixture-arm.com");
     expect(record.companyCheck).toMatchObject({ outcome: "needs_owner", reasons: ["webmail"] });
@@ -209,7 +218,7 @@ describe("the rule on its production fetch and model (fixture website, stubbed m
     expect(bell).toMatchObject({ check: { reasons: ["not_a_robot_company"] } });
   });
 
-  it("with no model key: stores no_model, the applicant waits for the owner, the bell says needs you, the day's check is still counted", async () => {
+  it("with no model key: stores no_model, the applicant waits for the owner, the bell says needs you, the day's check is not used", async () => {
     withoutModelKey();
     const { id, record, bell } = await applyAndCheck("ops@outreach-fixture-arm.com", "https://outreach-fixture-arm.com");
     expect(model.run).not.toHaveBeenCalled();
@@ -217,8 +226,8 @@ describe("the rule on its production fetch and model (fixture website, stubbed m
     expect(record.companyCheck).toMatchObject({ outcome: "needs_owner", reasons: ["no_model"] });
     expect(bell).toMatchObject({ autoApproved: false, check: { outcome: "needs_owner", reasons: ["no_model"] } });
     expect(approvalEmails(id)).toHaveLength(0);
-    // Counted against the day's cap although no model was asked (the counter is taken before the model call).
-    expect(state.docs.get(`${check.COMPANY_CHECK_COUNTER_COLLECTION}/day-2026-11-27`)).toMatchObject({ count: 1 });
+    // Not counted against the day's cap: the provider is asked about before the counter is taken (2026-11-27).
+    expect(state.docs.get(`${check.COMPANY_CHECK_COUNTER_COLLECTION}/day-2026-11-27`)).toBeUndefined();
   });
 
   it("when the model run fails: stores model_unavailable; the sweep tries again only after a day; the retry rings only if it settles", async () => {
@@ -314,6 +323,15 @@ describe("the owner's trial run of the rule", () => {
     const applicant = await applyAndCheck("ops@outreach-fixture-bakery.com", "https://outreach-fixture-bakery.com");
     expect(applicant.record.companyCheck).toMatchObject({ reasons: ["not_a_robot_company"] });
     expect(applicantDay()).toMatchObject({ count: 1 });
+  });
+
+  it("with no model key, says no_model at the model step and uses none of the day's trials", async () => {
+    withoutModelKey();
+    const result = await check.tryCompanyRule({ emailDomain: "outreach-fixture-arm.com", website: "https://outreach-fixture-arm.com" });
+    expect(result.check.reasons).toEqual(["no_model"]);
+    expect(result.steps.at(-1)).toEqual({ step: "model", ok: false, detail: "no_model" });
+    expect(result.steps.some(step => step.step === "day_share")).toBe(false);
+    expect([...state.docs.keys()].filter(key => key.includes("company_rule_trial"))).toEqual([]);
   });
 
   it("is an admin action on the approvals route: 403 for anyone else, 400 for a bad form, the steps for an admin", async () => {
