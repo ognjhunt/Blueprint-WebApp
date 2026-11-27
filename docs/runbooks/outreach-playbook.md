@@ -14,8 +14,19 @@ time. Re-read everything before each wave.** The host moves fastest: it was
 deployed twice that evening (`adcf33b` by 22:59Z, `2d9de22` by 23:26Z) and a
 third deploy (`f7d9d80`) was running at 00:08Z.
 
-Line numbers are for WebApp `e439731` and Pipeline `adcf33b`. The Pipeline's
-main has moved since (`f7d9d80` at 2026-11-27 00:07Z). A path with no repo
+**Updated on 2026-11-27, about 04:00Z,** after a run that tackled four gaps:
+the company path, targeting and tracking, the two privacy hard stops, and
+what a site gets. Its fixes are commits on the WebApp branch
+`claude/dreamy-planck-a9lx67`. **None is on main or live yet:** the live site
+was still `e439731` at 03:54Z (`version.json`). A fix marked "done" below is
+done on that branch and takes effect only once it is merged and deployed.
+Rows changed in this update say so and carry their reading's time; C1 was
+read again at 03:53Z.
+
+Line numbers are for WebApp `e439731` and Pipeline `adcf33b`, except where a
+row changed in the 2026-11-27 update cites a file the branch changed: those
+cite the branch. The Pipeline's main has moved since (`439ebdb` locally; the
+host ran `b22546f` at 02:56Z on 11-27). A path with no repo
 name is in this repo. "Pipeline" means the sibling checkout
 `BlueprintCapturePipeline`.
 "Tracker" means Pipeline `docs/launch-readiness/2026-11-beta-launch-tracker.md`.
@@ -44,68 +55,18 @@ Run them from the WebApp root in a cloud session
 (`docs/runbooks/cloud-scene-runs.md`).
 
 **C1, counts.** Read-only Firestore counts. It prints counts, states and dates,
-never a name, an email, an address or a phone number.
+never a name, an email, an address or a phone number. It is committed as a
+script (fix 16, `scripts/ops/outreach-counts.ts`, on the branch). It prints
+what the inline script of 2026-11-26 printed, then four readings added on
+2026-11-27: `owner_application_emails` (the owner's email about a waiting
+application, by status), `rule_trials_today` (the owner's trial runs of the
+rule), `outreach_log` (contacted, do not contact, contacted with no go-ahead
+date) and `account_deletion_age_alerts` (the 25- and 30-day notices). The
+playbook and the script reach main together.
 
 ```bash
 . ~/.blueprint-cloud/env.sh
-cat > "${TMPDIR:-/tmp}/outreach-counts.mts" <<'EOF'
-// READ ONLY: count(), get() and select() only.
-import { createRequire } from "node:module";
-const root = process.cwd();
-const { importFirebaseAdmin, reexecWithEnvProxy } = await import(`${root}/scripts/cloud/runtime.ts`);
-reexecWithEnvProxy();
-const { dbAdmin: db } = await importFirebaseAdmin();
-if (!db) { console.log("no-credentials"); process.exit(2); }
-const req = createRequire(`${root}/scripts/cloud/runtime.ts`);
-const util = (name: string) => req(`${root}/server/utils/${name}.ts`);
-const { companyMaySeeJobs } = util("companyTerms"), { teamJobAccess } = util("teamJobAccess"), { isInternalTestJob } = util("internalTestJob");
-const { siteWalkthroughIdentity } = util("siteWalkthrough"), { storedCompanyClip } = util("websiteCompanyClip"), { storedCompanySimulation } = util("websiteCompanySimulation");
-const tally = (keys: string[]) => JSON.stringify(keys.reduce((m: Record<string, number>, k) => (m[k] = (m[k] ?? 0) + 1, m), {}));
-const count = async (q: any) => (await q.count().get()).data().count;
-const days = (iso: unknown) => typeof iso === "string" ? Math.floor((Date.now() - Date.parse(iso)) / 86400000) : null;
-const access = (await db.collection("robotTeamAccess").get()).docs.map((d: any) => d.data());
-console.log("applications", access.length, tally(access.map((r: any) => `status=${r.status}`)));
-console.log("applications_waiting", tally(access.filter((r: any) => r.status === "applied").map((r: any) => `age_days=${days(r.appliedAtIso)}|reasons=${(r.companyCheck?.reasons ?? ["unchecked"]).join("+")}`)));
-console.log("approved_by_rule", access.filter((r: any) => r.decidedBy === "auto:company-check.v1").length,
-  "rule_checked", access.filter((r: any) => r.companyCheck).length, "rule_check_days", await count(db.collection("opsCompanyChecks")),
-  "rule_model_runs", await count(db.collection("agentRuns").where("task_kind", "==", "company_website_check")));
-console.log("companies_that_may_see_jobs", access.filter((r: any) => companyMaySeeJobs(r)).length);
-console.log("sign_in_links_used", await count(db.collection("companySignInLinkUses")));
-const jobs = (await db.collection("inboundRequests").get()).docs;
-const states: string[] = []; const withdrawals: string[] = [];
-for (const d of jobs) {
-  const r: any = d.data();
-  if (r.capture_withdrawal) withdrawals.push(`acknowledged=${r.capture_withdrawal.pipelineAcknowledged === true}|deleted=${r.capture_withdrawal.deletionConfirmed === true}`);
-  if (isInternalTestJob(r) || r?.request?.buyerType !== "site_operator") continue;
-  const { captureId } = siteWalkthroughIdentity(d.id, r);
-  const [briefS, sessS] = await Promise.all([db.collection("siteTaskBriefs").doc(d.id).get(), db.collection("captureUploadSessions").doc(captureId).get()]);
-  const brief: any = briefS.data(); const session: any = sessS.data();
-  const prep = session?.website_preparation;
-  const preparationState = prep?.selector?.request_id === d.id && typeof prep?.status?.state === "string" ? prep.status.state : null;
-  const clip = storedCompanyClip(session, captureId);
-  const a = teamJobAccess(r, { brief: brief ? { summary: typeof brief.summary === "string" ? brief.summary : null, confirmedAtIso: brief.confirmedAtIso ?? null } : null,
-    preparationState, companyVideoReady: Boolean(clip) && clip.permission_basis !== "internal_test", companySimulationReady: Boolean(storedCompanySimulation(session, captureId)) });
-  states.push(`${a.listed ? "LISTED" : `not_listed:${a.reason}`}|statement=${r?.request?.consent_attestation?.statement_version ?? "none"}|video=${Boolean(session)}`);
-}
-console.log("site_jobs_not_test", states.length, "listed_for_companies", states.filter(x => x.startsWith("LISTED")).length);
-console.log("site_jobs_by_state", tally(states));
-console.log("withdrawals", withdrawals.length, tally(withdrawals));
-console.log("website_deletion_receipts", tally((await db.collection("websiteCaptureDeletionReceipts").get()).docs.map((d: any) => String(d.data().outcome))));
-const beat: any = (await db.collection("opsHeartbeats").doc("blueprint-webapp-worker").get()).data();
-console.log("withdrawal_notice", JSON.stringify(beat?.withdrawal_notice ?? null), "worker_revision", String(beat?.revision ?? "").slice(0, 7));
-for (const g of ["companySends", "companyJobViews", "robotTeamInterest", "jobClarifications", "introductions"]) console.log(g, await count(db.collectionGroup(g)));
-console.log("answers_by_state", tally((await db.collectionGroup("robotTeamInterest").get()).docs.map((d: any) => String(d.data().state ?? d.data().status ?? "?"))));
-console.log("introductions_with_an_outcome_answer", (await db.collectionGroup("introductions").get()).docs.filter((d: any) => (d.data().outcomes ?? []).length > 0).length);
-console.log("billable_events", tally((await db.collection("billableEvents").get()).docs.map((d: any) => `status=${d.data().status}|made=${Boolean(d.data().madeAtIso)}|priceUsd=${d.data().priceUsd ?? null}`)));
-console.log("outbox", tally((await db.collection("captureOutbox").select("status").get()).docs.map((d: any) => String(d.get("status")))));
-console.log("account_deletion_requests", tally((await db.collection("accountDeletionRequests").get()).docs.map((d: any) => `status=${d.data().status}|age_days=${days(d.data().requestedAtIso)}`)));
-console.log("ops_alerts", tally((await db.collection("opsAlerts").get()).docs.map((d: any) => `status=${d.data().status}`)));
-const today = new Date().toISOString().slice(0, 10);
-const cap: any = (await db.collection("durableDailyCaps").doc(`intake_global__${today}`).get()).data();
-console.log("intake_today", today, cap ? `used=${cap.used} limit=${cap.limit}` : "no job started today (no counter yet)");
-process.exit(0);
-EOF
-npx tsx "${TMPDIR:-/tmp}/outreach-counts.mts"
+npx tsx scripts/ops/outreach-counts.ts
 ```
 
 **C2, host reading.** One read through the operator door (Pipeline
@@ -165,14 +126,53 @@ grep -n -A2 'monthly_limit' "$BLUEPRINT_PIPELINE_ROOT/config/account_monthly_spe
 grep -n 'global: 5,' server/utils/betaAbuseCaps.ts
 ```
 
+**C6, the two withdrawal checks** (gate check P3; from the 2026-11-27 privacy
+report). Read-only door calls, from the Pipeline root. They read the one
+withdrawal on record.
+
+```bash
+. ~/.blueprint-cloud/env.sh
+cd "$BLUEPRINT_PIPELINE_ROOT"
+S=/var/lib/blueprint/pubsub-handoffs/blueprint-8c1ca.appspot.com/scenes/site-capture-ceba4511-bfca-4a22-8fdc-0ffae40d27c3/website_withdrawal
+# Check 1: after the plan due at 2026-11-27 16:21:13Z. First worth reading at 17:50Z; if `scanning`, again after each hourly pass.
+python3 scripts/operator_door.py journal blueprint-website-withdrawal-deletion.service -n 30
+python3 scripts/operator_door.py cat $S/automatic_deletion_state.json
+python3 scripts/operator_door.py ls /var/lib/blueprint/pipeline-control-plane/website-withdrawal-deletion/run-scan-cache
+python3 scripts/operator_door.py cat $S/automatic_deletion_plan.json | python3 -c "import json,sys,collections as c; p=json.load(sys.stdin); print(len(p['unresolved']), dict(c.Counter(r['reason'] for r in p['unresolved'])), len(p['runs']), len(p['objects']), p['cloud_bucket'] is not None, p['legal_hold'])"
+# Check 2: after the cool-off ends at 2026-11-28 02:25:31Z. First worth reading at 03:45Z.
+python3 scripts/operator_door.py cat $S/automatic_deletion_state.json
+python3 scripts/operator_door.py ls $S/deletion_receipts
+python3 scripts/operator_door.py cat $S/deletion_receipts/<the one file listed>.json | python3 -c "import json,sys; r=json.load(sys.stdin); a=r.get('authorization',{}); print(r['deletion_status'], a.get('kind'), a.get('approval_source'), a.get('approval_digest'), [x['holder'] for x in r['incomplete_reasons']], sorted({x['holder'] for x in r['remaining']}))"
+python3 scripts/operator_door.py status | python3 -c "import json,sys; w=json.load(sys.stdin)['capacity']['website_withdrawal_deletion']; print(w['approval_status'], w['approval_source'], {k:v for k,v in w['withdrawals'].items() if v}, w['alert_codes'])"
+```
+
+- **Check 1 passes** when the state reads `status planned`, `waiting_on
+  ["cool_off"]`, `unresolved_count 0`, `failure_count 0` and
+  `cool_off_ends_at_epoch` 1795832731.29, and the plan's `unresolved` is
+  empty (`cloud_bucket` not null means the source bucket is set). **Still
+  moving:** `status scanning`, `failure_count 0`, `run_scan.runs_kept` above 0
+  and a growing `run-scan-cache/`. **Fails:** `status unresolved` with
+  `website_withdrawal_deletion_offloaded_run_binding_undetermined` (expected
+  until fix 20 lands), or `status failed` with `failure_count 5` (a timeout or
+  out-of-memory kill in the journal).
+- **Check 2 passes** when the state reads `status applied`; there is exactly
+  one receipt; `deletion_status` is `complete` or
+  `complete_provider_retention_remains`; `authorization.kind` is
+  `standing_owner_approval`, `approval_source` `release` and
+  `approval_digest` `sha256:405712cf…`; `incomplete_reasons` is empty; and
+  door status shows `completed 1`, `waiting 0`, `failing 0` and no alert
+  codes. **Partial:** `status incomplete` with `capture_source_bucket` (the
+  source bucket is unset; the pass repeats every 6 hours). **Fails:** no
+  receipt, and the state is `unresolved` or `failed`.
+
 ### Privacy
 
 | # | Check | Proof | Pass when | 2026-11-26 | Kind |
 | --- | --- | --- | --- | --- | --- |
 | P1 | The website can tell the host about a withdrawal | C1 `withdrawal_notice`; C3 `health/ready` | Both booleans true; `ready`, `blocker_count` 0 | **pass.** Both true; ready, 0 blockers (23:19Z) | Hard stop, site wave |
 | P2 | The website deletes its own copy after a withdrawal | C1 `withdrawals`, `website_deletion_receipts` | Every withdrawal is `acknowledged=true` and has a `complete` receipt | **pass.** 1 withdrawal (the first-run job), acknowledged, 1 `complete` receipt | Hard stop, site wave |
-| P3 | The host can delete after a withdrawal | C2 `withdrawal` | `approval valid`, and no `failing` or `overdue` | **fail.** At the 23:36Z pass the approval read `valid`, source `release` (door journal of `blueprint-website-withdrawal-deletion.service`); until then it read `absent` (tracker:280-285). `failing 1` stays, also at 00:08Z on 11-27: the one withdrawal's last plan was interrupted on an older release. Its next plan is 2026-11-27 16:21Z and its cool-off ends 2026-11-28 02:25Z (tracker:284). No deletion has ever been applied on the host | Hard stop, site wave |
-| P4 | No account deletion request is past the promised time | C1 `account_deletion_requests` | None in `requested` past 30 days (`client/src/pages/Privacy.tsx:119`) | **fail.** 1 request, `requested`, 37 days old, no reviewer. Its email is at a reserved test domain, so it looks like a test account (inferred) | Hard stop, site wave |
+| P3 | The host can delete after a withdrawal | C2 `withdrawal`; C6 | `approval valid`, and no `failing` or `overdue` | **fail.** At the 23:36Z pass the approval read `valid`, source `release` (door journal of `blueprint-website-withdrawal-deletion.service`); until then it read `absent` (tracker:280-285). `failing 1` stays, also at 00:08Z on 11-27: the one withdrawal's last plan was interrupted on an older release. Its next plan is the first pass after 2026-11-27 16:21:13Z (about 17:00Z by the timer's drift), and its cool-off ends 2026-11-28 02:25:31Z. No plan has run on the cache release yet: `run-scan-cache/` does not exist (0 of 59 run directories kept). As the code stands that plan ends `unresolved`. 144 readable offloaded runs name no site, and the pass never reads archives (Pipeline `website_capture_withdrawal_deletion.py:665-669`, `website_capture_withdrawal_automatic.py:868-884`; proved offline in the 2026-11-27 privacy report). So no deletion will apply until that is fixed (fix 20). No deletion has ever been applied on the host. **Two later checks (C6):** check 1 at 2026-11-27 17:50Z, after the plan; check 2 at 2026-11-28 03:45Z, after the cool-off. Each passes as C6 says | Hard stop, site wave |
+| P4 | No account deletion request is past the promised time | C1 `account_deletion_requests`, `account_deletion_age_alerts` | None past 30 days without a completion record (runbook `account-data-deletion.md` step 7). `in_review` alone does not pass: "Start privacy review" deletes nothing, and no completed state exists (`client/src/types/accountDeletion.ts:4`) | **fail.** 1 request, `requested`, 37 days old, no reviewer (38 at the 03:53Z reading on 11-27, which counts whole days to the reading). Its email is at a reserved test domain. The account was made by the WebApp sign-up, has 1 session, never finished onboarding, and requested deletion in the minute it was created. No record but its user doc names it. A test account (inferred, high confidence). From fix 11 (on the branch), the owner is told once at 25 days and once at 30 (`server/utils/accountDeletionAgeAlerts.ts`) | Hard stop, site wave |
 | P5 | Contact details in an introduction are encrypted at rest | C3 `health/ready` (field encryption is a required check, `server/utils/launch-readiness.ts:157-159`) | `ready`, 0 blockers | **pass** | Hard stop, site wave |
 | P6 | Firestore backups and point-in-time recovery | `bash scripts/ops/verify-firestore-backups.sh --project blueprint-8c1ca` (the owner; needs credentials) | Recovery on, a schedule present | **unknown.** Run from a cloud session it exits 2: the session's credentials cannot describe the database | Flag |
 
@@ -206,10 +206,10 @@ All flags.
 | --- | --- | --- | --- | --- |
 | S1 | Website build and CI | C3; C4 | The live SHA is main's head; `CI` and the deploy run succeeded on it | **pass.** `e439731`; CI 08:07Z and the CI-gated deploy 08:13Z both `success` |
 | S2 | Host release and CI | C2 `release`; C4 | The commit is on main, `commit_proven True`, `blockers []`, CI `success` | **pass.** `2d9de22`, `commit_proven`, no blockers; CI, CodeQL and Python Compatibility `success` on it (23:04Z). Earlier readings that day were on `adcf33b` (deploy receipt 22:59Z); `2d9de22` followed at 23:26Z. Main's tracker records both deploys (its section "The host's state backup needs no hand-installed secret"). At 00:08Z on 11-27 a deploy of `f7d9d80` (Pipeline pull request 3764) was running and its CI had not finished: read this row again |
-| S3 | At least one real approved deployment company can see jobs | C1 `companies_that_may_see_jobs` (the rule is `companyMaySeeJobs`, `server/utils/companyTerms.ts:69-72`) | 1 or more | **fail.** 0. The 3 application records are 1 approved internal test company and 2 declined test records |
-| S4 | The automatic approval rule can run in production | C1 `rule_check_days`, `rule_model_runs`; or the owner reads `OPENAI_API_KEY` on the Render web service | A rule check has reached the model, or the owner confirms the key | **unknown.** 0 and 0: the rule has never run. OpenAI did answer in production for another lane (7 completed `free_text_redaction` runs, latest 2026-11-26T04:39Z). Which process made those runs was not read, so they do not prove the web service holds the key |
-| S5 | The owner hears that an application waits | The Render Environment page (`SLACK_INBOUND_WEBHOOK_URL` or `SLACK_WEBHOOK_URL`, `server/utils/slack.ts:96-100`); C1 `applications_waiting` | A webhook is set, or the owner opens `/admin/robot-team-access` daily; nothing waits past 3 working days | **unknown.** The webhook is unverified; readiness does not require it (`server/utils/launch-readiness.ts:117`). Nothing waits today |
-| S6 | Sign-in works | C3 `sign-in`; C1 `sign_in_links_used` | The page answers 200 and a link has been redeemed | **unknown for the emailed sign-in link** (0 redeemed). The invitation link worked once, for the test company (first-run log, 13:23Z row) |
+| S3 | At least one real approved deployment company can see jobs | C1 `companies_that_may_see_jobs` (the rule is `companyMaySeeJobs`, `server/utils/companyTerms.ts:69-72`) | 1 or more | **fail.** 0. The 3 application records are 1 approved internal test company and 2 declined test records. At 03:53Z on 11-27: still 0; 4 records, the fourth waiting for the owner (0 days, `not_a_robot_company`). Whether it is a real company was not read |
+| S4 | The automatic approval rule can run in production | C1 `rule_model_runs` after one press of "Run the rule" on `/admin/robot-team-access` (fix 1, on the branch: counts against its own 10 a day, records nothing; a trial does not move `rule_check_days`); or C1 `rule_check_days`, `rule_model_runs` from a real application; or the owner reads `OPENAI_API_KEY` on the Render web service | A rule check has reached the model, or the owner confirms the key | **unknown** on 11-26: 0 and 0. **Pass at 03:53Z on 11-27:** `rule_check_days 1`, `rule_model_runs 1`, and the waiting application's reason is `not_a_robot_company`, which only the model's "no" gives (`server/utils/companyCheck.ts:237`). So the live rule reached the model once. Whether it approves a real robot company is unproven: no check has said yes. The 2026-11-27 pre-check ran the rule's plain steps on 46 researched websites, and 44 would reach the model (section 2) |
+| S5 | The owner hears that an application waits | The Render Environment page (`CONTACT_TO`, default ops@tryblueprint.io; Slack webhooks optional); C1 `applications_waiting`, `owner_application_emails` | The owner reads the inbox `CONTACT_TO` names: each application and each 3-working-day wait is emailed there once (`server/utils/ownerApplicationNotice.ts`, fix 2, on the branch), beside Slack; nothing waits past 3 working days | **unknown.** On the live code the bell and the reminder are still Slack only, and the webhook is unverified; readiness does not require it (`server/utils/launch-readiness.ts:117`). At 03:53Z on 11-27 one application waits, 0 days old. `CONTACT_TO` on Render was not read |
+| S6 | Sign-in works | C3 `sign-in`; C1 `sign_in_links_used` | The page answers 200 and a link has been redeemed | **pass at 03:53Z on 11-27:** `sign-in 200`, `sign_in_links_used 2` (0 on 11-26; the first redemption was read at 02:19Z by the company proof run, not made by the audit; who made them was not read). The invitation link worked once, for the test company (first-run log, 13:23Z row). On the branch (fix 3) a link is spent only on the company's press of "Sign in with this link" (`client/src/pages/Login.tsx:83`); the live page still redeems on load |
 | S7 | Worker heartbeat and email are moving | C3 `health/worker`, `health/outbox`; C1 `outbox` | `fresh`; `moving`; no new `failed` | **pass.** `fresh`, `moving`; 145 sent, 10 failed (all created 2026-09-19 to 2026-09-22; their failure alerts were recorded on 2026-10-24), 1 cancelled |
 | S8 | Alerts reach a person | The Render Environment page (`SLACK_WEBHOOK_URL`); `.github/workflows/uptime.yml` runs in C4; C1 `ops_alerts` | The webhook is set; the last `Uptime` run succeeded; no stale open alert | **unknown.** Webhook unverified. `Uptime` succeeded at 23:09Z. 4 alerts are open, opened in 2026-07 and 2026-09 (`opsAlerts`) |
 | S9 | Host health | C2 `stalls`, `memory_gb`, `disk_gb_over_floor`, `door_queue`, `failed_units`; C3 `healthz` | All stalls 0; no out-of-memory report; disks `ok`; `{"ok": true}`; no failed unit beyond those M6 and S10 already name | **pass.** 0 stalls, about 6 of 8.33 GB of memory free (it moved between 5.9 and 6.5 GB over 15 minutes), 0 reports, both disks `ok`, queue empty. `failed_units` names two units, the spend guard (M6) and the state backup (S10) (00:08Z on 11-27) |
@@ -220,6 +220,13 @@ All flags.
 may go once the owner says so, with S3, S4, S5 and S6 written in the batch
 note. A site wave may not go: P3, P4 and M2 fail and M5 is unknown. Flags
 that fail or are unknown: P6, M6, M7, S3, S4, S5, S6, S8, S10 and S11.
+
+**Rows read again on 2026-11-27 at 03:53Z (C1) and 03:54Z (C3).** S4 and S6
+now pass. P3 and P4 still fail; P3 cannot pass before check 2 of C6
+(2026-11-28 03:45Z), and as the code stands not until fix 20 lands. A company
+wave may go once the owner says so, with S3 and S5 written in the batch note.
+Flags that fail or are unknown: P6, M6, M7, S3, S5, S8, S10 and S11. M2, M6,
+M7 and the host rows were not read again.
 
 ## 2. Company outreach
 
@@ -233,22 +240,34 @@ report. The list is the research collection `robotTeams` (114 records: 107
 `prospect`, 7 `self_registered`). The seed says what it is: "real companies
 that have not agreed to anything", and nothing in it "may be presented to
 anyone as a relationship" (`server/data/robotTeamSeed.ts:6-9`). Counts below
-were read from `robotTeams` on 2026-11-26; keyword counts are inferred.
+were read from `robotTeams` on 2026-11-26 and recounted on 2026-11-27, when
+criteria 4, 6 and 7 were judged from each company's own pages and criterion 8
+by a written rule (the 2026-11-27 targets report). By `updatedAt`, 107 records
+are from 2026-10, 6 from 2026-09 and 1 from 2026-11.
 
 | # | Criterion | Field or source | Count |
 | --- | --- | --- | --- |
 | 1 | A real company, not a test record | `status == "prospect"` | 107 |
 | 2 | Has a website, the rule's first input | `website` | 107 (106 distinct hosts) |
 | 3 | The researched address is at the website's domain, by the rule's own `domainMatch` (`server/utils/companyCheck.ts:72-79`). A proxy only: the rule checks the applicant's own work email | `contactEmail` against `website` | 42 match, 2 do not, 63 have no address |
-| 4 | Deploys physical robots; not software-only and not a technology partner (the rule never approves one, `server/utils/companyCheck.ts:233`) | `capabilityDescription` (no structured field) | 34 of the 42 (inferred from free text; recount on the 18 that meet criteria 3 and 5) |
-| 5 | Fits the kind of job whose route is on record as having run live, moving one captured object (Pipeline `docs/test-footage/clip-mix-v1.json:354`): an arm or a mobile manipulator | `capability.embodiment` | 46 overall; 18 of the 42 (class `fixed arm` or `mobile manipulator`, the text before the first `;`). After criterion 4: 18 or fewer; recount |
-| 6 | Its own website shows customer deployments, the rule's second test | Its home page, read fresh on the day | unknown until each home page is read. A keyword pass over the descriptions found 8 of the 42 (inferred; the keywords were not kept) |
-| 7 | Deploys in the United States, where sites are taken (`client/src/pages/Beta.tsx:25`) | `deploymentRegions` (empty on every record) | unknown; `deploymentRegions` is on no record. A keyword pass found 8 that mention a US place (inferred) |
-| 8 | A named person, not a role inbox | The local part of `contactEmail` | 17 or 18 of the 42, depending on which local parts count as a role inbox; no rule is written down |
+| 4 | Deploys physical robots; not software-only and not a technology partner (the rule never approves one, `server/utils/companyCheck.ts:233`) | `capabilityDescription` (no structured field); each company's own pages | 15 of the 18 that meet criteria 3 and 5, from each company's own pages read 2026-11-27 (2 software suppliers, 1 sells an arm platform to builders) |
+| 5 | Fits the kind of job whose route is on record as having run live, moving one captured object (Pipeline `docs/test-footage/clip-mix-v1.json:354`): an arm or a mobile manipulator | `capability.embodiment` | 46 overall; 18 of the 42 (class is the text before the first `;`, lowercased; it equals `fixed arm` or starts with `mobile manipulator`; the stored text is `mobile manipulator (arm on a driving base)`). After criterion 4 (own pages read 2026-11-27): 15 of the 18 |
+| 6 | Its own website shows customer deployments, the rule's second test | Its home page, read fresh on the day | 7 of the 18, read 2026-11-27 (home page and up to three linked pages) |
+| 7 | Deploys in the United States, where sites are taken (`client/src/pages/Beta.tsx:25`) | `deploymentRegions` (empty on every record); its own pages | 6 of the 18 show a US deployment or US customer base on their own pages, read 2026-11-27 (a US office alone does not count); `deploymentRegions` is on no record |
+| 8 | A named person, not a role inbox | The local part of `contactEmail` | 16 of the 42 (3 of the 18), by the written role-word rule in the 2026-11-27 targets report (the local part split on `. _ - +` and digits; a role inbox if any piece is a role word such as info, sales or contact) |
 
-The pool after criteria 3 and 5 is 18. Criterion 4 can only lower it; recount
-it on those 18 before the batch note. Criteria 6 and 7 will lower it again
-once each home page is read. Before each batch:
+The pool after criteria 3 and 5 is 18. After criteria 4, 6 and 7, read on
+each company's own pages on 2026-11-27, 4 are ready for a first batch (1 with
+a named person, 3 with role inboxes; 1 shows the US only as "North America").
+12 more that meet criteria 4 to 7 have no researched address; finding one is
+by hand or by the paid lookup (a money decision). 30 were dropped: no US
+deployment shown (12, of which 6 the owner could keep if US work is
+confirmed), no customer deployment shown (8), software-only or technology
+partner (5), robots only in its own operations (2), home page unreadable to
+the rule (2), no website of its own (1). No prospect's website or address
+domain matches any of the 4 `robotTeamAccess` records. The list of 46 with
+the reasons is kept for the owner only and is never committed. Re-read each
+page on the day of the batch. Before each batch:
 
 1. Read each candidate's home page that day. The list is stale: 107 of 114
    records were last updated in October.
@@ -258,7 +277,13 @@ once each home page is read. Before each batch:
    prioritising outreach, never quotable to a site"
    (`server/types/robot-team-registry.ts:39-40`).
 4. Drop any company that already applied, was declined, or asked not to be
-   contacted.
+   contacted (marked "Do not contact" on `/admin/outreach`).
+5. Run the rule's plain steps on each website with curl (the 2026-11-27
+   pre-check passed 44 of 46; 1 page has no text without scripts and 1
+   answers 403 to the rule's User-Agent). curl is not the rule's guarded
+   fetch, so a pass means "likely passes". Whether the rule's model step
+   approves any of them is unproven: the live rule has answered once, a "no"
+   (gate check S4).
 
 Whether a researched address still works is unknown; none was checked. A paid
 contact lookup exists (Pipeline `tools/daily_research/contact_lookup.py:1-13`).
@@ -287,11 +312,13 @@ Where it is recorded: no place for outreach decisions exists today. The owner's
 words on deploys are kept as dated entries in the Pipeline tracker
 (`docs/launch-readiness/2026-11-beta-launch-tracker.md:225,257,282`). Do the
 same: one dated entry with the owner's words, the batch size and the message
-version, and no company name. Put the entry's date in each contact's log row.
+version, and no company name. Put the entry's date in each contact's log row:
+the outreach log's "Go-ahead entry dated" field (`/admin/outreach`, fix 8, on
+the branch). A contact recorded without it is flagged there, not refused.
 
 ### DRAFT: first message to a deployment company
 
-> Subject: Jobs filmed by the sites that have them
+> Subject: Job packets from sites, for robot deployment companies
 >
 > Hello [FIRST NAME],
 >
@@ -333,6 +360,10 @@ version, and no company name. Put the entry's date in each contact's log row.
 > not write again.
 >
 > [SENDER FIRST NAME], Blueprint
+>
+> [LEGAL BUSINESS NAME], [VALID POSTAL ADDRESS: street, USPS box or
+> registered private mailbox]. [THE OWNER'S WORDING THAT THIS MESSAGE IS AN
+> ADVERTISEMENT]. To stop all messages from us, reply "stop".
 
 Proof for each sentence: the packet's contents (`client/src/pages/CompanyJob.tsx:33-37`);
 the answers (`client/src/lib/companyResponses.ts:158-161`); the introduction
@@ -342,7 +373,11 @@ the answers (`client/src/lib/companyResponses.ts:158-161`); the introduction
 (`PLATFORM_CONTEXT.md:111-113,209-211`); the sample (`client/src/lib/publicCopy.ts:50`);
 the form (`client/src/components/site/PartnerApplication.tsx:65-73`); the rule
 and the three working days (`client/src/lib/companyCheck.ts:15`,
-`client/src/components/site/PartnerApplication.tsx:9-10`).
+`client/src/components/site/PartnerApplication.tsx:9-10`). The subject says
+what the message is about whether or not a job is open, and the footer is the
+sender's identity, postal address, advertisement notice and opt-out the FTC's
+CAN-SPAM guide asks of a commercial email, business to business included
+(risk 17). Send from a Blueprint address that names Blueprint.
 
 Two lines wait on the owner. The three-working-days line holds only if the
 owner hears of each application, so settle owner decision 5 before the first
@@ -356,7 +391,7 @@ sentence (`PLATFORM_CONTEXT.md:70-73`), but no public page says it yet.
 Send once, five working days after the first message, only if there was no
 reply and no application.
 
-> Subject: Re: Jobs filmed by the sites that have them
+> Subject: Re: Job packets from sites, for robot deployment companies
 >
 > Hello [FIRST NAME],
 >
@@ -367,9 +402,14 @@ reply and no application.
 > The sample job and the application are at https://tryblueprint.io/jobs.
 > Nothing is charged today.
 >
-> This is my last message unless you reply.
+> This is my last message unless you reply. If you would rather not hear from
+> us again, reply and say so.
 >
 > [SENDER FIRST NAME], Blueprint
+>
+> [LEGAL BUSINESS NAME], [VALID POSTAL ADDRESS: street, USPS box or
+> registered private mailbox]. [THE OWNER'S WORDING THAT THIS MESSAGE IS AN
+> ADVERTISEMENT]. To stop all messages from us, reply "stop".
 
 ### DRAFT: reply to a company that asks what it costs
 
@@ -392,7 +432,7 @@ introduction is recorded is owner decision 11.
 | 3. Approval | An email, "Your company is approved to see jobs on Blueprint", with a link that works for that address for 7 days. Anything the rule does not settle waits for the owner's one press, promised within three working days | `https://tryblueprint.io/signup/business?invitation=…`; the owner's page is `/admin/robot-team-access` | `server/utils/robotTeamAccessEmails.ts:38-53`; `client/src/app/routes.tsx:310`; `server/routes/admin-robot-team-access.ts:61` |
 | 4. Account and Terms | Tick "I agree to the Terms and Privacy Policy" (now `2026-11-25.2`) and press Create account; no password is needed (first-run log, 13:23Z row). One email follows if jobs were already open | https://tryblueprint.io/contact/robot-team (Find jobs) | `server/routes/robot-team-access.ts:204-218` |
 | 5. Find jobs | The open jobs, or "No jobs yet. New jobs appear here when their video is ready." | https://tryblueprint.io/contact/robot-team | `client/src/components/site/TaskBrowse.tsx:109-112` |
-| 6. Later sign-in | "Email me a sign-in link": 15 minutes, one use | https://tryblueprint.io/sign-in | `client/src/pages/Login.tsx:237`; `server/utils/companySignInLink.ts:4-8` |
+| 6. Later sign-in | "Email me a sign-in link": 15 minutes, one use. On the branch (fix 3), opening the link spends nothing; the press of "Sign in with this link" does | https://tryblueprint.io/sign-in | `client/src/pages/Login.tsx:237`; `server/utils/companySignInLink.ts:4-8` |
 | 7. First job | An email, "New job on Blueprint", for each new job, with a one-use link that lasts 7 days. It can be turned off in Settings | `https://tryblueprint.io/jobs/<id>` | `server/utils/robotTeamAccessEmails.ts:157-161`; `server/utils/request-review-auth.ts:92`; `server/utils/jobAutoSend.ts:1-15` |
 | 8. The job page | The site's sentence, the video without sound, its answers, the city, state and country, and the simulation to download once it is ready. The first look is not shown | `https://tryblueprint.io/jobs/<id>` | `client/src/pages/CompanyJob.tsx:33-37`; `client/src/pages/Privacy.tsx:54`; `PLATFORM_CONTEXT.md:82-84` |
 | 9. First answer | Apply, Not a fit or Need more details, with a note. The site is emailed | the same page | `client/src/lib/companyResponses.ts:158-161`; `server/routes/site-worlds.ts:83` |
@@ -403,12 +443,21 @@ How long each step takes for a real company is unknown: no real company has
 applied. In the first run the owner's press came 3 min 49 s after the test
 application (first-run log, 13:17Z and 13:21Z rows).
 
-Never run in production: the automatic rule, the emailed sign-in link, "Need
-more details" and an outcome answer (C1: `rule_check_days 0`,
+Never run in production on 2026-11-26: the automatic rule, the emailed sign-in
+link, "Need more details" and an outcome answer (C1: `rule_check_days 0`,
 `sign_in_links_used 0`, `jobClarifications 0`,
-`introductions_with_an_outcome_answer 0`). No reminder to the owner has been
-recorded (`opsAccessApplicationReminders` 0), and no decline email has ever
-been sent, though the code holds one.
+`introductions_with_an_outcome_answer 0`). At 03:53Z on 11-27: the rule had
+run once and its model answered "no" (`rule_check_days 1`, `rule_model_runs
+1`, gate check S4); the emailed sign-in link had been redeemed twice; one
+introduction had an outcome answer; "Need more details" still never
+(`jobClarifications 0`). Who made these was not read. No reminder to the owner
+has been recorded (`opsAccessApplicationReminders` 0), and no decline email
+has ever been sent, though the code holds one. The company path was proved
+locally on 2026-11-27 on the branch (fixes 1, 2, 3 and 14, with the Firebase
+emulators and Playwright); the live proofs that remain need a test record
+and the owner's word: the trial's model call, the owner's email in a real
+inbox, the press on a sign-in link through a provider that scans links, and
+the new-job link in the production build.
 
 ### Follow-up cadence
 
@@ -416,7 +465,7 @@ been sent, though the code holds one.
 | --- | --- | --- | --- |
 | Outreach follow-up | Once, 5 working days after the first message; then stop | Whoever the go-ahead names | This playbook |
 | Answer to an application the rule did not settle | Within 3 working days | The owner, one press | `client/src/components/site/PartnerApplication.tsx:9-10` |
-| Reminder to the owner | Once, after 3 working days without a decision, by Slack only | The system | `server/utils/accessApplicationReminder.ts:1-13` |
+| Reminder to the owner | Once, after 3 working days without a decision, by Slack and by one email to `CONTACT_TO` (fix 2, on the branch; Slack only on the live code) | The system | `server/utils/accessApplicationReminder.ts:1-9` |
 | Re-check of an unchecked application | After 10 minutes; a momentary failure, the next day | The system | `server/utils/companyCheck.ts:215-220,280-291`; `server/utils/betaOpsMonitor.ts:414` |
 | New-job email | When each job is first listed | The system | `server/utils/jobAutoSend.ts:1-15` |
 | What happened? | 14, 45 and 90 days after an introduction, to both sides | The system | `server/utils/jobOutcomeGate.ts:26` |
@@ -424,18 +473,36 @@ been sent, though the code holds one.
 
 ### Where each contact is tracked
 
-Nothing current exists. `robotTeams` has no contacted, reply or outcome field
-(`server/types/robot-team-registry.ts:134-194`). The old outreach collections
-(`cityLaunchTouches` 37, `cityLaunchSendActions` 12, `outboundProspects` 4) are
-from April to October and no code reads them (`git grep` over `server`,
-`client/src` and `scripts`: 0 files each).
+Until 2026-11-27 nothing existed. `robotTeams` had no contacted, reply or
+outcome field (`server/types/robot-team-registry.ts:134-194` at `e439731`). The
+old outreach collections (`cityLaunchTouches` 37, `cityLaunchSendActions` 12,
+`outboundProspects` 4) are from April to October and no code reads them
+(`git grep` over `server`, `client/src` and `scripts`: 0 files each).
 
-The smallest thing that would do: one table, one row per contact, kept where
-the owner already works (Notion is in the stack, `AGENTS.md:111`). Columns:
-record id (the `robotTeams` id, or the site's job id), kind (company or site),
-date sent, channel, message version, the go-ahead entry's date, answer, next
-step and date, do not contact. Fill the row before the message is sent. The
-code version is fix 8 in section 8.
+**For companies, the outreach log on the research record (fix 8, on the
+branch).** The staff page `/admin/outreach` lists every `robotTeams` record
+with its log and a form. Each record holds: contacted on, channel, message
+version, the go-ahead entry's date, the answer (no reply yet, replied,
+applied, not interested, asked us to stop), next step and its date, and do
+not contact with its date (`server/types/robot-team-registry.ts`,
+`server/utils/robotTeamOutreach.ts`; routes in
+`server/routes/admin-robot-teams.ts`, admin only). Every change names the
+operator and is kept in the record's `outreachEvents`. "Asked us to stop"
+sets do not contact, and do not contact cannot be removed. A contact with no
+go-ahead date or message version is flagged, never refused. The log never
+leaves the admin routes: registry reads drop it, so no match, site page,
+company page or public response carries it, and it never changes a record's
+status. Recording a contact is not a relationship
+(`server/data/robotTeamSeed.ts:6-9`). C1 `outreach_log` counts it. Until the
+branch is live, keep the table below.
+
+**For sites, and until fix 8 is live: one table**, one row per contact, kept
+where the owner already works (Notion is in the stack, `AGENTS.md:111`).
+Columns: record id (the `robotTeams` id, or the site's job id), kind (company
+or site), date sent, channel, message version, the go-ahead entry's date,
+answer, next step and date, do not contact, and the opt-out date. Fill the
+row before the message is sent. A reply asking to stop is honoured within 10
+business days and is never removed (FTC CAN-SPAM guide, risk 17).
 
 ## 3. Site outreach
 
@@ -448,17 +515,29 @@ Where sites come from is unknown: no current channel exists. What the repos
 hold:
 
 - Daily research's site list, last run 2026-10-12 (Firestore
-  `blueprintDailyResearch/sites-first/runs`, 8 documents). Its "outreach
-  ready" tier is "a hypothesis label for drafting,
-  never verification or send authority" (Pipeline
-  `tools/daily_research/verification.py:7-8`).
+  `blueprintDailyResearch/sites-first/runs`: 8 documents, 6 completed). 20
+  candidate rows across 6 run outputs: 0 qualified, 4 `needs_review`, 16
+  `unqualified`, 18 in the US. None has a contact field. Its "outreach ready"
+  tier is "a hypothesis label for drafting, never verification or send
+  authority" (Pipeline `tools/daily_research/verification.py:7-8`), and its
+  outreach direction expired 2026-10-17. Its paid allowance ($10 per run, to
+  2027-01-03) is still in force, so a restart spends money (2026-11-27
+  targets report).
 - 21 existing site jobs with a video under an older statement (C1
-  `site_jobs_by_state`: 42 `older_statement`, 21 of them `video=true`). Their
-  page already offers "Agree and send my job"
-  (`client/src/components/site/SiteAnswer.tsx:63-65`). Writing to them is owner
-  decision 8.
+  `site_jobs_by_state`: 42 `older_statement`, 21 with an upload session: 19
+  on statement 2026-09-18.v1, 2 on 2026-11-02.v2). 9 belong to an admin and
+  ops account (internal); at most 12 could be real sites, which is unknown
+  without decrypting their details. None has a company clip or a simulation,
+  so none would be listed before its clip is ready, even after the site agrees
+  (`server/utils/teamJobAccess.ts:219`). Their page already offers "Agree and
+  send my job" (`client/src/components/site/SiteAnswer.tsx:63-65`). Writing to
+  them is owner decision 8.
 - The doctrine's fallback: offer the video intake to deployment companies for
-  their own leads (`PLATFORM_CONTEXT.md:150-152`).
+  their own leads (`PLATFORM_CONTEXT.md:150-152`). 0 companies may see jobs
+  today, so none can carry it yet. The site intake records no referrer
+  (`client/src/components/site/SiteCaptureStart.tsx` has no referral field), so
+  a job a company brings is shown to every approved company. Tell the company
+  so.
 
 Criteria for the first sites:
 
@@ -522,6 +601,10 @@ owner decided otherwise (owner decision 2). In that case keep the state line.
 > and I will not write again.
 >
 > [SENDER FIRST NAME], Blueprint
+>
+> [LEGAL BUSINESS NAME], [VALID POSTAL ADDRESS: street, USPS box or
+> registered private mailbox]. [THE OWNER'S WORDING THAT THIS MESSAGE IS AN
+> ADVERTISEMENT]. To stop all messages from us, reply "stop".
 
 Proof: free for sites (`client/src/lib/publicCopy.ts:35`); the three steps
 (`client/src/lib/publicCopy.ts:67-69`); no promise of a yes, and Accept
@@ -544,9 +627,14 @@ Send once, five working days later, only if there was no reply.
 > any company will answer, or say yes. [STATE LINE, as in the first message.]
 >
 > If you would like the link and the filming note, reply to this message.
-> This is my last message unless you reply.
+> This is my last message unless you reply. If you would rather not hear from
+> us again, reply and say so.
 >
 > [SENDER FIRST NAME], Blueprint
+>
+> [LEGAL BUSINESS NAME], [VALID POSTAL ADDRESS: street, USPS box or
+> registered private mailbox]. [THE OWNER'S WORDING THAT THIS MESSAGE IS AN
+> ADVERTISEMENT]. To stop all messages from us, reply "stop".
 
 ### DRAFT: what to send once the site says yes
 
@@ -611,7 +699,7 @@ Send the left column as it stands. The right column is why.
 
 | Instruction to the site | Ground |
 | --- | --- |
-| Use a phone. Send a .mov or .mp4 file under 2 GB. | Other formats are refused; the limit is 2 GiB (`server/routes/self-capture-uploads.ts:114,129,1025`) |
+| Use a phone. Send a .mov or .mp4 file, under 1 GB if you can. | Other formats are refused. Over 2 GiB is refused when the file is chosen (`client/src/lib/captureVideoLimit.ts`, on the branch; the route answers 413 `video_too_large`). By default frames are read only from videos up to 1,000,000,000 bytes (`server/utils/websiteLargeVideoBlock.ts:4-7`); the deployed value is unread |
 | Film one full round of the job, from start to finish, in one shot. | The start form's own words, "One full round of the job." (`client/src/components/site/SiteCaptureStart.tsx:887`); the one end-to-end job was one continuous shot (first-run log, "Footage") |
 | Hold the phone sideways if you can. | That job was filmed sideways (1920x1080). An upright phone video was read upright in a $0 check; the rest of the chain has not seen one (Pipeline `docs/test-footage/clip-mix-v1.json:63-85`) |
 | Walk slowly in a half circle around where the job happens, and keep it in view. | `client/src/lib/footageNotice.ts:31`. The one end-to-end job was seen from one side, got no measured scale and shipped without its object (first-run log, "The simulation package") |
@@ -635,7 +723,7 @@ Only what is true today.
 | The upload itself | 12 s for a 77 MB file, in that run | first-run log, 15:21:32Z row |
 | The first look, on the job page | About 1.5 minutes for a reading, since the fix for videos over 64 MB. On a real site's job: unknown | first-run log, 19:39:03Z row; `server/agents/adapters/gemini-video.ts:57-64` |
 | The job in front of approved companies | 50 minutes after Send on the two jobs timed since 2026-11-23. Earlier test jobs: 7 minutes to 21 hours. Today no company can see it at all (gate check S3) | first-run log, 16:11:48Z row; stored clip times less creation times in `captureUploadSessions`, read 2026-11-26 |
-| The simulation of the site | 10 h 33 min on the first-run job, part of it waiting for a fix. Test jobs: 19 hours to 7 days (upper bounds). 6 of 8 test packages are the room without the job's object, and so is the first-run job's: 7 of the 9 built | first-run log, 01:54:34Z row; stored package times in `captureUploadSessions`, read 2026-11-26 |
+| The simulation of the site | 10 h 33 min on the first-run job, part of it waiting for a fix. Test jobs: 19 hours to 7 days (upper bounds). 6 of 8 test packages are the room without the job's object, and so is the first-run job's: 7 of the 9 built. The site's page says which kind it got (fix 6, on the branch) | first-run log, 01:54:34Z row; stored package times in `captureUploadSessions`, read 2026-11-26 |
 | The job's object and the success rule | 0 real jobs. 2 test jobs, at 3 and 6.6 days (upper bounds) | `captureUploadSessions` and `inboundRequests`, read 2026-11-26 |
 | Paid work on the job | Stops 7 days after it starts; the job stays posted | Pipeline `src/blueprint_pipeline/website_job_window.py:21`; `server/utils/teamJobAccess.ts:196-200` |
 | Responses | unknown. None is promised. No real company has ever answered | C1 `answers_by_state` (2, both from test runs) |
@@ -643,10 +731,14 @@ Only what is true today.
 | Questions about what happened | 14, 45 and 90 days after an introduction | `server/utils/jobOutcomeGate.ts:26` |
 | The cost to the site | Nothing | `client/src/lib/publicCopy.ts:35` |
 
-The site's page does not say when the simulation holds no object: it reads
-"The simulation of your site is ready." (`client/src/lib/jobOutlook.ts:28`),
-while a company is told (`client/src/lib/companyJobPage.ts:267`). Until fix 6
-lands, tell the site by hand.
+On the branch, the site's page says when the simulation is the room without
+the job's object: "It shows your room without the job's object in it, so it
+does not check what counts as done." (`client/src/lib/simulationContents.ts`,
+fix 6). It decides from `object_included` or the package's files, as the
+company's page now does too. A delivered simulation stays "ready" after the
+job's time runs out (fix 22). On the live code the page still reads only "The
+simulation of your site is ready." (`client/src/lib/jobOutlook.ts:28`): until
+the branch is live, tell the site by hand.
 
 ### Consent and withdrawal in plain words
 
@@ -691,9 +783,10 @@ company gets the site's email and the place it gave
 - It does not delete Blueprint's copy at once: "We keep a copy of the video
   and any results already made"
   (`client/src/components/site/OwnerRecordingWithdrawal.tsx:47-49`). The host
-  deletes later, under the owner's standing approval with a 72-hour cool-off
-  (Pipeline `config/website_withdrawal_deletion_standing_approval.v1.json`).
-  **No deletion has ever completed on the host** (gate check P3).
+  is meant to delete later, under the owner's standing approval with a 72-hour
+  cool-off (Pipeline `config/website_withdrawal_deletion_standing_approval.v1.json`).
+  **No deletion has ever completed on the host, and the first one is blocked
+  until a fix lands** (gate check P3, fix 20).
 - It does not reopen the job. Posting again needs a new job
   (`client/src/components/site/OwnerRecordingWithdrawal.tsx:143-144`).
 - Whether it recalls details already given in an introduction: nothing says
@@ -710,11 +803,11 @@ company can see a job (gate check S3), and a site would read "Your job is
 ready for deployment companies, but no approved company can see it yet."
 (`client/src/components/site/SiteAnswer.tsx:58`).
 
-- **Size: 10 to 15 companies a batch, from a pool of 18 or fewer.** If fewer
-  than 10 are left after each home page is read, the batch is what is left.
-  Widening the pool means finding an address for the 63 prospects that have
-  none: by hand, or with the paid lookup, which is a money decision for the
-  owner.
+- **Size: at most 15 companies a batch, and only those that pass the day's
+  reading.** On 2026-11-27 that was 4 of the 18 (section 2). 12 more meet
+  criteria 4 to 7 but have no researched address. Widening the pool means
+  finding an address for them, or for the other prospects that have none: by
+  hand, or with the paid lookup, which is a money decision for the owner.
 - Arithmetic: each listed job emails every approved company once
   (`server/utils/jobAutoSend.ts:5-7`). With 15 companies, a day with 3 new
   jobs is 45 emails. Add 2 for each introduction and about 2 for each new
@@ -771,16 +864,17 @@ Each condition is read from the commands in section 1.
 | Condition | Read from | Kind |
 | --- | --- | --- |
 | The owner said yes to this batch | The dated tracker entry | Rule |
+| No company in the batch is marked do not contact, and none asked to stop | `/admin/outreach` (on the branch) or the contact table; C1 `outreach_log` | Rule: an opt-out is honoured |
 | No application has waited more than 3 working days | C1 `applications_waiting` | Flag: write it in the batch note |
 | The state line in the message is today's | C1 `listed_for_companies` | Correct the line before sending |
-| Flags S3, S4, S5 and S6 are written in the batch note | Section 1 | Flag |
+| Flags S3, S4, S5 and S6 that do not pass are written in the batch note | Section 1 | Flag |
 
 **Before wave 1 (and before each further site wave):**
 
 | Condition | Read from | Kind |
 | --- | --- | --- |
 | The owner said yes to this batch | The dated tracker entry | Rule |
-| P1 to P5 pass. For P3: `approval valid`, `failing` and `overdue` both absent, and the first deletion receipt has been read | C1, C2 | Hard stop |
+| P1 to P5 pass. For P3: `approval valid`, `failing` and `overdue` both absent, and the first deletion receipt has been read: C6 check 1 (from 2026-11-27 17:50Z) shows the plan `planned` with 0 unresolved rows, and C6 check 2 (from 2026-11-28 03:45Z) shows one receipt, `complete` or `complete_provider_retention_remains`, under `standing_owner_approval` | C1, C2, C6 | Hard stop |
 | R1 to R4 pass | C1, C3, C5 | Hard stop |
 | M1, M3 and M4 pass; M5 is known; the wave is cut to the size M2 allows | C2, C5 | Hard stop |
 | At least one real company can see jobs | C1 `companies_that_may_see_jobs` ≥ 1 | Order of the plan. The owner may decide otherwise (decision 2); the message then keeps its state line |
@@ -810,7 +904,18 @@ Read these after each wave and weekly while a wave is open. The owner's page
 | Month's money | C2 `money`, `forecast` | $350.88 of $400; $49.12 headroom (00:08Z on 11-27); the forecast reaches the limit on 11-30 |
 | Email | C1 `outbox`; C3 `health/outbox` | 145 sent, 10 failed, 1 cancelled; `moving` |
 | Withdrawals | C1 `withdrawals`, `website_deletion_receipts`; C2 `withdrawal` | 1, acknowledged; website copy deleted; host deletion not applied |
-| Outreach itself: sent, replied, applied, said no | The contact table (section 2) | Nothing sent |
+| Outreach itself: sent, replied, applied, said no | `/admin/outreach` and C1 `outreach_log` (on the branch), or the contact table (section 2) | Nothing sent |
+
+**C1 read again at 03:53Z on 11-27** (counts only; who made the changes was
+not read): applications 4 (1 approved, 2 declined, 1 waiting for 0 days with
+`not_a_robot_company`); `rule_check_days 1`, `rule_model_runs 1`;
+`companies_that_may_see_jobs 0`; `sign_in_links_used 2`; 0 of 62 site jobs
+listed; `companySends 4`, `companyJobViews 0`, `robotTeamInterest 3`
+(`interested` 2, `needs_something` 1), `jobClarifications 0`, `introductions
+2`, 1 with an outcome answer; billable events unchanged (1 `void`, 1
+`test_no_charge`, both `priceUsd=null`); outbox 153 sent, 10 failed, 1
+cancelled; 1 account deletion request, `requested`, 38 whole days; 4 open
+alerts; no job started that day; the outreach log empty.
 
 Two rates to compute once numbers exist: applications ÷ companies contacted,
 and jobs listed ÷ sites that said yes. A number said outside Blueprint must be
@@ -823,21 +928,21 @@ drafts say none.
 | --- | --- | --- |
 | 1 | A site's job is posted to nobody (0 companies can see jobs) | Wave 0 goes first. The site's page already says so (`client/src/components/site/SiteAnswer.tsx:58`). If the owner invites sites first, the message keeps its state line |
 | 2 | An approved company finds nothing to see | The first message says "No job is open today." Find jobs says "No jobs yet." (`client/src/components/site/TaskBrowse.tsx:111-112`). Write to no approved company again until a job is listed |
-| 3 | The rule cannot run, so "at once" is false for every applicant | Use the three-working-days rule line until S4 passes. The owner decides each application by hand. Fix 1 |
-| 4 | The owner never hears that an application waits (the bell and the reminder are Slack only, `server/utils/slack.ts:96-100`) | The owner opens `/admin/robot-team-access` daily while a batch is out. Fix 2 |
-| 5 | A mail scanner spends a one-use sign-in link before the person clicks (inferred; the page redeems the link on load, `client/src/pages/Login.tsx:71-82`) | Watch C1 `sign_in_links_used` against Terms acceptances. Tell a company that reports a dead link to ask for a new one at `/sign-in`. Fix 3 |
+| 3 | The rule cannot run, so "at once" is false for every applicant | Use the three-working-days rule line until S4 passes; one press of "Run the rule" settles S4. S4 passed at 03:53Z on 11-27 (the live rule's model answered once), but no check has yet approved a company. Fix 1 done on the branch (b29e42dd7) |
+| 4 | The owner never hears that an application waits: on the live code the bell and the reminder are Slack only (`server/utils/slack.ts:96-100`); on the branch each is also emailed once to `CONTACT_TO` | Fixed on the branch by 57326da1e. Confirm `CONTACT_TO` on Render names the owner's inbox before wave 0. Until the branch is live, the owner opens `/admin/robot-team-access` daily while a batch is out |
+| 5 | A mail scanner spends a one-use sign-in link before the person clicks (inferred; the live page redeems the link on load, `client/src/pages/Login.tsx:71-82` at `e439731`) | Fixed on the branch by 99314af0f: the sign-in page and the job page redeem a link only on the company's press (`e2e/outreach-company-links.spec.ts` tests 4 and 5). Until it is live, a company that reports a dead link asks for a new one at `/sign-in` |
 | 6 | A real company's website fails the plain steps: a parent-company email domain, a redirect to another domain, a page built by scripts | It goes to the owner with its reason (`server/utils/companyCheck.ts:178-190`). Read the reason counts after the batch; decision 17 |
 | 7 | The month's money runs out during a site wave | Size the wave by M2. The limit is enforced in code. Owner decision 3 |
 | 8 | The true headroom is unknown (World Labs partial, $18 held with no job) | Treat the headroom as smaller by the open amounts. Fix 9 |
-| 9 | A withdrawal's deletion never completes on the host | P3 is a hard stop for a site wave. Read the first receipt after 2026-11-28 02:25Z. If it names the source bucket under `remaining`, the owner sets `BLUEPRINT_WEBSITE_WITHDRAWAL_SOURCE_BUCKET` (tracker:285) |
-| 10 | A site expects a full simulation and gets the room only (7 of the 9 packages built so far) | The yes-message says so. Tell the site by hand until fix 6 lands |
+| 9 | A withdrawal's deletion never completes on the host | P3 is a hard stop for a site wave. First the plan must have no unresolved rows. Today 144 offloaded runs that name no site block it (2026-11-27 privacy report; fix 20). Then read the first receipt (C6 check 2). Without `BLUEPRINT_WEBSITE_WITHDRAWAL_SOURCE_BUCKET` it reads `incomplete`, and the pass applies again every 6 hours without finishing (proved offline). The door cannot read the environment file (`secret_name_refused`). The owner sets the variable after confirming that the unit can authenticate to Google Cloud Storage. The overdue alert posts 2026-12-16 02:25Z, and the 30-day promise ends 2026-12-25 02:25Z |
+| 10 | A site expects a full simulation and gets the room only (7 of the 9 packages built so far) | The yes-message says so, and on the branch the site's page says it for each job (fix 6, done in 5afd7589f). Tell the site by hand until it is live |
 | 11 | A site expects minutes and waits hours or days | The yes-message gives the times observed. Time every wave-1 job and replace the numbers in section 3 |
 | 12 | The email plan's daily cap is reached and customer email backs off | Keep to the wave sizes. Watch `health/outbox`. Owner decision 15 |
-| 13 | A stale document is sent to a site: the site guide still describes an early trial, hand approval and a button that no longer exists (`docs/beta/SITE_OPERATOR_BETA_GUIDE.md:14-18,33,71-72`) | Send the yes-message, not the guide. Fix 5 |
-| 14 | The same company is written to twice, or after it said stop | Fill the contact table before sending. Check "do not contact" for every batch |
+| 13 | A stale document is sent to a site | Fix 5 is done on the branch (df457eff4): the site guide and the beta README describe today's service. The guide may be sent with the yes-message once the branch is on main |
+| 14 | The same company is written to twice, or after it said stop | Record each contact before sending, in `/admin/outreach` (fix 8, on the branch) or the contact table. Check "do not contact" for every batch; once set it cannot be removed |
 | 15 | Outreach copy drifts from what is true | Use the drafts as written. A changed sentence needs a new yes and its proof beside it |
 | 16 | The research list is stale and mostly inferred | Read each home page on the day. Quote only the company's own page |
-| 17 | The legal requirements for unsolicited business email (sender identity, postal address, opt-out) have not been reviewed by anyone | unknown. The drafts carry a plain way to stop. The owner asks counsel before the first batch (decision 1) |
+| 17 | Unsolicited business email breaks US rules. The FTC's "CAN-SPAM Act: A Compliance Guide for Business" (https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business, read 2026-11-27; a summary, not legal advice) says: "The law makes no exception for business-to-business email"; the header must identify who sent it; "the subject line must accurately reflect the content"; the message must say it is an advertisement; "Your message must include your valid physical postal address" (a street address, a USPS box or a registered private mailbox); it must explain clearly how to opt out, and an opt-out must work for at least 30 days after sending and be honoured "within 10 business days"; no fee or extra information to opt out, and an opted-out address is never sold or passed on; the sender stays responsible if someone else sends; "each separate email in violation" can cost up to $53,088 | Drafts 1, 2, 4 and 5 now carry a footer with placeholders for the legal business name, a postal address and the advertisement notice, and a plain opt-out; draft 1's subject no longer suggests jobs exist when none is open. The owner fills the placeholders (never a made-up address) and chooses the notice's wording. Drafts 3 and 6 answer the recipient's own question or request; the guide reads that category narrowly, so keeping the footer there is the safe reading (the owner decides). The follow-ups' "Re:" on a message never answered may read as a reply: the guide does not name it; drop it if in doubt. Replies are read for 30 days after each send and an opt-out is recorded at once (`/admin/outreach` or the contact table). The owner may still ask counsel (decision 1) |
 | 18 | A site is refused at the door: the sixth job of a day, or an address not on the allowlist | At most 5 starts a day. Settle M5 and tell the site which address to use |
 | 19 | The host is lost and its state with it (no complete backup is on record; the first run ended incomplete) | Flag S10. Read S10 again after Pipeline pull request 3764 is live, then run a restore drill (Pipeline `docs/runbooks/beta-operations.md`, "Control-plane state backup and host rebuild") |
 | 20 | Details given in an introduction cannot be recalled by a withdrawal (inferred) | Say only what section 3 says about withdrawal |
@@ -851,11 +956,11 @@ decided (`PLATFORM_CONTEXT.md:70-73`).
 
 | # | Decision, with the facts | Options | Recommendation |
 | --- | --- | --- | --- |
-| 1 | **Go-ahead for wave 0, and who sends.** 0 real companies are approved; the rule has never run; nobody has reviewed the legal requirements for unsolicited email (risk 17) | (a) Approve a first batch of 10 to 15 from the pool of 18 or fewer and send it yourself. (b) Approve it and name an operator to send. (c) Wait for companies to apply by themselves | (a), after decision 4 and a word from counsel |
+| 1 | **Go-ahead for wave 0, and who sends.** 0 real companies are approved; the live rule has answered once, a "no" (gate check S4); 4 researched companies were ready on 2026-11-27 and 12 more need an address; the FTC's guidance on commercial email is summarised in risk 17, and nobody has given legal advice | (a) Approve a first batch of the 4 ready (and any of the 12 once an address is found) and send it yourself. (b) Approve it and name an operator to send. (c) Wait for companies to apply by themselves | (a), after decision 4, with the drafts' footer placeholders filled (risk 17), and a word from counsel if you want one |
 | 2 | **Companies first, or sites first.** | (a) Companies first. (b) Sites first, each told that no company is approved yet. (c) Both at once | (a). It spends no job money, and November has none to spare |
 | 3 | **December's account limit** (Pipeline `config/account_monthly_spend_limit.v1.json`). Google Cloud's month so far is almost all untied to any job ($73.25 at 00:08Z on 11-27), and so is $72.71 of OpenAI (C2 `fixed_so_far`) | (a) Keep $300: 2 to 4 jobs at $16.20 a job, 0 to 1 at the $40 cap. (b) Add a December override, as was done for November. (c) Cut fixed spend first | (c), then decide (b) from the 12-01 reading. Size any override by sites wanted × $40 |
 | 4 | **The model key for the approval rule** (gate check S4) | (a) Confirm `OPENAI_API_KEY` on the Render web service now. (b) Accept that every applicant waits for your press, within three working days | (a). It makes the published sentence true |
-| 5 | **How you are told an application waits** (gate check S5) | (a) Confirm the Slack webhook is set and watched. (b) Ask for the email fallback (fix 2). (c) Open the approvals page daily | (a) today and (c) while the first batch is out; then (b) |
+| 5 | **How you are told an application waits** (gate check S5) | (a) Confirm the Slack webhook is set and watched. (b) The email is built on the branch (57326da1e); confirm `CONTACT_TO` names your inbox. (c) Open the approvals page daily | (b) once the branch is live; (a) optional; (c) until then |
 | 6 | **The invitee allowlist** (`BLUEPRINT_INVITEE_ALLOWLIST`). If set, any other address is refused with a plain line (`server/utils/inviteeAllowlist.ts:38-41`); a malformed value refuses every job (`server/utils/inviteeAllowlist.ts:47-50`) | (a) Set it to the invited sites' addresses for wave 1. (b) Leave intake open | (a) for wave 1. Each job spends Blueprint's money and the month is tight |
 | 7 | **The intake cap of 5 jobs a day** | (a) Keep it. (b) Raise it on Render (`BLUEPRINT_INTAKE_DAILY_LIMIT`) | (a). Money allows far fewer than 5 a day |
 | 8 | **The 42 jobs under an older statement**, 21 of them with a video. Writing to them is email to outside people | (a) Email the 21 once, asking each site to open its job page and agree. (b) Leave them. (c) Close them | (b) until a company can see jobs, then (a) |
@@ -864,12 +969,12 @@ decided (`PLATFORM_CONTEXT.md:70-73`).
 | 11 | **Telling companies that each introduction is recorded, and that companies will pay.** The company Terms say only "Nothing is charged today." (`client/src/pages/Terms.tsx:76`). No public page says that deployment companies will pay; the doctrine does (`PLATFORM_CONTEXT.md:70-73`), and the first-message draft carries it | (a) Say nothing until a price is set, and keep "Deployment companies will pay" to the cost reply. (b) Keep that sentence in the first message, and add one with no price: "We record each introduction; nothing is charged today." | (b). Both are true, and a company should not learn either later |
 | 12 | **The wording of statement v6.** It names the video, the simulation and the city and state, but not "without its sound" or the success rule; the Terms it points to cover both (`client/src/pages/Terms.tsx:9`). Only you change this wording (`PLATFORM_CONTEXT.md:132`) | (a) Keep v6. (b) Publish a v7 | (a) for wave 1 |
 | 13 | **The retired RunPod key on the host** (gate check M6). A root step only you can take | (a) Delete it. (b) Remove RunPod from the guard's required providers | (a) |
-| 14 | **The account deletion request, 37 days old** (gate check P4) | (a) Answer it. (b) Close it as a test account, if it is one | Decide this week. It blocks a site wave |
+| 14 | **The account deletion request, 37 days old** (gate check P4) | (a) Carry out runbook steps 1-8 (`docs/runbooks/account-data-deletion.md`): "Start privacy review" in /admin/jobs, then delete `users/{uid}` and the Auth user by hand, and keep the request as the completion record. (b) There is no "close" action in the app. Treating it as a test account still means deleting that account by hand. No reply can be delivered (reserved domain) | Decide this week. It blocks a site wave |
 | 15 | **The email plan before a company wave** (gate check S11) | (a) Confirm the plan's real limits and stay on it. (b) Upgrade first | (a) while a batch is at most 15 companies and a wave at most 3 sites |
-| 16 | **Telling a site that its simulation is the room only** | (a) Say it on the site's page (fix 6). (b) Keep the general "ready" line | (a). A page says only what is true (`PLATFORM_CONTEXT.md:206-208`) |
+| 16 | **Telling a site that its simulation is the room only** | (a) Say it on the site's page (fix 6). (b) Keep the general "ready" line | (a). A page says only what is true (`PLATFORM_CONTEXT.md:206-208`). Implemented as (a) on the branch in 5afd7589f; revert it if (b) |
 | 17 | **Parent-company and brand domains in the rule.** Widening it changes the published sentence | (a) Keep the rule strict; you decide each case. (b) Widen it | (a) for wave 0. Decide again from the reason counts |
 | 18 | **Refreshing the research list** | (a) Read each home page by hand for the batch, at no provider cost. (b) Resume paid research in December. (c) No refresh | (a) |
-| 19 | **Where the contact table lives** | (a) A table in Notion now. (b) Fields on `robotTeams` (fix 8) | (a) now, (b) when outreach repeats |
+| 19 | **Where the contact table lives** | (a) A table in Notion now. (b) The outreach log on `robotTeams` (fix 8, built on the branch: `/admin/outreach`) | (b) for companies once the branch is live; (a) for sites, and for companies until then |
 
 ## 8. Fixes outreach needs first
 
@@ -878,29 +983,34 @@ belongs to the paused work.
 
 **No fix here is a gate.** The hard stops of section 1 are cleared by owner
 decisions and by data (decisions 3, 6 and 14, and the first deletion
-receipt), not by these fixes. "Do first" marks the fixes outreach most needs:
+receipt), not by these fixes. As the code stands, the first deletion receipt
+cannot exist until fix 20 lands (gate check P3). "Do first" marks the fixes outreach most needs:
 the wave goes better with them. A batch the owner approved does not wait for
 one. If a fix is not done, its limitation goes in the batch note and the last
 column says what we do instead (`AGENTS.md:93-96`).
 
 | # | Fix | File | Size | Do first? | If it is not done |
 | --- | --- | --- | --- | --- | --- |
-| 1 | An admin-only "check this domain" action that runs the rule once and records no approval, so the rule is proved before the first real applicant | `server/routes/admin-robot-team-access.ts`, `server/utils/companyCheck.ts:170` | M | Yes, for wave 0, unless the owner confirms the key (decision 4) | Flag S4 goes in the batch note. The message uses the three-working-days line and the owner decides each application by hand (risk 3) |
-| 2 | An email fallback for the new-application bell and the three-working-day reminder | `server/utils/slack.ts`, `server/utils/accessApplicationReminder.ts` | M | Yes, for wave 0, unless the Slack webhook is confirmed (decision 5) | Flag S5 goes in the batch note. The owner opens `/admin/robot-team-access` daily while a batch is out (risk 4) |
-| 3 | One press before a one-use sign-in link is redeemed | `client/src/pages/Login.tsx`, `client/src/pages/CompanyJob.tsx` | M | Yes, for wave 0 (inferred risk) | Flag S6 goes in the batch note. A company that reports a dead link asks for a new one at `/sign-in` (risk 5) |
-| 4 | The monitoring runbook's intake cap: 5, not 50; and "5 ops notices", not "50" | `docs/runbooks/beta-monitoring.md:193,209` | S | Yes | Read the cap from C5 grep 7, not from the runbook |
-| 5 | Rewrite the site guide and the beta README to today's service: no early trial, approval by the rule, "Stop using my video", sharing as the service | `docs/beta/SITE_OPERATOR_BETA_GUIDE.md`, `docs/beta/README.md` | S | Yes, for wave 1 | Send the yes-message, not the guide (risk 13) |
-| 6 | Tell the site when its simulation is the room without the job's object | `server/utils/jobOutlook.ts`, `client/src/components/site/SiteAnswer.tsx` | S | Yes, for wave 1, after decision 16 | Tell the site by hand (risk 10) |
-| 7 | The site's video email says "Your job goes to approved deployment companies" while none is approved; add "once companies are approved" | `server/utils/taskLifecycleNotifications.ts:49-50` | S | Only if sites go before companies | The messages to the site keep their state line |
-| 8 | Outreach fields on the research record: contacted at, channel, outcome, go-ahead date | `server/types/robot-team-registry.ts`, `server/routes/admin-robot-teams.ts` | M | No | The contact table does for wave 0 |
+| 1 | **Done on the branch: b29e42dd7.** An admin-only "Try the automatic rule" action on `/admin/robot-team-access` runs the rule once and records no application, approval or email (its own cap, 10 a day) | `server/routes/admin-robot-team-access.ts:131`, `server/utils/companyCheck.ts:262` (`tryCompanyRule`) | done | Yes, for wave 0, unless the owner confirms the key (decision 4) | Until the branch is live: flag S4 goes in the batch note if it does not pass. The message uses the three-working-days line and the owner decides each application by hand (risk 3) |
+| 2 | **Done on the branch: 57326da1e.** An email to `CONTACT_TO` beside the new-application bell and the three-working-day reminder, once per application per notice | `server/utils/ownerApplicationNotice.ts`, `server/utils/accessApplicationReminder.ts` | done; no new variable, relies on `CONTACT_TO` | Yes, for wave 0, unless the Slack webhook is confirmed (decision 5) | Until the branch is live: flag S5 goes in the batch note. The owner opens `/admin/robot-team-access` daily while a batch is out (risk 4) |
+| 3 | **Done on the branch: 99314af0f.** One press before a one-use sign-in link is redeemed, on the sign-in page and the job page | `client/src/pages/Login.tsx:83`, `client/src/pages/CompanyJob.tsx:183` | done | Yes, for wave 0 (inferred risk) | Until the branch is live: a company that reports a dead link asks for a new one at `/sign-in` (risk 5) |
+| 4 | **Done on the branch: df5617f26.** The monitoring runbook's intake cap reads 5, not 50, and "at most 5 intake ops notices", not "50"; every other number in it was checked against the code | `docs/runbooks/beta-monitoring.md:196,212-215` | done | Yes | Read the cap from C5 grep 7, not from the runbook |
+| 5 | **Done on the branch: df457eff4.** The site guide and the beta README describe today's service: no early trial, approval by the rule, "Stop using my video", sharing as the service | `docs/beta/SITE_OPERATOR_BETA_GUIDE.md`, `docs/beta/README.md` | done | Yes, for wave 1 | Until the branch is live: send the yes-message, not the guide (risk 13) |
+| 6 | **Done on the branch: 5afd7589f** (the site's page, and the company's page for unflagged room packages). Tell the site when its simulation is the room without the job's object | `client/src/lib/simulationContents.ts`, `client/src/components/site/SiteAnswer.tsx`, `server/routes/site-task-brief.ts` | done | Yes, for wave 1, after decision 16 | Until the branch is live: tell the site by hand (risk 10) |
+| 7 | **Done on the branch: 7c6098d84.** While none is approved the site's video email reads "Your job goes to the deployment companies we approve. None is approved yet, so no company can see your job yet; your job page shows when one can." | `server/utils/taskLifecycleNotifications.ts`, `server/routes/inbound-request.ts` | done | Only if sites go before companies | Until the branch is live: the messages to the site keep their state line |
+| 8 | **Done on the branch: d716400e5.** The outreach log on the research record: contacted on, channel, message version, go-ahead entry date, answer, next step and date, do not contact (sticky), on the staff page `/admin/outreach`; admin only, never in a registry read | `server/types/robot-team-registry.ts`, `server/utils/robotTeamOutreach.ts`, `server/routes/admin-robot-teams.ts`, `client/src/pages/AdminOutreach.tsx` | done | No | Until the branch is live: the contact table (section 2) |
 | 9 | Complete the month's count: the World Labs reading, and the 345 admissions with no job that hold $18 | Pipeline `src/blueprint_pipeline/account_monthly_spend_report.py`, Pipeline `src/blueprint_pipeline/paid_spend_meter.py` | M | Yes, for wave 1 (money) | Treat the headroom as smaller by the open amounts when sizing the wave (risk 8) |
 | 10 | Run pull request 1424's four tests on main; close it if they pass (decision 9) | `server/tests/site-assessment-preparation.test.ts`, `server/tests/website-job-ceiling.test.ts` | S | No | Nothing changes: main already counts the readings |
-| 11 | An alert when an account deletion request ages past its promise | `server/utils/betaOpsMonitor.ts`, `server/utils/accountDeletion.ts` | M | No | Decision 14 clears today's case; gate check P4 catches the next |
-| 12 | A plain empty state on the public jobs page | `client/src/components/site/LiveJobs.tsx:39` | S | No | The signed-in Find jobs page already says "No jobs yet." |
-| 13 | "We checked its reach" reads like a robot test; say "We measured the reach the job needs" | `client/src/components/site/SiteAnswer.tsx:147` | S | No | Nothing; the drafts do not use the phrase |
-| 14 | The approval email's "Find jobs" link opens a page that reads "Apply to see jobs" to a signed-out reader | `server/utils/robotTeamAccessEmails.ts:57-58` | S | No | The email's invitation link still works; point a company to it if it asks |
+| 11 | **Done on the branch: 604318b9d.** The owner is told once at 25 days and once at 30 about each account deletion request, through the ops monitor (Slack and one email to `CONTACT_TO`) | `server/utils/accountDeletionAgeAlerts.ts`, `server/utils/betaOpsMonitor.ts` | done | No | Decision 14 clears today's case. Gate check P4 catches the next only once its pass condition stops counting `in_review` as done (it now does). Nothing else in `server/` reads `accountDeletionRequests` besides its route, its util and this alert |
+| 12 | **Done on the branch: 8cc79c99b.** A plain empty state on the public jobs page | `client/src/components/site/LiveJobs.tsx:44` | done | No | The signed-in Find jobs page already says "No jobs yet." |
+| 13 | **Done on the branch: 21fa5708b.** It reads "We measured your spots in the simulation of your site and compared them with the robot's published reach." | `client/src/components/site/SiteAnswer.tsx`, `server/utils/siteAnswer.ts` | done | No | Nothing; the drafts do not use the phrase |
+| 14 | **Done on the branch: 5d0ecd4de.** The approval email's "Find jobs" link goes through `/sign-in?next=%2Fcontact%2Frobot-team` | `server/utils/robotTeamAccessEmails.ts:59` | done | No | The email's invitation link still works; point a company to it if it asks |
 | 15 | Close the 4 stale open alerts, and close old ones automatically | `server/utils/betaOpsMonitor.ts` | S | No | Gate check S8 reads the open alerts by their dates |
-| 16 | Commit command C1 as a script, so the gate is one line | `scripts/ops/outreach-counts.ts` (new) | S | No | Paste C1 from section 1 |
+| 16 | **Done on the branch: b90688327.** Command C1 is the read-only script `scripts/ops/outreach-counts.ts`, with four readings added | `scripts/ops/outreach-counts.ts` | done | No | Until the branch is on main, run the script from the branch |
 | 17 | This repo's guide still says the site "presses Introduce us"; the live button is "Accept" | `AGENTS.md:44-46` (outside the shared block) | S | No | The playbook and the drafts say "Accept" |
 | 18 | Remove "OEM" and "vendor" from the figures file, or archive it | `client/src/data/deploymentMarket.ts` | S | No | The drafts quote no figure |
 | 19 | Filming advice on the upload page: length, light, steadiness | `client/src/lib/footageNotice.ts` | S | No | The yes-message carries it |
+| 20 | Withdrawal plan: do not count as undetermined an offloaded run that predates the withdrawn site (its sealed pointer's `offloaded_at_epoch` earlier than the site's first record on the host). Add a drill case with an unrelated no-site pointer. Rejected: reading every archive from B2, which spends money and is not bounded by the plan's reading budget | Pipeline `src/blueprint_pipeline/website_capture_withdrawal_deletion.py:665-670` | M | Yes. Hard stop: privacy. It must land before 2026-11-28 02:25Z for the first apply to run on time | The plan ends `unresolved` and the first deletion does not apply; the overdue alert posts 2026-12-16 02:25Z (risk 9) |
+| 21 | **Done on the branch: ad46dd933, 06690ee8a.** A video over the upload limit is told before it uploads, and the done screen offers a smaller video | `client/src/lib/captureVideoLimit.ts`, `server/routes/self-capture-uploads.ts`, `client/src/components/site/SiteCaptureStart.tsx` | done | No | Until the branch is live, the yes-message's "under 1 GB if you can" |
+| 22 | **Done on the branch: 8cf85a6ee.** A delivered simulation stays ready on the site's page after the job's time runs out | `server/utils/jobOutlook.ts` | done | No | Tell the site by hand that its simulation can still be downloaded |
+| 23 | **Done on the branch: f13c7bbc7, 51632d381, 2f65abd7e.** The tracker reads "No approved company can see it yet."; the account-limit hold says building the simulation is paused, not the job; companies read "There is no simulation for this job." for an ending with none | `client/src/lib/jobTracker.ts`, `server/utils/taskPreparationOutcome.ts`, `server/utils/taskBrowse.ts`, `client/src/lib/companyJobPage.ts` | done | No | The messages keep their state line |
