@@ -43,7 +43,7 @@ const { checkNewCompanyApplication } = await import("../utils/companyCheck");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { __resetOpsProcessAlertsForTests } = await import("../utils/opsProcessAlerts");
 
-const APPLICANT = "ops@outreach-fixture-arm.com";
+const APPLICANT = "ops@outreach-fixture-arm.example.com";
 const outboxKeys = () => [...state.docs.keys()].filter(key => key.startsWith("captureOutbox/"));
 const ownerRows = () => outboxKeys().filter(key => key.startsWith("captureOutbox/ops_access_application:"))
   .map(key => ({ key, ...(state.docs.get(key) as Record<string, string>) }));
@@ -56,7 +56,7 @@ const expectLinkOnly = (row: { to: string; subject: string; body: string }, id: 
 
 async function apply(email: string) {
   const { record } = await early.recordAccessApplication({ name: "Fixture Applicant", email, company: "Fixture Co",
-    website: "https://outreach-fixture-arm.com", partnerRole: "deployment" });
+    website: "https://outreach-fixture-arm.example.com", partnerRole: "deployment" });
   return { id: early.accessRecordId(record.email), record };
 }
 const waitedSinceLastWeek = (id: string) => state.docs.set(`robotTeamAccess/${id}`,
@@ -204,7 +204,7 @@ describe("with a Slack webhook set", () => {
 
 describe("the owner's one press", () => {
   it("approve queues one approval email with a 7-day invitation link and a Find jobs link", async () => {
-    const { id } = await apply("ops@outreach-fixture-arm.com");
+    const { id } = await apply("ops@outreach-fixture-arm.example.com");
     const decided = await early.decideAccessApplication({ id, status: "approved", note: null, decidedBy: "owner" });
     expect(decided?.notification.status).toBe("queued");
     const rows = outboxKeys();
@@ -219,7 +219,7 @@ describe("the owner's one press", () => {
   });
 
   it("decline of a waiting application queues exactly one fixed decline email (status pending until the outbox delivers it)", async () => {
-    const { id } = await apply("ops@outreach-fixture-arm.com");
+    const { id } = await apply("ops@outreach-fixture-arm.example.com");
     const decided = await early.decideAccessApplication({ id, status: "declined", note: null, decidedBy: "owner" });
     expect(decided?.notification.status).toBe("queued");
     const rows = outboxKeys();
@@ -227,14 +227,14 @@ describe("the owner's one press", () => {
     const row = state.docs.get(rows[0]) as Record<string, string>;
     expect(row.kind).toBe("robot_team_access_declined");
     expect(row.status).toBe("pending");
-    expect(row.to).toBe("ops@outreach-fixture-arm.com");
+    expect(row.to).toBe("ops@outreach-fixture-arm.example.com");
     // Pressing it again sends nothing more.
     await early.decideAccessApplication({ id, status: "declined", note: null, decidedBy: "owner" });
     expect(outboxKeys()).toHaveLength(1);
   });
 
   it("withdrawing an approval (decline after approve) sends the company nothing", async () => {
-    const { id } = await apply("ops@outreach-fixture-arm.com");
+    const { id } = await apply("ops@outreach-fixture-arm.example.com");
     await early.decideAccessApplication({ id, status: "approved", note: null, decidedBy: "owner" });
     const afterApproval = outboxKeys().length;
     await early.decideAccessApplication({ id, status: "declined", note: null, decidedBy: "owner" });

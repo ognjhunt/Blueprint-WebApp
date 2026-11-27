@@ -20,6 +20,7 @@ import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { crossRuntimeArtifactDigest } from "../server/utils/crossRuntimeCanonical";
 import { VIDEO_TOO_LARGE } from "../client/src/lib/captureVideoLimit";
+import { FILMING_NOTICE } from "../client/src/lib/footageNotice";
 import { PROJECT, VIDEO, localOnly, publishCompanyClip, startWithVideo, tick } from "./site-answer-journey-helpers";
 
 const ORIGIN = "http://127.0.0.1:4183";
@@ -106,17 +107,34 @@ test("a draft with no video: what the site is asked and told", async ({ page }) 
   console.log("[draft] start form:", (await pageText(page)).slice(0, 1500));
   await page.locator("#start-task").fill("Pick up the sealed carton from the table and place it on the cart.");
   await page.locator("#start-location").fill("Testville, TX");
-  await page.locator("#start-email").fill(`outreach-site-draft-${Date.now()}@example.invalid`);
+  const email = `outreach-site-draft-${Date.now()}@example.invalid`;
+  await page.locator("#start-email").fill(email);
   await page.locator("#start-region").selectOption("us");
   const button = page.getByRole("button", { name: /^(Send video|Next: film the job|Save my job)$/ });
   console.log("[draft] button:", await button.innerText());
+  // Review, 2026-11-27: what the site reads, not only what is logged. With no video chosen, in the United States, the
+  // form asks for the video and its button says filming comes next (`SiteCaptureStart.tsx`).
+  await expect(page.getByText("Film or upload a video to post your job.", { exact: true })).toBeVisible();
+  await expect(button).toHaveText("Next: film the job");
   const posted = page.waitForRequest(request => request.method() === "POST" && /\/api\/inbound-request$/.test(new URL(request.url()).pathname));
   await button.click();
   const body = (await posted).postDataJSON();
   console.log("[draft] recorded:", JSON.stringify({ description: body.descriptionAuthority?.statementVersion,
     recording: body.consentAttestation?.statementVersion ?? null, descriptionOnly: body.descriptionOnly }));
+  expect(body.descriptionOnly).toBe(true);
+  expect(body.consentAttestation?.statementVersion ?? null).toBeNull();
+  // The saved draft's screen on a desktop: saved, film next, how, the filming notice, and the private link.
+  await expect(page.getByRole("heading", { name: "Now film the job." })).toBeVisible();
   await page.waitForLoadState("networkidle");
-  console.log("[draft] after:", (await pageText(page)).slice(0, 1200));
+  const after = await pageText(page);
+  console.log("[draft] after:", after.slice(0, 1200));
+  await expect(page.getByText("Draft saved", { exact: true })).toBeVisible(); // shown in capitals by the page's style
+  for (const sentence of ["One full round of the job, about 30 seconds. The recorder opens in your browser.", FILMING_NOTICE,
+    "Point your phone's camera at this code to film", `We also emailed this private link to ${email}. Please don't forward it.`])
+    expect(after).toContain(sentence);
+  await expect(page.getByRole("link", { name: "Open my job page" })).toBeVisible();
+  // A draft with no video promises nothing about companies yet.
+  expect(after).not.toMatch(/deployment compan(?:y|ies) (?:can|will) see your job/i);
   expect(missing).toEqual([]);
 });
 
