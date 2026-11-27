@@ -71,7 +71,8 @@ function OutreachRow({ row, save }: { row: Row; save: (teamId: string, change: R
         </div>
       </div>
       {row.flags.length ? <ul className="grid gap-1 text-sm text-runway-red" aria-label="Flags">{row.flags.map(flag => <li key={flag}>{FLAG_WORDS[flag]}</li>)}</ul> : null}
-      <form className="grid gap-3 sm:grid-cols-4" onSubmit={submit} aria-label={`Change outreach for ${row.name}`}>
+      {/* Keyed by the stored change, so the fields show what was read again; the row (and its "Saved.") stays mounted. */}
+      <form key={o?.recordedAtIso ?? "none"} className="grid gap-3 sm:grid-cols-4" onSubmit={submit} aria-label={`Change outreach for ${row.name}`}>
         <label className="runway-meta flex flex-col gap-1">Contacted on<input name="contactedOn" type="date" defaultValue={o?.contactedOn ?? ""} className={inputClass} /></label>
         <label className="runway-meta flex flex-col gap-1">Channel
           <select name="channel" defaultValue={o?.channel ?? ""} className={inputClass}>
@@ -167,7 +168,7 @@ export default function AdminOutreach() {
         {query.isLoading ? <p className="py-12 text-runway-mute">Loading the outreach log…</p> : null}
         {query.error ? <p className="py-12 text-runway-red" role="alert">{(query.error as Error).message}</p> : null}
         <section className="mt-8 grid gap-4" aria-label="Outreach records">
-          {rows.map(row => <OutreachRow key={`${row.teamId}:${row.outreach?.recordedAtIso ?? ""}`} row={row} save={save} />)}
+          {rows.map(row => <OutreachRow key={row.teamId} row={row} save={save} />)}
         </section>
       </div>
     </main>

@@ -18,8 +18,17 @@ const list = { ok: true, contacted: 1, doNotContact: 1, rows: [
 
 /** Outreach playbook fix 8: the owner's contact table, inside the admin app. */
 it("shows do not contact and the flags plainly, and sends only the fields that changed", async () => {
-  const fetchMock = vi.fn(async (url: string, init?: RequestInit) => ({ ok: true,
-    json: async () => (init?.method === "POST" ? { ok: true } : list) }));
+  // As a real save does, the list read again after the save holds the changed row with a new recordedAtIso (review,
+  // 2026-11-27: a row keyed by recordedAtIso was mounted again and its "Saved." never showed).
+  let saved = false;
+  const savedB = { contactedOn: "2026-12-04", channel: null, messageVersion: "company-first.v1", goAheadEntryOn: null, answer: null,
+    nextStep: null, nextStepOn: null, doNotContact: false, doNotContactSince: null, recordedBy: "ops@example.test",
+    recordedAtIso: "2026-12-04T09:00:00.000Z" };
+  const after = { ...list, contacted: 2, rows: [list.rows[0], { ...list.rows[1], outreach: savedB }] };
+  const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    if (init?.method === "POST") saved = true;
+    return { ok: true, json: async () => (init?.method === "POST" ? { ok: true } : saved ? after : list) };
+  });
   vi.stubGlobal("fetch", fetchMock);
   render(<QueryClientProvider client={new QueryClient()}><AdminOutreach /></QueryClientProvider>);
   const a = await screen.findByLabelText("Outreach for Team A");
@@ -37,6 +46,13 @@ it("shows do not contact and the flags plainly, and sends only the fields that c
   fireEvent.change(within(form).getByLabelText("Message version"), { target: { value: "company-first.v1" } });
   fireEvent.click(within(form).getByRole("button", { name: "Save" }));
   await within(b).findByText("Saved.");
+  // The list is read again with the changed row: the row shows it, and the confirmation is still there.
+  await within(screen.getByLabelText("Outreach for Team B")).findByText("Contacted 2026-12-04", { selector: "span" });
+  expect(screen.getByText("2 contacted · 1 do not contact · 2 records")).toBeInTheDocument();
+  const reread = screen.getByLabelText("Outreach for Team B");
+  expect(within(reread).getByText("Saved.")).toBeInTheDocument();
+  expect(within(reread).getByLabelText("Contacted on")).toHaveValue("2026-12-04");
+  expect(within(reread).getByText(/^Last change .* by ops@example\.test$/)).toBeInTheDocument();
   const [url, init] = fetchMock.mock.calls.find(([, call]) => call?.method === "POST") as [string, RequestInit];
   expect(url).toBe("/api/admin/robot-teams/team-b/outreach");
   expect(JSON.parse(String(init.body))).toEqual({ contactedOn: "2026-12-04", messageVersion: "company-first.v1" });
