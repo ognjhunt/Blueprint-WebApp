@@ -170,7 +170,11 @@ export async function getRobotTeam(id: string): Promise<RobotTeamRecord | null> 
  * hand-typed status cannot make a team look willing to anything downstream.
  */
 function readTeamRecord(record: RobotTeamRecord): RobotTeamRecord {
-  return withEffectiveStatus(currentConfidenceTeam(record));
+  // The outreach log is the owner's alone (`robotTeamOutreach`). Leaving it out
+  // here keeps it out of every match, page and response built from a registry
+  // read; writes merge, so the stored log is kept.
+  const { outreach: _outreach, ...registry } = record;
+  return withEffectiveStatus(currentConfidenceTeam(registry));
 }
 
 /**

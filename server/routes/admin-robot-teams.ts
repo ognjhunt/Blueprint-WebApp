@@ -25,6 +25,13 @@ import {
   SUPPLY_AGREEMENT_TERM_LABELS,
   SUPPORTED_SUPPLY_INTERFACES,
 } from "../utils/robotTeamSupply";
+import {
+  getRobotTeamOutreach,
+  listRobotTeamOutreach,
+  outreachFlags,
+  recordRobotTeamOutreach,
+  robotTeamOutreachChangeSchema,
+} from "../utils/robotTeamOutreach";
 import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
 import { ROBOT_TEAM_ROLES, SUPPLY_AGREEMENT_TERMS, type RobotTeamRole } from "../types/robot-team-registry";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -245,6 +252,63 @@ router.post("/:teamId/supply-agreement/withdraw", async (req: Request, res: Resp
   } catch (error) {
     logger.error({ err: error, teamId }, "Failed to record a supply withdrawal");
     return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "The withdrawal was not recorded." });
+  }
+});
+
+/* ------------------------------------------------------------ outreach */
+
+/**
+ * The owner's outreach log on the research record (`robotTeamOutreach`).
+ * Admin only, like every route here; nothing else reads it. Recording a
+ * contact never changes a record's status and refuses no contact: a missing
+ * go-ahead date is returned as a flag for the owner to see.
+ */
+router.get("/outreach", async (_req: Request, res: Response) => {
+  try {
+    const rows = await listRobotTeamOutreach();
+    res.set("Cache-Control", "no-store");
+    return res.json({ ok: true, rows,
+      contacted: rows.filter((row) => row.outreach?.contactedOn).length,
+      doNotContact: rows.filter((row) => row.outreach?.doNotContact).length });
+  } catch (error) {
+    logger.error({ err: error }, "Outreach log unavailable");
+    return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Outreach log unavailable" });
+  }
+});
+
+router.get("/:teamId/outreach", async (req: Request, res: Response) => {
+  const teamId = String(req.params.teamId || "").trim();
+  try {
+    const row = await getRobotTeamOutreach(teamId);
+    if (!row) return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "No registry row has that id." });
+    res.set("Cache-Control", "no-store");
+    return res.json({ ok: true, row });
+  } catch (error) {
+    logger.error({ err: error, teamId }, "Outreach log unavailable");
+    return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Outreach log unavailable" });
+  }
+});
+
+router.post("/:teamId/outreach", async (req: Request, res: Response) => {
+  const recordedBy = namedOperator(res);
+  if (!recordedBy) return res.status(401).json({ ok: false, error: "A named operator must record outreach." });
+  const parsed = robotTeamOutreachChangeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, code: "outreach_invalid",
+      errors: parsed.error.issues.map(issue => ({ field: issue.path.join("."), problem: issue.message })),
+      error: "Nothing was recorded. Send only these fields: contactedOn, channel, messageVersion, goAheadEntryOn, answer, nextStep, nextStepOn, doNotContact, doNotContactSince. Dates are YYYY-MM-DD." });
+  }
+  const teamId = String(req.params.teamId || "").trim();
+  try {
+    const outcome = await recordRobotTeamOutreach({ teamId, change: parsed.data, recordedBy });
+    if (outcome.status === "unavailable") return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Registry unavailable" });
+    if (outcome.status === "not_found") return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "No registry row has that id." });
+    if (outcome.status === "invalid") return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, code: "outreach_invalid", error: outcome.problem });
+    res.set("Cache-Control", "no-store");
+    return res.json({ ok: true, outreach: outcome.outreach, flags: outreachFlags(outcome.outreach) });
+  } catch (error) {
+    logger.error({ err: error, teamId }, "Failed to record outreach");
+    return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "The outreach change was not recorded." });
   }
 });
 

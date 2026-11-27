@@ -190,8 +190,44 @@ export interface RobotTeamRecord {
    * it there instead of guessing.
    */
   statusBeforeEngaged?: RobotTeamStatus | null;
+  /**
+   * The owner's outreach log for this record: who was written to, when, with
+   * which message, on which go-ahead, and what they said. Admin only. It is
+   * never read back through `getRobotTeam` or `listMatchableRobotTeams`, so no
+   * match, site page, company page or public response can carry it. Being
+   * contacted is not a relationship: it never changes `status`. Written only
+   * by `recordRobotTeamOutreach`.
+   */
+  outreach?: RobotTeamOutreach | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export const ROBOT_TEAM_OUTREACH_SCHEMA_VERSION = "robot_team_outreach.v1" as const;
+export const ROBOT_TEAM_OUTREACH_CHANNELS = ["email", "phone", "in_person", "other"] as const;
+export type RobotTeamOutreachChannel = (typeof ROBOT_TEAM_OUTREACH_CHANNELS)[number];
+/** What they said. `asked_to_stop` sets "do not contact", which then stays set. */
+export const ROBOT_TEAM_OUTREACH_ANSWERS = ["no_reply_yet", "replied", "applied", "not_interested", "asked_to_stop"] as const;
+export type RobotTeamOutreachAnswer = (typeof ROBOT_TEAM_OUTREACH_ANSWERS)[number];
+
+/** The latest outreach state of one record. Dates are calendar days, `YYYY-MM-DD`. */
+export interface RobotTeamOutreach {
+  schemaVersion: typeof ROBOT_TEAM_OUTREACH_SCHEMA_VERSION;
+  contactedOn: string | null;
+  channel: RobotTeamOutreachChannel | null;
+  /** The draft's version, for example `company-first.v1`. Never the message text. */
+  messageVersion: string | null;
+  /** The date of the owner's dated go-ahead entry this contact was sent under. */
+  goAheadEntryOn: string | null;
+  answer: RobotTeamOutreachAnswer | null;
+  nextStep: string | null;
+  nextStepOn: string | null;
+  /** Once true it stays true: an opt-out is honoured and never removed. */
+  doNotContact: boolean;
+  doNotContactSince: string | null;
+  /** The authenticated operator who wrote the latest change. Set by the server. */
+  recordedBy: string;
+  recordedAtIso: string;
 }
 
 /**
@@ -295,3 +331,5 @@ export interface CapabilityProposal {
 
 export const ROBOT_TEAMS_COLLECTION = "robotTeams";
 export const CAPABILITY_PROPOSALS_COLLECTION = "robotTeamCapabilityProposals";
+/** Subcollection of a `robotTeams` record: every outreach change, oldest first by id. */
+export const ROBOT_TEAM_OUTREACH_EVENTS_COLLECTION = "outreachEvents";
