@@ -47,6 +47,7 @@ import { FILM_AROUND_THE_JOB, FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE, FOOTAGE_UPL
 import { RECORDING_RIGHTS_STATEMENT_V6, RECORDING_RIGHTS_STATEMENT_V6_VERSION } from "@/lib/recordingRightsStatement";
 import { withCsrfHeader } from "@/lib/csrf";
 import { JOB_DESCRIPTION_MAX_LENGTH, jobDescriptionTooLong } from "@/lib/jobDescriptionLimit";
+import { readSimulationContents, type SimulationContents } from "@/lib/simulationContents";
 import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo, type VideoUploadResult } from "@/lib/selfCaptureVideo";
 
 /** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
@@ -76,6 +77,8 @@ type TaskStatus = {
   jobBrief?: SiteJobBrief | null;
   /** The first look as the Pipeline's published table words it, for the owner only. */
   firstLookTable?: FirstLookWords | null;
+  /** What the delivered simulation holds (`simulationContentsOf`), for the owner only; null before one is delivered. */
+  simulationContents?: SimulationContents | null;
   /** The server holds a recording, whichever device sent it. */
   captureReceived?: boolean;
   /** The optional correction of the guessed object to move, for the owner only. */
@@ -606,6 +609,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             jobReading: data.scope === "owner" ? sanitizeJobReading(data.jobReading) : null,
             jobBrief: data.scope === "owner" ? sanitizeSiteJobBrief(data.jobBrief) : null,
             firstLookTable: data.scope === "owner" && data.firstLookTable && Array.isArray(data.firstLookTable.rows) ? data.firstLookTable : null,
+            simulationContents: data.scope === "owner" ? readSimulationContents(data.simulationContents) : null,
             captureReceived: data.captureReceived === true,
             targetChoice: data.scope === "owner" && isTargetChoice(data.targetChoice) ? data.targetChoice : null,
             destinationChoice: data.scope === "owner" && isDestinationChoice(data.destinationChoice) ? data.destinationChoice : null,
@@ -993,7 +997,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined}
         outlook={status?.outlook ?? null} sceneViewUrl={sceneViewUrl}
         successRule={brief?.successCriteria?.unknown ? null : brief?.successCriteria?.successDefinition ?? null}
-        firstLookTable={status?.firstLookTable ?? null} jobFacts={siteActionWaiting ? null : jobFacts} />}
+        simulationContents={status?.simulationContents ?? null} firstLookTable={status?.firstLookTable ?? null} jobFacts={siteActionWaiting ? null : jobFacts} />}
       {answer && withdrawal && <section className="job-more job-more-plain" aria-label="More for this job">{withdrawal}</section>}
       {!answer && companyStatus && companyStatus.sharing.state !== "not_shared" && (
         <JobCompanyResponses token={token} sharing={companyStatus.sharing} activity={companyStatus.companies}

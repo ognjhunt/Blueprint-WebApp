@@ -1567,6 +1567,19 @@ describe("the simulation download and the tested answers (E9)", () => {
     expect((await media(url)).status).toBe(404);
   });
 
+  it("a room package says so to the company, whether the Pipeline sent object_included or not (outreach audit D3)", async () => {
+    const session = () => state.docs.get(`captureUploadSessions/${CAPTURE}`);
+    // A full package: nothing said about the object.
+    state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...session(), company_simulation: simulationPackage() });
+    expect((await page()).body.item.simulationDownload.objectIncluded).toBeUndefined();
+    // A room package with the flag, and one without it (5 of the 7 live room packages): the files decide.
+    const room = ["README.txt", "scene.usda", "scene/room.usdz", "scene/room_collision.usdz"];
+    for (const patch of [{ files: room, object_included: false }, { files: room }]) {
+      state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...session(), company_simulation: simulationPackage(patch) });
+      expect((await page()).body.item.simulationDownload).toMatchObject({ state: "ready", objectIncluded: false });
+    }
+  });
+
   it("withdrawal deletion removes the clip and the package references", async () => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
     const { deleteWebsiteCompanyClips } = await import("../utils/websiteCompanyClip");

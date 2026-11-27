@@ -20,6 +20,7 @@ import {
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
 import type { FirstLookWords } from "@/lib/firstLookWords";
+import { simulationContentsLine, youSaidDoneMeans, type SimulationContents } from "@/lib/simulationContents";
 import { PROGRESS_FAILED, PROGRESS_MARK, PROGRESS_UNDO, jobTrackerSteps } from "@/lib/jobTracker";
 import { CHARGE_MODEL_LABELS, ESTIMATE_LABEL, ESTIMATES_NOT_CHECKED, SIMILAR_JOBS_LABELS, estimateInWords } from "@/lib/companyResponses";
 import { COMPANY_START_LABELS, REPLY_DATE_PASSED, replyByLine, SITE_RESPONSE_LABELS, SITE_CLARIFICATION_LIMIT, companyReason, INTRODUCIBLE_RESPONSE_STATES, introductionIfChanged, companyNotApprovedNow, isSiteCompanyActivity, MAY_CHANGE_RESPONSE_STATES,
@@ -664,6 +665,8 @@ export interface SiteAnswerProps {
   sceneViewUrl?: string | null;
   /** What counts as done, in the site's own words, when it gave them. */
   successRule?: string | null;
+  /** What the delivered simulation holds (`simulationContentsOf`), when one is delivered: said under "ready". */
+  simulationContents?: SimulationContents | null;
   /** The first look as the Pipeline's published table words it; when present it replaces the robot rows. */
   firstLookTable?: FirstLookWords | null;
   /** Optional job questions below company activity, when a required action is not waiting. */
@@ -675,7 +678,7 @@ export interface SiteAnswerProps {
  * where it stands. There is no share step: a job is shared because its site accepted recording statement v4.
  */
 export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
-  onShowDetails, onShowSettings, outlook = null, sceneViewUrl = null, successRule = null, firstLookTable = null, jobFacts }: SiteAnswerProps) {
+  onShowDetails, onShowSettings, outlook = null, sceneViewUrl = null, successRule = null, simulationContents = null, firstLookTable = null, jobFacts }: SiteAnswerProps) {
   const pick = answer.state === "ready" ? answer.pick : null;
   // The phase is the server's (one decision for the page, sharing and emails). When unsure, the job is still being
   // worked on (review, 2026-11-11): with no outlook the page says the packet is being built and offers no button.
@@ -758,11 +761,16 @@ export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, 
     : phase === "simulation_ready" ? SIMULATION_READY
     : phase === "waiting_on_site" ? outlook?.sentence ?? "Tell us in one sentence what the robot should do, so we can build the simulation of your job."
     : notRun;
-  const rule = successRule?.trim() ? doneMeans(successRule) : null;
+  // What a ready simulation holds, in the facts a company reads (outreach audit D2, 2026-11-27): the room without the
+  // job's object, or no success rule. The site's rule is then said as its own words, not as what the simulation checks.
+  const contents = phase === "simulation_ready" ? simulationContents : null;
+  const contentsLine = simulationContentsLine(contents);
+  const rule = !successRule?.trim() ? null : contents && !contents.successRuleIncluded ? youSaidDoneMeans(successRule) : doneMeans(successRule);
   const viewable = Boolean(sceneViewUrl) && !reading;
   const simulation = simulationLine || rule || viewable ? <Section id="site-job-simulation" title={SECTION_SIMULATION}>
     <BareGroup>
       {simulationLine && <BareLead>{simulationLine}</BareLead>}
+      {contentsLine && <p className="bare-helper">{contentsLine}</p>}
       {rule && <p className="bare-helper">{rule}</p>}
       {viewable && <p><a className="ms-text-link" href={sceneViewUrl!} target="_blank" rel="noreferrer">{VIEW_SIMULATION_LABEL}</a></p>}
     </BareGroup>

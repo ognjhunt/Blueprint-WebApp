@@ -41,6 +41,7 @@ import { loadScreenings, NOTHING_SCREENED, screenAndWait, siteReplyStateForCompa
 export { siteWordsDeterministic, siteWordsForCompany };
 import type { CompaniesReadSiteWords } from "../../client/src/lib/companiesRead";
 import { JOB_DESCRIPTION_MAX_LENGTH } from "../../client/src/lib/jobDescriptionLimit";
+import { simulationContentsOf } from "../../client/src/lib/simulationContents";
 
 /**
  * The company still stands approved as a deployment company (never a technology partner: the site agreed to share its
@@ -437,11 +438,12 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     // The ticketed address this company's browser can load as the video's poster (`jobThumbnailViewUrl`).
     thumbnailUrl: taskThumbnailUrl(requestId, record) ? jobThumbnailViewUrl(requestId, viewer.companyId) : null,
     thumbnailSource: taskThumbnailUrl(requestId, record) ? thumbnailSourceOf(record) : null,
-    // The Pipeline says whether the package holds the job's object (`object_included`); said only when it does not. The
+    // Whether the package holds the job's object: the Pipeline's `object_included`, else its files (`simulationContentsOf`;
+    // 5 of the 7 room packages built before 2026-11-27 carry no flag); said only when it does not. The
     // button says the stored size, and the file is saved under the package's version (owner, 2026-11-25).
     simulationDownload: simulationUrl && simulationPackage ? { state: "ready", url: simulationUrl,
       sizeBytes: simulationPackage.size_bytes, fileName: companySimulationFileName(simulationPackage),
-      ...(simulationPackage.object_included === false ? { objectIncluded: false as const } : {}) } : { state: "not_finished" },
+      ...(!simulationContentsOf(simulationPackage).objectIncluded ? { objectIncluded: false as const } : {}) } : { state: "not_finished" },
     simulation: viewerUrl ? { state: "ready", viewerUrl } : { state: "not_finished" },
     simulationStatus,
     packetFacts: packet.packetFacts,
