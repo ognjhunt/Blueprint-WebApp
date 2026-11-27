@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { authReturnPath } from "@/lib/authReturnPath";
 import { friendlyAuthError } from "@/lib/siteClaim";
 import { withCsrfHeader } from "@/lib/csrf";
-import { SIGN_IN_LINK_ENDED, signInWithCompanyLink } from "@/lib/companySignInLink";
+import { CompanySignInLinkFailure, readSignInLinkFromAddress, SIGN_IN_LINK_ENDED, SIGN_IN_TRY_AGAIN, signInWithCompanyLink, stripSignInLinkFromAddress } from "@/lib/companySignInLink";
 import { Helmet } from "@/lib/helmet";
 
 interface ValidationErrors {
@@ -49,14 +49,21 @@ export default function Login() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [linkStatus, setLinkStatus] = useState<string | null>(null);
-  const linkRedeemed = useRef(false);
-  const { signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn } = useAuth();
+  // A deployment company's emailed sign-in link, read once and kept until the company presses to spend it.
+  const [pendingLink, setPendingLink] = useState<string | null>(readSignInLinkFromAddress);
+  const { signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn, currentUser, loading: authLoading } = useAuth();
   const browserLocation = typeof window === "undefined" ? null : window.location;
   const returnPath = authReturnPath(new URLSearchParams(browserLocation?.search || "").get("next"));
   const isCompanyJob = returnPath?.startsWith("/jobs/") || returnPath?.startsWith("/contact/robot-team");
   const returnLink = returnPath && browserLocation
     ? new URL(returnPath, browserLocation.origin).href
     : browserLocation?.href || "";
+
+  // A company already signed in that follows an emailed "Find jobs" link (`/sign-in?next=/contact/robot-team`) goes
+  // straight there; a form for an account already signed in would mislead.
+  useEffect(() => {
+    if (!authLoading && currentUser && isCompanyJob && returnPath && !pendingLink) window.location.replace(returnPath);
+  }, [authLoading, currentUser, isCompanyJob, returnPath, pendingLink]);
 
   useEffect(() => {
     if (returnPath) {
@@ -68,29 +75,30 @@ export default function Login() {
     }
   }, [returnPath]);
 
-  // A deployment company's emailed sign-in link (`companySignInLink.ts`): spent once, then the address is signed in.
-  useEffect(() => {
-    if (linkRedeemed.current || !browserLocation) return;
-    const link = new URLSearchParams(browserLocation.search).get("link");
-    if (!link) return;
-    linkRedeemed.current = true;
-    // The link leaves the address bar before anything else loads.
-    window.history.replaceState(null, "", browserLocation.pathname);
+  // A deployment company's emailed sign-in link (`companySignInLink.ts`): it leaves the address bar at once, and is
+  // spent only when the company presses "Sign in with this link" (outreach gap 1, 2026-11-27). A mail scanner that loads
+  // the page and runs its scripts spends nothing, so the company's own open still works.
+  useEffect(() => { stripSignInLinkFromAddress(); }, []);
+
+  const spendSignInLink = async () => {
+    if (!pendingLink || isLoading) return;
+    const link = pendingLink;
     setIsLoading(true);
-    void (async () => {
-      try {
-        const returnTo = await signInWithCompanyLink(link);
-        // A job the company was opening in this tab comes first; the emailed link's own destination otherwise.
-        let saved: string | null = null;
-        try { saved = sessionStorage.getItem("redirectAfterAuth"); sessionStorage.removeItem("redirectAfterAuth"); } catch { saved = null; }
-        // Replaced, as every sign-in is (`navigateAfterAuth`): Back never returns to this sign-in page once signed in.
-        window.location.replace(authReturnPath(saved) ?? authReturnPath(returnTo) ?? "/contact/robot-team");
-      } catch (error) {
-        setAuthError(error instanceof Error ? error.message : SIGN_IN_LINK_ENDED);
-        setIsLoading(false);
-      }
-    })();
-  }, []);
+    setAuthError(null);
+    try {
+      const returnTo = await signInWithCompanyLink(link);
+      // A job the company was opening in this tab comes first; the emailed link's own destination otherwise.
+      let saved: string | null = null;
+      try { saved = sessionStorage.getItem("redirectAfterAuth"); sessionStorage.removeItem("redirectAfterAuth"); } catch { saved = null; }
+      // Replaced, as every sign-in is (`navigateAfterAuth`): Back never returns to this sign-in page once signed in.
+      window.location.replace(authReturnPath(saved) ?? authReturnPath(returnTo) ?? "/contact/robot-team");
+    } catch (error) {
+      // Only a link the server says has ended is let go; after a 503 or a lost connection the press can be tried again.
+      if (error instanceof CompanySignInLinkFailure && error.ended) setPendingLink(null);
+      setAuthError(error instanceof CompanySignInLinkFailure ? error.message : SIGN_IN_TRY_AGAIN);
+      setIsLoading(false);
+    }
+  };
 
   const requestSignInLink = async () => {
     const emailError = validateEmail(formData.email);
@@ -215,6 +223,12 @@ export default function Login() {
       <SEO title="Sign in | Blueprint" description="Sign in to your Blueprint account." canonical="/sign-in" noIndex />
       <Helmet><meta name="referrer" content="no-referrer" /></Helmet>
       <h1>Sign in</h1>
+      {pendingLink && <div className="auth-form">
+        <p className="auth-account-link">You opened a sign-in link from your email. It works once.</p>
+        <button type="button" className="auth-primary" onClick={() => void spendSignInLink()} disabled={isLoading}>{isLoading
+          ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" />Signing in…</>
+          : <>Sign in with this link<ArrowRight size={18} aria-hidden="true" /></>}</button>
+      </div>}
       <button type="button" className="auth-google" onClick={handleGoogleSignIn} disabled={isLoading || !googleReady}><GoogleMark />Continue with Google</button>
       <div className="auth-divider"><span>or</span></div>
       <form method="post" onSubmit={handleSubmit} className="auth-form" noValidate aria-label="Sign in" aria-busy={isLoading}>

@@ -149,6 +149,58 @@ function InviteTeam({ onInvited, send }: {
   );
 }
 
+type RuleTrialStep = { step: string; ok: boolean; detail: string };
+const RULE_TRIAL_STEP_NAMES: Record<string, string> = {
+  domain: "Work email at the website's domain", website: "Website read", still_on_domain: "Still on that domain after redirects",
+  page_text: "Text on the home page", day_share: "Today's trial runs", model: "Model: does it deploy robots?", quote: "Model's quote on the page",
+};
+
+/**
+ * Try the automatic rule once on a domain and a website you type (outreach gap 1, 2026-11-27), before a real applicant
+ * meets it. Nothing is recorded: no application, no approval, no email. One model call, at most ten trials a day.
+ */
+export function TryCompanyRule({ send }: { send: (body: Record<string, unknown>) => Promise<Response> }) {
+  const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [result, setResult] = useState<{ check: CompanyCheck; steps: RuleTrialStep[] } | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    setState("running"); setResult(null); setFailure(null);
+    try {
+      const response = await send({ emailDomain: String(data.get("emailDomain") ?? "").trim(), website: String(data.get("website") ?? "").trim() });
+      const body = await response.json().catch(() => ({})) as { check?: CompanyCheck; steps?: RuleTrialStep[]; error?: string };
+      if (!response.ok || !body.check) throw new Error(body.error || "The rule could not run just now. Try again shortly.");
+      setResult({ check: body.check, steps: body.steps ?? [] });
+      setState("done");
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "The rule could not run just now. Try again shortly.");
+      setState("error");
+    }
+  }
+  return (
+    <Card pad="lg" className="mt-8">
+      <h2 className="text-lg font-semibold text-runway-text">Try the automatic rule</h2>
+      <p className="mt-1 text-sm text-runway-mute">Runs the rule once, as an application meets it. Nothing is recorded: no application, no approval, no email. It makes one model call; at most ten trials a day, apart from applicants' checks.</p>
+      <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={submit} aria-label="Try the automatic rule">
+        <label className="runway-meta flex flex-col gap-1">Work email domain<input name="emailDomain" required maxLength={320} placeholder="company.com" className="border border-line bg-transparent px-3 py-2 text-runway-text" /></label>
+        <label className="runway-meta flex flex-col gap-1">Website<input name="website" required maxLength={2048} placeholder="https://company.com" className="border border-line bg-transparent px-3 py-2 text-runway-text" /></label>
+        <div className="flex items-center gap-3 sm:col-span-2">
+          <Button variant="secondary" disabled={state === "running"}>{state === "running" ? "Running…" : "Run the rule"}</Button>
+          {failure ? <span role="alert" className="text-sm text-runway-red">{failure}</span> : null}
+        </div>
+      </form>
+      {result ? <div className="mt-4" aria-label="Rule trial result">
+        <p className="text-runway-text">{result.check.outcome === "approved" ? "The rule would approve this company."
+          : `The rule would leave this company to you.${result.check.reasons.length ? ` ${result.check.reasons.map(companyCheckReasonWords).join(" ")}` : ""}`}</p>
+        <ol className="mt-2 grid gap-1 text-sm text-runway-body">
+          {result.steps.map(step => <li key={step.step}>{step.ok ? "✓" : "✗"} {RULE_TRIAL_STEP_NAMES[step.step] ?? step.step}: {step.detail}</li>)}
+        </ol>
+      </div> : null}
+    </Card>
+  );
+}
+
 /**
  * Robot-team early access. Approving grants the task library to that verified
  * email and sends one email with the next step; "not yet" sends one polite
@@ -181,6 +233,15 @@ export default function AdminRobotTeamAccess() {
 
   async function sendInvite(body: Record<string, unknown>) {
     return fetch("/api/admin/robot-team-access/invites", {
+      method: "POST",
+      credentials: "include",
+      headers: await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" })),
+      body: JSON.stringify(body),
+    });
+  }
+
+  async function sendRuleTrial(body: Record<string, unknown>) {
+    return fetch("/api/admin/robot-team-access/rule-trial", {
       method: "POST",
       credentials: "include",
       headers: await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" })),
@@ -237,6 +298,7 @@ export default function AdminRobotTeamAccess() {
         </header>
 
         <InviteTeam send={sendInvite} onInvited={() => queryClient.invalidateQueries({ queryKey: ["admin-robot-team-access"] })} />
+        <TryCompanyRule send={sendRuleTrial} />
 
         {error ? <p className="py-4 text-runway-red" role="alert">{error}</p> : null}
         {query.isLoading ? <p className="py-12 text-runway-mute">Loading applications…</p> : null}

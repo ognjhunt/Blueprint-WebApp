@@ -13,13 +13,14 @@
  * downstream knows or needs to know which way the video arrived.
  */
 
-import { Router, type Request, type Response } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import { createReadStream } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import os from "node:os";
 import { open, unlink } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import multer from "multer";
+import { MAX_CAPTURE_VIDEO_BYTES, VIDEO_TOO_LARGE } from "../../client/src/lib/captureVideoLimit";
 import {
   composeParts,
   discardParts,
@@ -126,7 +127,7 @@ export function storedVideoContentType(extension: string, declared: string | und
   return VIDEO_CONTENT_TYPES[extension] ?? "video/quicktime";
 }
 
-const DEFAULT_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+const DEFAULT_MAX_BYTES = MAX_CAPTURE_VIDEO_BYTES;
 
 /**
  * Whole-file uploads land on disk, not in memory.
@@ -863,7 +864,21 @@ function authorizeBeforeCaptureBody(kind: "walkthrough" | "part" | "item_image")
   };
 }
 
-router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCaptureBody("walkthrough"), upload.single("video"), async (req: UploadRequest, res: Response) => {
+/**
+ * The walkthrough's file, with a video over the limit refused in words the site can act on (413, `video_too_large`)
+ * rather than the app's generic 500: multer's own size error carries no status.
+ */
+export const walkthroughVideoField = (uploader: Pick<multer.Multer, "single">) =>
+  (req: Request, res: Response, next: NextFunction) => uploader.single("video")(req, res, (error?: unknown) => {
+    if ((error as { code?: unknown } | undefined)?.code === "LIMIT_FILE_SIZE") {
+      if (!res.headersSent) res.status(413).json({ error: VIDEO_TOO_LARGE, code: "video_too_large" });
+      return;
+    }
+    next(error as never);
+  });
+const walkthroughVideo = walkthroughVideoField(upload);
+
+router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCaptureBody("walkthrough"), walkthroughVideo, async (req: UploadRequest, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
     return res.status(404).json({ error: "This job link is not valid or has expired." });

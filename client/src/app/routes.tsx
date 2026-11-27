@@ -59,6 +59,7 @@ const PrivacyPrevious = lazyRoute(() => import("../pages/PrivacyPrevious"));
 const TermsPrevious = lazyRoute(() => import("../pages/TermsPrevious"));
 const Settings = lazyRoute(() => import("../pages/workspace/Settings"));
 const AdminRobotTeamAccess = lazyRoute(() => import("../pages/AdminRobotTeamAccess"));
+const AdminOutreach = lazyRoute(() => import("../pages/AdminOutreach"));
 const AdminJobConsole = lazyRoute(() => import("../pages/AdminJobConsole"));
 
 // Redesign — public pages (distinct surfaces per SCREENS.md)
@@ -308,6 +309,7 @@ export const appRoutes: AppRoute[] = [
 
   // Admin
   { path: "/admin/robot-team-access", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminRobotTeamAccess },
+  { path: "/admin/outreach", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminOutreach },
   { path: "/admin/jobs", layout: "protected", shell: "bare", requireRoles: ADMIN_ROLES, component: AdminJobConsole },
   { path: "/admin/leads", layout: "protected", requireRoles: ADMIN_ROLES, component: LeadToJobConsole },
   { path: "/admin/leads/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: LeadToJobConsole },

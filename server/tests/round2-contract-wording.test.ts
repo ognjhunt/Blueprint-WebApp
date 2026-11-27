@@ -71,14 +71,14 @@ describe("money: the account's monthly spend check", () => {
     "account_monthly_spend_limit_not_configured", "account_monthly_spend_a_later_check", "gcp_monthly_budget_admission_blocked",
     "gcp_monthly_budget_report_missing_or_invalid"])("%s is a money wait the site need not act on", reason => {
     for (const state of ["needs_input", "failed"]) expect(card(state, reason)).toMatchObject({
-      title: "Your job is paused on our side", reason: "Your job is paused on our side for a spending limit.",
+      title: "Building the simulation of your site is paused on our side", reason: "Building the simulation of your site is paused on our side for a spending limit.",
       nextStep: "It resumes by itself; nothing is needed from you.", actionOwner: "none" });
   });
 
   it("the scene's account_limit_wait is said the same, under either wait kind", () => {
     for (const kind of ["setup_repair", "awaiting_site"] as const)
       expect(sceneWaitMessage({ kind, reasonCode: "account_limit_wait" })).toEqual({ operatorAction: null,
-        headline: "Your job is paused on our side for a spending limit. It resumes by itself; nothing is needed from you." });
+        headline: "Building the simulation of your site is paused on our side for a spending limit. It resumes by itself; nothing is needed from you." });
   });
 
   it("staff see it as a money stop, from the scene wait or the Atlas preview", () => {

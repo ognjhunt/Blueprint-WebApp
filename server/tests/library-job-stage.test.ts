@@ -36,11 +36,21 @@ describe("the job library's label for where a job's simulation stands", () => {
     outlook.value = { outlook: { phase: "simulation_ready", reason: null }, certain: true };
     expect(await stage()).toBe("simulation_built");
   });
-  it("shows nothing for a held job, another ending, or any state it cannot read for certain", async () => {
-    // No ending is labelled by the job's kind: a job of another kind that got no grant is shown as any other.
+  // Changed on purpose 2026-11-27 (outreach audit D7): an ending after which nothing is built read "The simulation of
+  // the site is not finished yet." to a company, which promised more. It now reads that there is no simulation.
+  it("says there is no simulation once the job ended with none built and none coming", async () => {
+    const { SIMULATION_STATUS } = await import("../../client/src/lib/companyJobPage");
+    for (const reason of ["preparation_failed", "spending_cap_reached", "scene_stopped", "no_grant", "window_expired"]) {
+      outlook.value = { outlook: { phase: "no_test", reason }, certain: true };
+      expect(await stage(), reason).toBe("no_simulation");
+    }
+    expect(libraryStageLabels.no_simulation).toBe("No simulation");
+    expect(SIMULATION_STATUS.no_simulation).toBe("There is no simulation for this job.");
+  });
+  it("shows nothing for a held job, the site's own ending, or any state it cannot read for certain", async () => {
+    // No ending is labelled by the job's kind.
     for (const value of [{ outlook: { phase: "no_test", reason: "scene_held" }, certain: true },
-      { outlook: { phase: "no_test", reason: "no_grant" }, certain: true },
-      { outlook: { phase: "no_test", reason: "window_expired" }, certain: true },
+      { outlook: { phase: "no_test", reason: "run_held" }, certain: true },
       { outlook: { phase: "ended_by_site", reason: "closed_by_owner" }, certain: true },
       { outlook: { phase: "building", reason: null }, certain: false }]) {
       outlook.value = value;

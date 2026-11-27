@@ -87,6 +87,13 @@ import { decideOwnerSuccessProposal, loadOwnerSuccessView, ownerSuccessDecisionR
 import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
 import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import { storedCompanySimulation } from "../utils/websiteCompanySimulation";
+import { simulationContentsOf } from "../../client/src/lib/simulationContents";
+
+/** What the capture's delivered package holds, or null when none is stored and verified. */
+const deliveredSimulationContents = (session: Record<string, any> | undefined, captureId: string) => {
+  const stored = storedCompanySimulation(session, captureId);
+  return stored ? simulationContentsOf(stored) : null;
+};
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { isInternalTestJob, loadIsInternalTestJob } from "../utils/internalTestJob";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
@@ -1500,6 +1507,10 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       firstLookTable,
       // The job's outlook (`jobOutlook`): the one decision the page shows its screen from, for the owner only.
       outlook,
+      // What the delivered simulation holds, for the owner only: the page says when it is the room without the job's
+      // object or has no success rule, as a company is told (`simulationContentsOf`). Null before one is delivered.
+      simulationContents: payload.scope === "owner" && request && !request.captureRights.consent_revoked
+        ? deliveredSimulationContents(captureSession?.data(), payload.captureId) : null,
       // The outlook missed the deadline: the page keeps its last good one rather than show a phase it does not know.
       ...(outlookRead.late && payload.scope === "owner" && request ? { outlookLate: true } : {}),
     });

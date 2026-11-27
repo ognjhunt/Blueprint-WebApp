@@ -111,6 +111,8 @@ export interface CompanyCheckDeps {
   fetchPage: (url: string) => Promise<{ status: number; finalUrl: string; html: string }>;
   /** The model's answer, or null when no provider is set up ("no_model") or it did not answer ("model_unavailable"). */
   askModel: (input: { websiteHost: string; pageText: string }) => Promise<ModelAnswer | "no_model" | "model_unavailable">;
+  /** Whether a model provider is set up at all; asked before the day's check is counted. Absent: assumed set up. */
+  modelConfigured?: () => Promise<boolean>;
 }
 
 const defaultDeps: CompanyCheckDeps = {
@@ -119,6 +121,10 @@ const defaultDeps: CompanyCheckDeps = {
     const page = await fetchPinnedPublicText(url, { maxBytes: 1024 * 1024, timeoutMs: 10_000, maxRedirects: 3,
       contentTypes: /^(?:text\/html|application\/xhtml\+xml)(?:;|$)/ });
     return { status: page.status, finalUrl: page.finalUrl, html: page.text };
+  },
+  async modelConfigured() {
+    const { getStructuredProviderOrder } = await import("../agents/provider-config");
+    return getStructuredProviderOrder("company_website_check").length > 0;
   },
   async askModel(input) {
     const { getStructuredProviderOrder } = await import("../agents/provider-config");
@@ -166,39 +172,102 @@ function httpsForm(website: string): string | null {
   }
 }
 
-/** What the rule finds for this application, without writing anything. */
+/** One step of the rule, for the owner's trial run (`tryCompanyRule`): what it found, and why it stopped there if it did. */
+export type CompanyCheckStep = {
+  step: "domain" | "domain_share" | "website" | "still_on_domain" | "page_text" | "day_share" | "model" | "quote";
+  ok: boolean;
+  detail: string;
+};
+
+/**
+ * How a run of the rule counts against the day. An application's run takes its domain's share and the day's cap
+ * (`takeDomainCheck`, `takeDailyCheck`); the owner's trial run takes neither and counts against its own small cap
+ * instead (`takeOwnerTrial`), so it never uses a check an applicant would need.
+ */
+export type CompanyCheckCounting = { domainShare: (domain: string, now: Date) => Promise<"ok" | "cap" | "unavailable">;
+  dayShare: (now: Date) => Promise<boolean> };
+const APPLICANT_COUNTING: CompanyCheckCounting = { domainShare: takeDomainCheck, dayShare: takeDailyCheck };
+
+/** What the rule finds for this application, without writing anything but the day's counters. */
 export async function assessCompany(record: Pick<RobotTeamAccessRecord, "email" | "website">,
-  deps: CompanyCheckDeps = defaultDeps): Promise<CompanyCheck> {
+  deps: CompanyCheckDeps = defaultDeps, options: { counting?: CompanyCheckCounting; onStep?: (step: CompanyCheckStep) => void } = {},
+): Promise<CompanyCheck> {
+  const counting = options.counting ?? APPLICANT_COUNTING;
+  const note = (step: CompanyCheckStep["step"], ok: boolean, detail: string) => options.onStep?.({ step, ok, detail });
   const now = deps.now();
   const base = { schemaVersion: COMPANY_CHECK_SCHEMA, checkedAtIso: now.toISOString(), emailDomain: emailDomain(record.email),
     website: record.website ?? null };
   const needsOwner = (reasons: CompanyCheckReason[], extra: Partial<CompanyCheck> = {}): CompanyCheck =>
     ({ ...base, outcome: "needs_owner", reasons, ...extra });
   const match = domainMatch(record.email, record.website);
+  note("domain", match.matches, match.matches ? `${emailDomain(record.email)} is the website's domain` : match.reason);
   if (!match.matches) return needsOwner([match.reason]);
   const url = httpsForm(record.website!);
   if (!url) return needsOwner(["website_invalid"]);
   // One domain's share of the day first, then the website; the day's cap only once the model is next (money).
-  const domainShare = await takeDomainCheck(emailDomain(record.email), now);
+  const domainShare = await counting.domainShare(emailDomain(record.email), now);
+  note("domain_share", domainShare === "ok", domainShare);
   if (domainShare !== "ok") return needsOwner([domainShare === "cap" ? "domain_daily_check_cap" : "check_failed"]);
   let page: Awaited<ReturnType<CompanyCheckDeps["fetchPage"]>>;
-  try { page = await deps.fetchPage(url); } catch { return needsOwner(["website_unreadable"]); }
-  if (page.status < 200 || page.status >= 300) return needsOwner(["website_unreadable"]);
+  try { page = await deps.fetchPage(url); } catch (error) {
+    note("website", false, `not read: ${error instanceof Error ? error.message.slice(0, 120) : "error"}`);
+    return needsOwner(["website_unreadable"]);
+  }
+  note("website", page.status >= 200 && page.status < 300, `HTTP ${page.status} at ${websiteHost(page.finalUrl) ?? "unknown host"}`);
   // The page must still be the company's own: a site that sends visitors to another domain is not evidence about it.
-  if (!domainMatch(record.email, page.finalUrl).matches) return needsOwner(["redirected_off_domain"]);
+  // Checked before the page's status, so a brand site sent to a parent page that errors says so, not "unreadable".
+  const onDomain = domainMatch(record.email, page.finalUrl).matches;
+  note("still_on_domain", onDomain, onDomain ? "yes" : "redirected_off_domain");
+  if (!onDomain) return needsOwner(["redirected_off_domain"]);
+  if (page.status < 200 || page.status >= 300) return needsOwner(["website_unreadable"]);
   const text = pageText(page.html);
+  note("page_text", text.length >= MIN_PAGE_TEXT, `${text.length} characters of text`);
   if (text.length < MIN_PAGE_TEXT) return needsOwner(["website_no_text"]);
-  if (!await takeDailyCheck(now)) return needsOwner(["daily_check_cap"]);
+  // No model set up: nothing to count against the day (money is counted only when the model can be asked).
+  if (deps.modelConfigured && !await deps.modelConfigured()) { note("model", false, "no_model"); return needsOwner(["no_model"]); }
+  const dayShare = await counting.dayShare(now);
+  note("day_share", dayShare, dayShare ? "ok" : "cap");
+  if (!dayShare) return needsOwner(["daily_check_cap"]);
   let answer: Awaited<ReturnType<CompanyCheckDeps["askModel"]>>;
   try { answer = await deps.askModel({ websiteHost: websiteHost(page.finalUrl)!, pageText: text }); }
-  catch { return needsOwner(["model_unavailable"]); }
-  if (answer === "no_model" || answer === "model_unavailable") return needsOwner([answer]);
+  catch { note("model", false, "model_unavailable"); return needsOwner(["model_unavailable"]); }
+  if (answer === "no_model" || answer === "model_unavailable") { note("model", false, answer); return needsOwner([answer]); }
   const said = { modelAnswer: answer.deploys_robots, modelReason: String(answer.reason ?? "").trim().slice(0, 300) || undefined };
+  note("model", answer.deploys_robots === "yes", `${answer.deploys_robots}${said.modelReason ? `: ${said.modelReason}` : ""}`);
   if (answer.deploys_robots === "no") return needsOwner(["not_a_robot_company"], said);
   if (answer.deploys_robots !== "yes") return needsOwner(["unclear"], said);
   const quote = String(answer.evidence_quote ?? "").trim().slice(0, 300);
-  if (!quoteOnPage(quote, text)) return needsOwner(["quote_not_found"], said);
+  const found = quoteOnPage(quote, text);
+  note("quote", found, found ? `on the page: "${quote}"` : `not on the page: "${quote}"`);
+  if (!found) return needsOwner(["quote_not_found"], said);
   return { ...base, outcome: "approved", reasons: [], ...said, evidenceQuote: quote };
+}
+
+/** At most this many owner trial runs a day (UTC), apart from applicants' checks: each may make one model call (money). */
+export const COMPANY_RULE_TRIAL_DAILY_CAP = 10;
+
+async function takeOwnerTrial(now: Date): Promise<boolean> {
+  const { consumeDailyCaps } = await import("./durableDailyCaps");
+  const decision = await consumeDailyCaps({ scope: "company_rule_trial", failClosed: true,
+    caps: [{ name: "company_rule_trial", limit: COMPANY_RULE_TRIAL_DAILY_CAP }] }, { now: () => now });
+  return decision.allowed;
+}
+
+/**
+ * The owner's trial run of the rule (outreach gap 1, 2026-11-27): the rule once, exactly as an application meets it, on
+ * a work email domain and a website the owner types, before the first real applicant. It records no application, no
+ * approval and no email. It takes neither the domain's share nor the applicants' day cap; it counts against its own cap
+ * of ten a day instead, taken only once the model is next. Its model call is recorded in `agentRuns` like any check's.
+ */
+export async function tryCompanyRule(input: { emailDomain: string; website: string }, deps: CompanyCheckDeps = defaultDeps):
+  Promise<{ check: CompanyCheck; steps: CompanyCheckStep[] }> {
+  const steps: CompanyCheckStep[] = [];
+  const domain = input.emailDomain.trim().toLowerCase().replace(/^.*@/, "");
+  const typed = input.website.trim();
+  const website = /^[a-z][a-z0-9+.-]*:\/\//i.test(typed) ? typed : `https://${typed}`;
+  const check = await assessCompany({ email: `rule-trial@${domain}`, website }, deps, {
+    counting: { domainShare: async () => "ok", dayShare: takeOwnerTrial }, onStep: (step) => { steps.push(step); } });
+  return { check, steps: steps.filter((step) => step.step !== "domain_share") };
 }
 
 /** Same application as the one checked: still waiting, at the same email and website. */
@@ -256,7 +325,7 @@ export async function checkCompanyApplication(recordId: string, deps: CompanyChe
  */
 export async function checkNewCompanyApplication(record: Pick<RobotTeamAccessRecord, "email"> & { companyCheck?: CompanyCheck | null },
   deps: CompanyCheckDeps = defaultDeps): Promise<void> {
-  const { notifySlackRobotTeamAccessApplication } = await import("./slack");
+  const { notifyOwnerOfApplication } = await import("./ownerApplicationNotice");
   // A check tried again after a momentary failure rings only when it settles something: once a day per waiting company
   // would be noise, and the owner already has it with its reasons.
   const retry = Boolean(record.companyCheck);
@@ -272,7 +341,8 @@ export async function checkNewCompanyApplication(record: Pick<RobotTeamAccessRec
   // Nothing recorded and nothing failed: the application was decided or changed meanwhile; the plain bell.
   const rung = check ? { outcome: check.outcome, reasons: check.reasons as string[] }
     : failed ? { outcome: "needs_owner" as const, reasons: ["check_failed"] } : undefined;
-  await notifySlackRobotTeamAccessApplication({ email: record.email, autoApproved: rung?.outcome === "approved",
+  // The Slack bell and the owner's email, once per application (`ownerApplicationNotice.ts`).
+  await notifyOwnerOfApplication({ email: record.email, autoApproved: rung?.outcome === "approved",
     ...(rung ? { check: rung } : {}) }).catch(() => undefined);
 }
 

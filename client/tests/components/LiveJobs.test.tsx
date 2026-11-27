@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { LiveJobs, LIVE_JOBS_HEADING } from "@/components/site/LiveJobs";
+import { LiveJobs, LIVE_JOBS_EMPTY, LIVE_JOBS_HEADING } from "@/components/site/LiveJobs";
 
 /** Owner, 2026-11-23: /jobs shows that real jobs exist, by what Blueprint derives about each, before a company applies. */
 describe("LiveJobs", () => {
@@ -35,12 +35,15 @@ describe("LiveJobs", () => {
     expect(screen.queryByRole("link", { name: /Pick and place job/ })).toBeNull();
   });
 
-  it("shows nothing while there are no live jobs, or when the list cannot be read", async () => {
+  // Outreach playbook fix 12 (2026-11-27): an empty list is said plainly; an unreadable one still shows nothing.
+  it("says plainly that there are no live jobs when the list is empty, and shows nothing when it cannot be read", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ jobs: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    const { container, unmount } = render(<LiveJobs />);
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/public/live-jobs"));
-    expect(container.innerHTML).toBe("");
+    const { unmount } = render(<LiveJobs />);
+    expect(await screen.findByRole("heading", { name: LIVE_JOBS_HEADING })).toBeTruthy();
+    expect(screen.getByText(LIVE_JOBS_EMPTY)).toBeTruthy();
+    expect(screen.queryByRole("listitem")).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith("/api/public/live-jobs");
     unmount();
     vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 503 })));
     const second = render(<LiveJobs />);

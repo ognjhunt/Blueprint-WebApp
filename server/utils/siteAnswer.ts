@@ -657,7 +657,8 @@ function confidenceOf(pick: Rated | null, job: Job, familyLabel: string, kindUnk
     .filter(Boolean);
   if (parts.length) reasons.push(`The ${parts.join(" and ")} ${parts.length > 1 || parts[0] !== "weight" ? "are" : "is"} estimated from your video.`);
   if (pick.verdict === "possible") reasons.push("Some of its checks could not be settled on the numbers we have.");
-  if (pick.sceneChecked) reasons.push("Its reach was checked in the scene rebuilt from your video.");
+  // Measured geometry against a published figure: no robot is run in the scene (outreach audit, 2026-11-27).
+  if (pick.sceneChecked) reasons.push("Your spots were measured in the simulation of your site and compared with the robot's published reach.");
   if (sceneNotCovered) reasons.push(SURENESS_SCENE_NOT_COVERED);
   const top = pick.evidence[0];
   // The source's own words for the family, with "family" added only when they do not already say what it is.

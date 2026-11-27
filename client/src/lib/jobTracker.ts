@@ -19,6 +19,9 @@ export const TRACKER_LABELS: Readonly<Record<TrackerStepKey, string>> = {
   pilot: "Pilot agreed",
 };
 
+/** The "Companies looking" step while no approved company may see jobs (`sharing.noCompanyCanSee`). */
+export const NO_APPROVED_COMPANY_YET = "No approved company can see it yet.";
+
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 const earliest = (dates: Array<string | undefined>) => dates.filter((value): value is string => Boolean(value)).sort()[0];
 
@@ -45,7 +48,9 @@ export function jobTrackerSteps(sharing: JobSharing, activity: SiteCompanyActivi
   };
   const next: Record<TrackerStepKey, string> = {
     posted: "Getting your job ready to post",
-    looking: sentCount ? `Sent to ${plural(sentCount, "approved company", "approved companies")}; waiting for one to open it`
+    // No approved company may see jobs yet: said as the section's first line says it, not "waiting" (outreach audit D5).
+    looking: posted && sharing.noCompanyCanSee ? NO_APPROVED_COMPANY_YET
+      : sentCount ? `Sent to ${plural(sentCount, "approved company", "approved companies")}; waiting for one to open it`
       : "Waiting for companies to open it",
     responses: "Waiting for a company to apply",
     introduced: interested.length ? "Press Accept below to meet a company" : "Waiting for a company to apply",

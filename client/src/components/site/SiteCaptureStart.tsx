@@ -30,6 +30,8 @@ import {
   CAPTURE_VIDEO_ACCEPT,
   captureTokenFromUrl,
   isCaptureVideoFile,
+  isCaptureVideoTooLarge,
+  VIDEO_TOO_LARGE,
   uploadSelfCaptureVideo,
   receivedVideoResult,
   retrySelfCaptureProcessing,
@@ -761,16 +763,19 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
             {done.uploaded === "failed" ? <>
               <BareGroup><BareLabel>Saved</BareLabel><h1>Your job is saved. Check your video upload.</h1></BareGroup>
               <BareGroup>
-                <BareNotice role="alert">{`${done.uploadMessage ?? "We could not confirm the video upload."} Keep your original video and open your job page to check its status.`}</BareNotice>
+                {/* A video over the limit never left the browser, or the server refused it whole: no status to check, and the
+                    same file cannot be sent again, so the way on is a smaller video on the job page. */}
+                <BareNotice role="alert">{done.uploadMessage === VIDEO_TOO_LARGE ? VIDEO_TOO_LARGE
+                  : `${done.uploadMessage ?? "We could not confirm the video upload."} Keep your original video and open your job page to check its status.`}</BareNotice>
               </BareGroup>
               <BareGroup>
-                {footage
+                {footage && done.uploadMessage !== VIDEO_TOO_LARGE
                   ? <BareButton onClick={() => void retrySelectedVideo()} disabled={retryingVideo} helper={keepLink(done.email)}>
                     {retryingVideo ? uploadPercent === null ? "Checking selected video…" : `Uploading video… ${uploadPercent}%` : "Try the selected video again"}
                   </BareButton>
                   : <BareButton href={uploaderUrl} helper={keepLink(done.email)}>Upload the video</BareButton>}
               </BareGroup>
-              {footage && <BareLinks links={[{ key: "uploader", label: "Upload the video", href: uploaderUrl }]} />}
+              {footage && done.uploadMessage !== VIDEO_TOO_LARGE && <BareLinks links={[{ key: "uploader", label: "Upload the video", href: uploaderUrl }]} />}
             </> : done.hasFootage ? <>
               <BareGroup><BareLabel>Saved</BareLabel><h1>Send us your video.</h1></BareGroup>
               <BareGroup>
@@ -879,6 +884,12 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
                     event.target.value = "";
                     setFootage(null);
                     setFootageError("That file is not a .mov or .mp4 video. Pick the video straight from your phone's library.");
+                    return;
+                  }
+                  if (file && isCaptureVideoTooLarge(file)) {
+                    event.target.value = "";
+                    setFootage(null);
+                    setFootageError(VIDEO_TOO_LARGE);
                     return;
                   }
                   setFootage(file);

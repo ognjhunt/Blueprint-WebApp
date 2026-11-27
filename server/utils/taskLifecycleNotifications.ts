@@ -33,10 +33,29 @@ const NEVER_SHARED_AND_HOW_TO_STOP = "We don't share "
   + "your name, address or contact details with a deployment company unless you ask for an introduction to it. To stop, "
   + "open your job page and withdraw your job there. It then leaves every company's view at once, and each company it "
   + "was sent to is asked to delete any copy it saved.";
-export const SHARING_AND_HOW_TO_STOP = `Once your video is in, your job goes to approved deployment companies. ${NEVER_SHARED_AND_HOW_TO_STOP}`;
+/**
+ * Where the job goes, true whether or not a deployment company is approved yet (outreach audit D6, 2026-11-27: the
+ * email said "Your job goes to approved deployment companies." while none was approved and no company could see any
+ * job). `companiesCanSee` is `anyCompanyMaySeeJobs` as read when the email is built: true, false, or unknown when the
+ * read failed or the caller did not make it, which takes words true in both cases. False covers two states: no company
+ * is approved, or one is approved and has not yet accepted the Terms (`companyMaySeeJobs`). So the "no" words say only
+ * that no approved company can see the job yet, as the job page does (`NO_COMPANY_CAN_SEE_LINE`), never "none is approved".
+ */
+export type CompaniesCanSee = boolean | undefined;
+const GOES_TO = {
+  yes: "your job goes to approved deployment companies.",
+  no: "your job goes to the deployment companies we approve. No approved company can see your job yet; your job page shows when one can.",
+  unknown: "your job goes to the deployment companies we have approved. Your job page shows when one can see it.",
+} as const;
+const goesTo = (companiesCanSee: CompaniesCanSee) => GOES_TO[companiesCanSee === true ? "yes" : companiesCanSee === false ? "no" : "unknown"];
+const capitalised = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+const sharingAndHowToStop = (companiesCanSee: CompaniesCanSee) => `Once your video is in, ${goesTo(companiesCanSee)} ${NEVER_SHARED_AND_HOW_TO_STOP}`;
+/** The job link email's sharing paragraph before the video is in, when whether a company is approved was not read. */
+export const SHARING_AND_HOW_TO_STOP = sharingAndHowToStop(undefined);
 
 /** What the email may say about the site's job page, as the caller read it when it queued the email. */
-type CopyContext = { outsideApprovedRegion: boolean; introductionOffered: boolean; questionOnPage: boolean; videoIn: boolean };
+type CopyContext = { outsideApprovedRegion: boolean; introductionOffered: boolean; questionOnPage: boolean; videoIn: boolean;
+  companiesCanSee: CompaniesCanSee };
 
 const PRIVATE_LINK = "This link opens your job without a password, so please don't forward it.";
 /**
@@ -44,10 +63,10 @@ const PRIVATE_LINK = "This link opens your job without a password, so please don
  * The start form saves the job and queues this email before its video uploads, so the email is read again when it
  * goes (`jobLinkBodyNow`): a site whose video is in by then is told so, in its done screen's words, not asked for one.
  */
-const VIDEO_ASKED = `A video is required to post your job. Use the link to send one or check your upload. ${PRIVATE_LINK}\n\n`
-  + SHARING_AND_HOW_TO_STOP;
-const VIDEO_IN = `We have your video. Next, we watch your video. Your job page shows what we find. ${PRIVATE_LINK}\n\n`
-  + `Your job goes to approved deployment companies. ${NEVER_SHARED_AND_HOW_TO_STOP}`;
+const videoAsked = (companiesCanSee: CompaniesCanSee) => `A video is required to post your job. Use the link to send one or check your upload. ${PRIVATE_LINK}\n\n`
+  + sharingAndHowToStop(companiesCanSee);
+const videoIn = (companiesCanSee: CompaniesCanSee) => `We have your video. Next, we watch your video. Your job page shows what we find. ${PRIVATE_LINK}\n\n`
+  + `${capitalised(goesTo(companiesCanSee))} ${NEVER_SHARED_AND_HOW_TO_STOP}`;
 // A fixed answer label in plain text is quoted: "Tested it: can do" has a colon of its own.
 const answered = (label: string) => label === SITE_RESPONSE_LABELS.interested ? "A deployment company applied to your job."
   : `A deployment company answered "${label}" about your job.`;
@@ -58,9 +77,9 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "Your Blueprint job link",
     // A site outside the approved region can save its job but may not send a video yet (`captureResidency.ts`): its
     // link is issued for the job's description alone, so it is not asked for one.
-    body: (url, _detail, { outsideApprovedRegion, videoIn }) => outsideApprovedRegion
+    body: (url, _detail, { outsideApprovedRegion, videoIn: hasVideo, companiesCanSee }) => outsideApprovedRegion
       ? `Your job is saved.\n\nWe can only take videos from sites in the United States for now, so please don't send a video yet. ${PRIVATE_LINK}\n\nOpen your job:\n${url}`
-      : `Your job link is ready.\n\n${videoIn ? VIDEO_IN : VIDEO_ASKED}\n\nOpen your job:\n${url}`,
+      : `Your job link is ready.\n\n${hasVideo ? videoIn(companiesCanSee) : videoAsked(companiesCanSee)}\n\nOpen your job:\n${url}`,
   },
   // Only the response label is included. The question and answer stay on the job page. The next step is named only
   // when the job page offers it for this answer: "Introduce us", or the box to answer the company's question.
@@ -98,7 +117,18 @@ export async function enqueueTaskLifecycleNotification(params: { requestId: stri
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { enqueued: false, reason: "contact_missing" };
   return enqueueOutbox(buildTaskLifecycleNotification({ ...params, requestId, to,
     captureRegion: snapshot.data()?.request?.capture_region,
-    videoIn: params.milestone === "task_received" && await jobVideoIsIn(requestId, snapshot.data()) }));
+    videoIn: params.milestone === "task_received" && await jobVideoIsIn(requestId, snapshot.data()),
+    companiesCanSee: params.milestone === "task_received" ? await companiesCanSeeJobs() : undefined }));
+}
+
+/** Whether an approved deployment company may see jobs now (`anyCompanyMaySeeJobs`); unknown when that cannot be read. */
+export async function companiesCanSeeJobs(): Promise<CompaniesCanSee> {
+  try {
+    const { anyCompanyMaySeeJobs } = await import("./jobAutoSend");
+    return await anyCompanyMaySeeJobs();
+  } catch {
+    return undefined;
+  }
 }
 
 /** Whether the job's video is saved, as every job page reads it. False when that cannot be read: the email then asks. */
@@ -118,8 +148,11 @@ async function jobVideoIsIn(requestId: string, record?: Record<string, unknown>)
  * a message the provider may already hold under the row's key is never changed.
  */
 export async function jobLinkBodyNow(entry: { kind: string; requestId: string; body: string; attempts?: number }): Promise<string | null> {
-  if (entry.kind !== "task_received" || (entry.attempts ?? 0) > 0 || !entry.body.includes(VIDEO_ASKED)) return null;
-  return await jobVideoIsIn(entry.requestId) ? entry.body.replace(VIDEO_ASKED, VIDEO_IN) : null;
+  if (entry.kind !== "task_received" || (entry.attempts ?? 0) > 0) return null;
+  // The words as queued, whichever of the three sharing sentences they carry.
+  const queued = ([true, false, undefined] as CompaniesCanSee[]).filter(value => entry.body.includes(videoAsked(value)));
+  if (!queued.length) return null;
+  return await jobVideoIsIn(entry.requestId) ? entry.body.replace(videoAsked(queued[0]), videoIn(queued[0])) : null;
 }
 
 export function buildTaskLifecycleNotification(params: {
@@ -134,6 +167,8 @@ export function buildTaskLifecycleNotification(params: {
   captureRegion?: unknown;
   /** `task_received` only: the job's video is saved (`savedWalkthrough`), so the email says so and does not ask for one. */
   videoIn?: boolean;
+  /** `task_received` only: whether an approved deployment company may see jobs (`companiesCanSeeJobs`); unknown if omitted. */
+  companiesCanSee?: CompaniesCanSee;
   /**
    * `company_answered` only, for "Interested" or "Tested it: can do": the job page offers "Introduce us" beside this
    * answer (an answer that consents to it, `answerConsentsToIntroduction`, from a company not introduced yet).
@@ -164,6 +199,7 @@ export function buildTaskLifecycleNotification(params: {
         && INTRODUCIBLE_RESPONSE_STATES.includes(params.companyAnswerState as CompanyResponseState),
       questionOnPage: params.questionOnPage === true,
       videoIn: params.videoIn === true,
+      companiesCanSee: params.companiesCanSee,
     })),
     replyTo: "hello@tryblueprint.io",
   };

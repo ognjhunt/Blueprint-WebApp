@@ -71,7 +71,10 @@ describe("the site's emails", () => {
   it("says in the job link email where the job goes once the video is in, what is never shared and how to stop", () => {
     const message = buildTaskLifecycleNotification({ requestId: "req-1", milestone: "task_received", to: "owner@example.com" });
     expect(message).toMatchObject({ kind: "task_received", subject: "Your Blueprint job link" });
-    expect(SHARING_AND_HOW_TO_STOP).toBe("Once your video is in, your job goes to approved deployment companies. We don't share "
+    // Changed on purpose 2026-11-27 (outreach audit D6): with whether a company is approved not read, the words are true
+    // either way; the enqueue path reads it and says which (task-received-video-in.test.ts, outreach-site-journey-proof).
+    expect(SHARING_AND_HOW_TO_STOP).toBe("Once your video is in, your job goes to the deployment companies we have approved. "
+      + "Your job page shows when one can see it. We don't share "
       + "your name, address or contact details with a deployment company unless you ask for an introduction to it. To stop, "
       + "open your job page and withdraw your job there. It then leaves every company's view at once, and each company it "
       + "was sent to is asked to delete any copy it saved.");

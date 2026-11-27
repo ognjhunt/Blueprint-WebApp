@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import Login from "@/pages/Login";
@@ -6,7 +7,9 @@ const signIn = vi.hoisted(() => vi.fn());
 const signInWithGoogle = vi.hoisted(() => vi.fn());
 const prepareGoogleSignIn = vi.hoisted(() => vi.fn());
 const completeGoogleRedirect = vi.hoisted(() => vi.fn());
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn }) }));
+const account = vi.hoisted(() => ({ currentUser: null as null | { uid: string }, loading: false }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn,
+  currentUser: account.currentUser, loading: account.loading }) }));
 const customSignIn = vi.hoisted(() => vi.fn());
 vi.mock("firebase/auth", () => ({ signInWithCustomToken: customSignIn }));
 vi.mock("@/lib/firebase", () => ({ auth: { fixture: true } }));
@@ -17,6 +20,7 @@ beforeEach(() => {
   prepareGoogleSignIn.mockReset().mockResolvedValue(undefined);
   completeGoogleRedirect.mockReset().mockResolvedValue(undefined);
   sessionStorage.clear();
+  account.currentUser = null;
   window.history.replaceState({}, "", "/sign-in");
 });
 
@@ -172,13 +176,29 @@ describe("Minimal sign in", () => {
     expect(signIn).not.toHaveBeenCalled();
     fetchMock.mockRestore();
   });
-  it("spends an emailed sign-in link, takes it out of the address bar and signs the account in", async () => {
+  // Outreach gap 1 (2026-11-27): a mail scanner loads the page and runs its scripts but presses nothing.
+  it("takes an emailed sign-in link out of the address bar on load and spends nothing until the press", async () => {
+    const assign = vi.spyOn(window.location, "replace").mockImplementation(() => undefined);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ customToken: "custom", returnTo: "/jobs/job-1" }), { status: 200 }));
+    customSignIn.mockReset();
+    window.history.replaceState({}, "", "/sign-in?link=signed-link");
+    render(<StrictMode><Login /></StrictMode>);
+    expect(window.location.search).toBe("");
+    expect(await screen.findByRole("button", { name: "Sign in with this link" })).toBeEnabled();
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
+    expect(fetchMock.mock.calls.some(([path]) => String(path).includes("/sign-in-link/redeem"))).toBe(false);
+    expect(customSignIn).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
+    fetchMock.mockRestore(); assign.mockRestore();
+  });
+  it("spends an emailed sign-in link on the press, takes it out of the address bar and signs the account in", async () => {
     const assign = vi.spyOn(window.location, "replace").mockImplementation(() => undefined);
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ customToken: "custom", returnTo: "/jobs/job-1" }), { status: 200 }));
     customSignIn.mockResolvedValue({ user: { uid: "u1" } });
     window.history.replaceState({}, "", "/sign-in?link=signed-link");
     render(<Login />);
     expect(window.location.search).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with this link" }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith("/jobs/job-1"));
     expect(fetchMock).toHaveBeenCalledWith("/api/robot-team-access/sign-in-link/redeem", expect.objectContaining({ body: JSON.stringify({ link: "signed-link" }) }));
     expect(customSignIn).toHaveBeenCalledWith({ fixture: true }, "custom");
@@ -191,18 +211,60 @@ describe("Minimal sign in", () => {
     sessionStorage.setItem("redirectAfterAuth", "/jobs/job-2");
     window.history.replaceState({}, "", "/sign-in?link=signed-link");
     render(<Login />);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with this link" }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith("/jobs/job-2"));
     expect(sessionStorage.getItem("redirectAfterAuth")).toBeNull();
     fetchMock.mockRestore(); assign.mockRestore();
   });
   it("says a spent or expired link no longer works", async () => {
+    // The server's refusal of a spent link carries its code (`companySignInLink.ts`: 403 sign_in_link_invalid).
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
-      error: "This sign-in link no longer works. Ask for a new one on this page." }), { status: 403 }));
+      error: "This sign-in link no longer works. Ask for a new one on this page.", code: "sign_in_link_invalid" }), { status: 403 }));
     customSignIn.mockReset();
     window.history.replaceState({}, "", "/sign-in?link=spent");
     render(<Login />);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with this link" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("This sign-in link no longer works. Ask for a new one on this page.");
     expect(customSignIn).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Sign in with this link" })).toBeNull();
     fetchMock.mockRestore();
+  });
+  // Review, 2026-11-27: a 503 says "Try again shortly"; the link is out of the address bar, so dropping it would send the
+  // company back to its email. Only the server's sign_in_link_invalid lets it go.
+  it("keeps the link after a 503 or a lost connection, so a second press can spend it", async () => {
+    const assign = vi.spyOn(window.location, "replace").mockImplementation(() => undefined);
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "Sign-in is temporarily unavailable. Try again shortly.",
+        code: "sign_in_link_unavailable" }), { status: 503 }))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ customToken: "custom", returnTo: "/jobs/job-1" }), { status: 200 }));
+    customSignIn.mockReset();
+    customSignIn.mockResolvedValue({ user: { uid: "u1" } });
+    window.history.replaceState({}, "", "/sign-in?link=signed-link");
+    render(<Login />);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with this link" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sign-in is temporarily unavailable. Try again shortly.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in with this link" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with this link" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sign-in is temporarily unavailable. Try again shortly.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in with this link" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with this link" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/jobs/job-1"));
+    expect(fetchMock.mock.calls.every(([, init]) => (init as RequestInit).body === JSON.stringify({ link: "signed-link" }))).toBe(true);
+    fetchMock.mockRestore(); assign.mockRestore();
+  });
+  // Outreach gap 1 (2026-11-27): the approval email's "Find jobs" link goes through sign-in.
+  it("sends a company already signed in straight to Find jobs from the emailed link, and shows the form otherwise", async () => {
+    const replace = vi.spyOn(window.location, "replace").mockImplementation(() => undefined);
+    window.history.replaceState({}, "", "/sign-in?next=%2Fcontact%2Frobot-team");
+    const signedOut = render(<Login />);
+    expect(screen.getByRole("link", { name: "Apply to see jobs" })).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+    signedOut.unmount();
+    account.currentUser = { uid: "u1" };
+    render(<Login />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/contact/robot-team"));
+    replace.mockRestore();
   });
 });

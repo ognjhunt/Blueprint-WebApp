@@ -865,6 +865,16 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/not a \.mov or \.mp4/);
   });
 
+  it("refuses a video over the upload limit when it is chosen, before anything is sent (outreach audit D1)", async () => {
+    const { MAX_CAPTURE_VIDEO_BYTES, VIDEO_TOO_LARGE } = await import("@/lib/captureVideoLimit");
+    await renderAsSiteAccount();
+    chooseUploadNow();
+    const big = new File(["x"], "site.mp4", { type: "video/mp4" });
+    Object.defineProperty(big, "size", { value: MAX_CAPTURE_VIDEO_BYTES + 1 });
+    fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [big] } });
+    expect(screen.getByRole("alert")).toHaveTextContent(VIDEO_TOO_LARGE);
+  });
+
   it("does not ask for the upload from a site outside the US", async () => {
     fetchMock.mockImplementation(async (url: string) => String(url) === "/api/workspace/setup" ? SITE_SETUP
       : photon([{ name: "Munich", country: "Germany", countrycode: "DE" }]));

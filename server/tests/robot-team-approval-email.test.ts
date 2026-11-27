@@ -13,7 +13,7 @@ describe("the deployment company approval email", () => {
   it.each(["application", "invite"])("names Find jobs, says what a company does there, and promises nothing (%s)", source => {
     const email = accessApprovedEmail({ name: "Ada Example", email: "ada@example.com", source } as never);
     // It says how to reach the jobs: sign in, then Find jobs, with its link as a button.
-    expect(email.body).toContain("\n\nOnce you are signed in, open Find jobs to see the jobs sites have posted. Open a job to see its job packet and respond.\n\nFind jobs:\nhttps://tryblueprint.io/contact/robot-team\n\n");
+    expect(email.body).toContain("\n\nOnce you are signed in, open Find jobs to see the jobs sites have posted. Open a job to see its job packet and respond.\n\nFind jobs:\nhttps://tryblueprint.io/sign-in?next=%2Fcontact%2Frobot-team\n\n");
     // The invitation works for the reader's own address alone, so the address is named, and the link is one button.
     expect(email.body).toContain("Use this email address (ada@example.com) to create your account, or sign in if you already have one.\n\n"
       + "Set up your account:\nhttps://tryblueprint.io/signup/business?invitation=invitation-fixture\n\n"

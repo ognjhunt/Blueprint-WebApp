@@ -88,7 +88,11 @@ describe("the site's page once its simulation is delivered", () => {
       windowEnded: false, noGrantEnded: false, preparation: null, scene: null, proof: null, simulationDelivered: true };
     expect(jobOutlook(base).phase).toBe("simulation_ready");
     expect(jobOutlook({ ...base, consentRevoked: true }).phase).toBe("ended_by_site");
-    expect(jobOutlook({ ...base, windowEnded: true }).phase).toBe("no_test");
+    // Changed on purpose 2026-11-27 (outreach audit D4): the window's ending no longer hides a package already
+    // delivered, which companies can still download; every other recorded ending still does.
+    expect(jobOutlook({ ...base, windowEnded: true }).phase).toBe("simulation_ready");
+    expect(jobOutlook({ ...base, windowEnded: true, simulationDelivered: false }).phase).toBe("no_test");
+    expect(jobOutlook({ ...base, preparation: { state: "failed_terminal", geometryOnlyEnd: false } }).phase).toBe("no_test");
     expect(jobOutlook({ ...base, simulationDelivered: false }).phase).toBe("building");
   });
 });

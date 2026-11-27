@@ -14,12 +14,17 @@
  */
 
 import { withAppCheckHeader } from "./appCheck";
+import { MAX_CAPTURE_VIDEO_BYTES, VIDEO_TOO_LARGE } from "./captureVideoLimit";
 
 /** What the server accepts. Mirrors `ALLOWED_EXTENSIONS` in the upload route. */
 export const CAPTURE_VIDEO_EXTENSIONS = ["mov", "mp4"] as const;
 
 /** For an `<input type="file" accept>`: the extensions plus their MIME types. */
 export const CAPTURE_VIDEO_ACCEPT = ".mov,.mp4,video/quicktime,video/mp4";
+
+export { MAX_CAPTURE_VIDEO_BYTES, VIDEO_TOO_LARGE };
+
+export const isCaptureVideoTooLarge = (file: { size: number }) => file.size > MAX_CAPTURE_VIDEO_BYTES;
 
 export function isCaptureVideoFile(file: { name: string }): boolean {
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -76,7 +81,7 @@ export function receivedVideoResult(data: Record<string, unknown> | null): Video
  * may carry the only step the site can take (reload the page, wait for another upload). The browser's own technical
  * reasons (a dropped connection, a response with no receipt) are not shown.
  */
-async function reconcileUpload(token: string, serverSentence?: string): Promise<VideoUploadResult> {
+async function reconcileUpload(token: string, serverSentence?: string, refused = false): Promise<VideoUploadResult> {
   try {
     // This endpoint is read-only. An uncertain upload never starts processing
     // merely because the browser checks whether its bytes arrived.
@@ -85,6 +90,8 @@ async function reconcileUpload(token: string, serverSentence?: string): Promise<
     const received = receivedVideoResult(data);
     if (received) return received;
   } catch { /* Keep uncertainty explicit when receipt cannot be checked. */ }
+  // The server refused the video outright (it is too large): nothing arrived, and its sentence is the whole answer.
+  if (refused && serverSentence) return { status: "failed", message: serverSentence };
   return { status: "failed", message: `${serverSentence ? `${serverSentence} ` : ""}We couldn't confirm your video arrived. Keep the original file and check this page before you send it again.` };
 }
 
@@ -117,6 +124,8 @@ export async function uploadSelfCaptureVideo(
   file: File,
   onProgress?: (percent: number) => void,
 ): Promise<VideoUploadResult> {
+  // Over the route's limit: said now, before any byte is sent.
+  if (isCaptureVideoTooLarge(file)) return { status: "failed", message: VIDEO_TOO_LARGE };
   // Send the original file immediately. The server measures its real streams;
   // browser codec support and frame callbacks are not upload prerequisites.
   const body = new FormData();
@@ -148,7 +157,7 @@ export async function uploadSelfCaptureVideo(
           return;
         }
         const serverSentence = typeof parsed?.error === "string" && parsed.error.trim() ? parsed.error.trim() : undefined;
-        void reconcileUpload(token, serverSentence).then(resolve);
+        void reconcileUpload(token, serverSentence, request.status === 413 && parsed?.code === "video_too_large").then(resolve);
       });
 
       request.addEventListener("error", () => {

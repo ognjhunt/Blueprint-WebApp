@@ -34,6 +34,14 @@ Local development automatically reads the protected key file when no environment
 key is set. For other file-backed deployments, set `RESEND_API_KEY_FILE` to an
 explicit protected path.
 
+Ops alerts go to `CONTACT_TO` (default `ops@tryblueprint.io`; read by
+`opsNoticeRecipient()` in `server/utils/intakeOpsNotice.ts`). Since 2026-11-27
+that includes the owner's email about a deployment company application
+(`server/utils/ownerApplicationNotice.ts`, outbox kind `ops_access_application`):
+one when it applies, and one when it has waited three working days, each once
+per application, link-only, beside the Slack bell. Set `CONTACT_TO` to an inbox
+the owner reads.
+
 Create one Resend webhook endpoint at
 `https://<production-host>/api/growth/webhooks/resend`, selecting at least
 `email.sent`, `email.delivered`, `email.bounced`, `email.complained`,

@@ -36,6 +36,11 @@ export function projectTaskBrowseCard(id: string, record: InboundRequest, decide
     ...(taskThumbnailUrl(id, record) ? { thumbnailSource: thumbnailSourceOf(record) } : {}) };
 }
 
+/** Recorded endings after which no simulation is built for the job: everything but a hold. */
+const NO_SIMULATION_ENDINGS: ReadonlySet<string> = new Set(["preparation_failed", "scene_stopped", "simulation_stopped",
+  "spending_cap_reached", "not_processed_in_time", "no_grant", "window_expired", "authority_ended", "job_ended",
+  "window_ended_during_test", "robot_fit_only", "unsized", "no_ai_robot_scored", "run_ended"]);
+
 /**
  * Where a listed job's simulation stands, from its real state: the stored recording, the Pipeline's rebuilt scene and
  * the job's outlook (one decision for the job page, the emails and this label). Null whenever any read is uncertain
@@ -55,6 +60,8 @@ export async function libraryJobStage(id: string, record: Record<string, any>): 
     if (phase === "simulation_ready") return "simulation_built";
     if (phase === "building") return "simulation_building";
     if (phase === "reading" || phase === "waiting_on_site") return "video_received";
+    // A recorded ending after which nothing more is built; a hold (which may resume) keeps no label.
+    if (phase === "no_test" && decision.outlook.reason && NO_SIMULATION_ENDINGS.has(decision.outlook.reason)) return "no_simulation";
     return null;
   } catch {
     return null;

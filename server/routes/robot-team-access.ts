@@ -21,7 +21,7 @@ import { CompanySignInLinkError, redeemCompanySignInLink, requestCompanySignInLi
 import { shownVersionsCount } from "../../client/src/lib/legalAcceptance";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
-import { notifySlackRobotTeamAccessApplication } from "../utils/slack";
+import { notifyOwnerOfApplication } from "../utils/ownerApplicationNotice";
 import { checkNewCompanyApplication } from "../utils/companyCheck";
 import { companyJobReturnPath } from "../../client/src/lib/authReturnPath";
 import { clientIp } from "../utils/clientIp";
@@ -127,7 +127,7 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
     // never approved by the rule and gets the plain bell.
     if (created) {
       if (record.partnerRole === "technology") {
-        void notifySlackRobotTeamAccessApplication({ email: record.email, autoApproved: false }).catch(() => undefined);
+        void notifyOwnerOfApplication({ email: record.email, autoApproved: false }).catch(() => undefined);
       } else {
         void checkNewCompanyApplication(record).catch(() => undefined);
       }
