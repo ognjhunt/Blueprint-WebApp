@@ -689,8 +689,9 @@ Send once, five working days later, only if there was no reply.
 >   In our two most recent test runs that took about 50 minutes. [STATE
 >   LINE, as in the first message.]
 > - The simulation of your site takes longer: from several hours to several
->   days. So far most have been the room without the job's object in it (7
->   of the 9 built, all in our own test runs).
+>   days. So far most have been the room only, with nothing in it set up as
+>   a separate object a robot can move (7 of the 9 built, all in our own test
+>   runs).
 > - If a company answers, its response appears on your job page and we email
 >   you. We can't promise that any company will answer, or say yes.
 > - If you press Accept beside a company, we email you both each other's
@@ -736,7 +737,7 @@ Only what is true today.
 | The upload itself | 12 s for a 77 MB file, in that run | first-run log, 15:21:32Z row |
 | The first look, on the job page | About 1.5 minutes for a reading, since the fix for videos over 64 MB. On a real site's job: unknown | first-run log, 19:39:03Z row; `server/agents/adapters/gemini-video.ts:57-64` |
 | The job in front of approved companies | 50 minutes after Send on the two jobs timed since 2026-11-23. Earlier test jobs: 7 minutes to 21 hours. Today no company can see it at all (gate check S3) | first-run log, 16:11:48Z row; stored clip times less creation times in `captureUploadSessions`, read 2026-11-26 |
-| The simulation of the site | 10 h 33 min on the first-run job, part of it waiting for a fix. Test jobs: 19 hours to 7 days (upper bounds). 6 of 8 test packages are the room without the job's object, and so is the first-run job's: 7 of the 9 built. The site's page says which kind it got (fix 6, on the branch) | first-run log, 01:54:34Z row; stored package times in `captureUploadSessions`, read 2026-11-26 |
+| The simulation of the site | 10 h 33 min on the first-run job, part of it waiting for a fix. Test jobs: 19 hours to 7 days (upper bounds). 6 of 8 test packages are the room only (no separate object), and so is the first-run job's: 7 of the 9 built. The site's page says which kind it got (fix 6, on the branch) | first-run log, 01:54:34Z row; stored package times in `captureUploadSessions`, read 2026-11-26 |
 | The job's object and the success rule | 0 real jobs. 2 test jobs, at 3 and 6.6 days (upper bounds) | `captureUploadSessions` and `inboundRequests`, read 2026-11-26 |
 | Paid work on the job | Stops 7 days after it starts; the job stays posted | Pipeline `src/blueprint_pipeline/website_job_window.py:21`; `server/utils/teamJobAccess.ts:196-200` |
 | Responses | unknown. None is promised. No real company has ever answered | C1 `answers_by_state` (2, both from test runs) |

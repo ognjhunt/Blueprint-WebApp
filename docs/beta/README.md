@@ -22,9 +22,10 @@ direction 2026-11-12).
   own decision is the point: a site sends, confirms, accepts the companies it
   wants to meet and can withdraw; a company applies and answers; Blueprint
   approves a company once, by a published rule checked automatically or with
-  one press. When the site presses Accept beside a company, Blueprint gives
-  each side the other's name and contact details by email. Nothing else shares
-  them. After an introduction both sides are asked, at 14, 45 and 90 days,
+  one press. When the site presses Accept beside a company, Blueprint emails
+  the company the site's email address and the place the site gave, and emails
+  the site the company's name and contact details (the statement beside
+  Accept says this). Nothing else shares them. After an introduction both sides are asked, at 14, 45 and 90 days,
   what happened; the answer is recorded on the job.
 - Sharing is the service. A site that sends a job agrees once, in the
   statement it accepts (recording statement `2026-11-23.v6` today), that
@@ -35,11 +36,12 @@ direction 2026-11-12).
   an older statement is not shown to any company until its site accepts the
   current one. A site's name, street address and contact details are never
   shared without asking the site first.
-- No deployment company was approved on 2026-11-27, so no company could see
-  any job yet.
-- So far most simulations built have been the room without the job's object
-  (7 of the 9, all test jobs). The site's job page and the company's page say
-  so for each job.
+- A company sees jobs only once it is approved and has accepted the Terms.
+  Until one has, no company can see any job; the site's job page says when one
+  can.
+- Many simulations built so far have been the room only, with nothing in it
+  set up as a separate object a robot can move. The site's job page and the
+  company's page say so for each job.
 - Nothing promises a response that has not been given.
 - The only hard stops are privacy, rights and money. Anything else that is
   missing is flagged, and the job continues.

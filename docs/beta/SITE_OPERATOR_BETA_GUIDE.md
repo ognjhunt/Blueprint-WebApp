@@ -20,8 +20,9 @@ from sites in the United States for now.
 
 Your job page says where the job stands, for example "Your job is ready for
 deployment companies, but no approved company can see it yet.", and shows each
-response. We can't promise any company will respond or say yes. On 27 November
-2026 no deployment company was approved yet, so no company could see any job.
+response. We can't promise any company will respond or say yes. There may be
+no approved company that can see your job yet; your job page says so when that
+is the case.
 
 Blueprint does not refuse a job because of its kind. If something is missing,
 your job page says so and the job keeps going.
@@ -52,14 +53,14 @@ deployment company. Blueprint charges sites nothing.
 |---|---|
 | Your private job page, and an email with its link | A few minutes after you press Send video |
 | The first look, on your job page | About a minute and a half in the one run we timed; not yet measured on a real site's job |
-| The simulation of your site | Not yet measured on a real site's job. On test jobs it took from about 19 hours to 7 days |
+| The simulation of your site | Not yet measured on a real site's job. On our own trial jobs it took from about 10 hours to 7 days |
 | Responses from deployment companies | Unknown. None is promised |
 | Questions about what happened after you meet a company | 14, 45 and 90 days after the introduction |
 
-So far most simulations have been the room without the job's object in it
-(7 of the 9 built, all test jobs). Such a simulation does not check what counts
-as done. Your job page says which kind you have; nothing more is needed from
-you, and your job stays posted.
+Many simulations built so far have been the room only: nothing in it is set up
+as a separate object a robot can move. Your job page says what yours holds,
+including whether it has a rule for what counts as done; nothing more is needed
+from you, and your job stays posted.
 
 Paid work on your job stops 7 days after it starts. The job stays posted.
 
@@ -105,7 +106,8 @@ On your job page, press **Stop using my video**, then **Yes, stop using my
 video**. Your job leaves every company's view at once, no new uploads are
 accepted, and each company it was sent to is asked to delete any copy it saved.
 A copy a company already saved cannot be taken back. The website deletes its
-own stored copy.
+own stored copy. The copy on Blueprint's processing host is kept for now and
+goes through Blueprint's deletion process, as the Privacy Policy describes.
 
 Stopping is not deletion. As the page says: "We keep a copy of the video and
 any results already made, as our Privacy Policy describes." To post the job
