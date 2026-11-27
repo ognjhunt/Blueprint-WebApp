@@ -876,24 +876,31 @@ decided (`PLATFORM_CONTEXT.md:70-73`).
 S is under an hour, M is half a day, L is more than a day. None of these
 belongs to the paused work.
 
-| # | Fix | File | Size | Essential before outreach |
-| --- | --- | --- | --- | --- |
-| 1 | An admin-only "check this domain" action that runs the rule once and records no approval, so the rule is proved before the first real applicant | `server/routes/admin-robot-team-access.ts`, `server/utils/companyCheck.ts:170` | M | Yes for wave 0, unless the owner confirms the key (decision 4) |
-| 2 | An email fallback for the new-application bell and the three-working-day reminder | `server/utils/slack.ts`, `server/utils/accessApplicationReminder.ts` | M | Yes for wave 0, unless the Slack webhook is confirmed (decision 5) |
-| 3 | One press before a one-use sign-in link is redeemed | `client/src/pages/Login.tsx`, `client/src/pages/CompanyJob.tsx` | M | Yes for wave 0 (inferred risk) |
-| 4 | The monitoring runbook's intake cap: 5, not 50; and "5 ops notices", not "50" | `docs/runbooks/beta-monitoring.md:193,209` | S | Yes |
-| 5 | Rewrite the site guide and the beta README to today's service: no early trial, approval by the rule, "Stop using my video", sharing as the service | `docs/beta/SITE_OPERATOR_BETA_GUIDE.md`, `docs/beta/README.md` | S | Yes for wave 1 |
-| 6 | Tell the site when its simulation is the room without the job's object | `server/utils/jobOutlook.ts`, `client/src/components/site/SiteAnswer.tsx` | S | Yes for wave 1, after decision 16 |
-| 7 | The site's video email says "Your job goes to approved deployment companies" while none is approved; add "once companies are approved" | `server/utils/taskLifecycleNotifications.ts:49-50` | S | Only if sites go before companies |
-| 8 | Outreach fields on the research record: contacted at, channel, outcome, go-ahead date | `server/types/robot-team-registry.ts`, `server/routes/admin-robot-teams.ts` | M | No; the table does for wave 0 |
-| 9 | Complete the month's count: the World Labs reading, and the 345 admissions with no job that hold $18 | Pipeline `src/blueprint_pipeline/account_monthly_spend_report.py`, Pipeline `src/blueprint_pipeline/paid_spend_meter.py` | M | Yes for wave 1 (money) |
-| 10 | Run pull request 1424's four tests on main; close it if they pass (decision 9) | `server/tests/site-assessment-preparation.test.ts`, `server/tests/website-job-ceiling.test.ts` | S | No |
-| 11 | An alert when an account deletion request ages past its promise | `server/utils/betaOpsMonitor.ts`, `server/utils/accountDeletion.ts` | M | No; decision 14 clears today's case |
-| 12 | A plain empty state on the public jobs page | `client/src/components/site/LiveJobs.tsx:39` | S | No |
-| 13 | "We checked its reach" reads like a robot test; say "We measured the reach the job needs" | `client/src/components/site/SiteAnswer.tsx:147` | S | No |
-| 14 | The approval email's "Find jobs" link opens a page that reads "Apply to see jobs" to a signed-out reader | `server/utils/robotTeamAccessEmails.ts:57-58` | S | No |
-| 15 | Close the 4 stale open alerts, and close old ones automatically | `server/utils/betaOpsMonitor.ts` | S | No |
-| 16 | Commit command C1 as a script, so the gate is one line | `scripts/ops/outreach-counts.ts` (new) | S | No |
-| 17 | This repo's guide still says the site "presses Introduce us"; the live button is "Accept" | `AGENTS.md:44-46` (outside the shared block) | S | No |
-| 18 | Remove "OEM" and "vendor" from the figures file, or archive it | `client/src/data/deploymentMarket.ts` | S | No; the drafts quote no figure |
-| 19 | Filming advice on the upload page: length, light, steadiness | `client/src/lib/footageNotice.ts` | S | No; the yes-message carries it |
+**No fix here is a gate.** The hard stops of section 1 are cleared by owner
+decisions and by data (decisions 3, 6 and 14, and the first deletion
+receipt), not by these fixes. "Do first" marks the fixes outreach most needs:
+the wave goes better with them. A batch the owner approved does not wait for
+one. If a fix is not done, its limitation goes in the batch note and the last
+column says what we do instead (`AGENTS.md:93-96`).
+
+| # | Fix | File | Size | Do first? | If it is not done |
+| --- | --- | --- | --- | --- | --- |
+| 1 | An admin-only "check this domain" action that runs the rule once and records no approval, so the rule is proved before the first real applicant | `server/routes/admin-robot-team-access.ts`, `server/utils/companyCheck.ts:170` | M | Yes, for wave 0, unless the owner confirms the key (decision 4) | Flag S4 goes in the batch note. The message uses the three-working-days line and the owner decides each application by hand (risk 3) |
+| 2 | An email fallback for the new-application bell and the three-working-day reminder | `server/utils/slack.ts`, `server/utils/accessApplicationReminder.ts` | M | Yes, for wave 0, unless the Slack webhook is confirmed (decision 5) | Flag S5 goes in the batch note. The owner opens `/admin/robot-team-access` daily while a batch is out (risk 4) |
+| 3 | One press before a one-use sign-in link is redeemed | `client/src/pages/Login.tsx`, `client/src/pages/CompanyJob.tsx` | M | Yes, for wave 0 (inferred risk) | Flag S6 goes in the batch note. A company that reports a dead link asks for a new one at `/sign-in` (risk 5) |
+| 4 | The monitoring runbook's intake cap: 5, not 50; and "5 ops notices", not "50" | `docs/runbooks/beta-monitoring.md:193,209` | S | Yes | Read the cap from C5 grep 7, not from the runbook |
+| 5 | Rewrite the site guide and the beta README to today's service: no early trial, approval by the rule, "Stop using my video", sharing as the service | `docs/beta/SITE_OPERATOR_BETA_GUIDE.md`, `docs/beta/README.md` | S | Yes, for wave 1 | Send the yes-message, not the guide (risk 13) |
+| 6 | Tell the site when its simulation is the room without the job's object | `server/utils/jobOutlook.ts`, `client/src/components/site/SiteAnswer.tsx` | S | Yes, for wave 1, after decision 16 | Tell the site by hand (risk 10) |
+| 7 | The site's video email says "Your job goes to approved deployment companies" while none is approved; add "once companies are approved" | `server/utils/taskLifecycleNotifications.ts:49-50` | S | Only if sites go before companies | The messages to the site keep their state line |
+| 8 | Outreach fields on the research record: contacted at, channel, outcome, go-ahead date | `server/types/robot-team-registry.ts`, `server/routes/admin-robot-teams.ts` | M | No | The contact table does for wave 0 |
+| 9 | Complete the month's count: the World Labs reading, and the 345 admissions with no job that hold $18 | Pipeline `src/blueprint_pipeline/account_monthly_spend_report.py`, Pipeline `src/blueprint_pipeline/paid_spend_meter.py` | M | Yes, for wave 1 (money) | Treat the headroom as smaller by the open amounts when sizing the wave (risk 8) |
+| 10 | Run pull request 1424's four tests on main; close it if they pass (decision 9) | `server/tests/site-assessment-preparation.test.ts`, `server/tests/website-job-ceiling.test.ts` | S | No | Nothing changes: main already counts the readings |
+| 11 | An alert when an account deletion request ages past its promise | `server/utils/betaOpsMonitor.ts`, `server/utils/accountDeletion.ts` | M | No | Decision 14 clears today's case; gate check P4 catches the next |
+| 12 | A plain empty state on the public jobs page | `client/src/components/site/LiveJobs.tsx:39` | S | No | The signed-in Find jobs page already says "No jobs yet." |
+| 13 | "We checked its reach" reads like a robot test; say "We measured the reach the job needs" | `client/src/components/site/SiteAnswer.tsx:147` | S | No | Nothing; the drafts do not use the phrase |
+| 14 | The approval email's "Find jobs" link opens a page that reads "Apply to see jobs" to a signed-out reader | `server/utils/robotTeamAccessEmails.ts:57-58` | S | No | The email's invitation link still works; point a company to it if it asks |
+| 15 | Close the 4 stale open alerts, and close old ones automatically | `server/utils/betaOpsMonitor.ts` | S | No | Gate check S8 reads the open alerts by their dates |
+| 16 | Commit command C1 as a script, so the gate is one line | `scripts/ops/outreach-counts.ts` (new) | S | No | Paste C1 from section 1 |
+| 17 | This repo's guide still says the site "presses Introduce us"; the live button is "Accept" | `AGENTS.md:44-46` (outside the shared block) | S | No | The playbook and the drafts say "Accept" |
+| 18 | Remove "OEM" and "vendor" from the figures file, or archive it | `client/src/data/deploymentMarket.ts` | S | No | The drafts quote no figure |
+| 19 | Filming advice on the upload page: length, light, steadiness | `client/src/lib/footageNotice.ts` | S | No | The yes-message carries it |
