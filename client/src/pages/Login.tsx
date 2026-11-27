@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { authReturnPath } from "@/lib/authReturnPath";
 import { friendlyAuthError } from "@/lib/siteClaim";
 import { withCsrfHeader } from "@/lib/csrf";
-import { readSignInLinkFromAddress, SIGN_IN_LINK_ENDED, signInWithCompanyLink, stripSignInLinkFromAddress } from "@/lib/companySignInLink";
+import { CompanySignInLinkFailure, readSignInLinkFromAddress, SIGN_IN_LINK_ENDED, SIGN_IN_TRY_AGAIN, signInWithCompanyLink, stripSignInLinkFromAddress } from "@/lib/companySignInLink";
 import { Helmet } from "@/lib/helmet";
 
 interface ValidationErrors {
@@ -93,8 +93,9 @@ export default function Login() {
       // Replaced, as every sign-in is (`navigateAfterAuth`): Back never returns to this sign-in page once signed in.
       window.location.replace(authReturnPath(saved) ?? authReturnPath(returnTo) ?? "/contact/robot-team");
     } catch (error) {
-      setPendingLink(null);
-      setAuthError(error instanceof Error ? error.message : SIGN_IN_LINK_ENDED);
+      // Only a link the server says has ended is let go; after a 503 or a lost connection the press can be tried again.
+      if (error instanceof CompanySignInLinkFailure && error.ended) setPendingLink(null);
+      setAuthError(error instanceof CompanySignInLinkFailure ? error.message : SIGN_IN_TRY_AGAIN);
       setIsLoading(false);
     }
   };

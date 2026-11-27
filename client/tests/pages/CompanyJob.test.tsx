@@ -4,6 +4,7 @@ import { NO_TESTED_ANSWER_VERSION } from "@/lib/legalAcceptance";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompanyJobPage } from "@/types/taskBrowse";
 import { COMPANY_RESPONSE_STATEMENT, COMPANY_RESPONSE_STATEMENT_VERSION, estimateInWords } from "@/lib/companyResponses";
+import { CompanySignInLinkFailure } from "@/lib/companySignInLink";
 
 /**
  * The company's page for one job (package E, E3 and E5): the site's sentence, its answers, the country, the video
@@ -643,11 +644,32 @@ describe("opening a job from its email", () => {
 
   it("says the link no longer works and offers sign-in when it was used or expired", async () => {
     auth.currentUser = null;
-    linkSignIn.mockRejectedValue(new Error("This sign-in link no longer works."));
+    // The server said the link itself has ended (sign_in_link_invalid).
+    linkSignIn.mockRejectedValue(new CompanySignInLinkFailure("This sign-in link no longer works.", true));
     render(<CompanyJob />);
     fireEvent.click(await screen.findByRole("button", { name: "Sign in" }));
     expect(await screen.findByText("Apply to see this job", { selector: "h1" })).toBeTruthy();
     expect(screen.getByRole("status").textContent).toBe("This sign-in link no longer works. Ask for a new one on the sign-in page.");
     expect(screen.getAllByRole("link", { name: "Sign in" }).some(link => link.getAttribute("href")?.startsWith("/sign-in"))).toBe(true);
+  });
+
+  // Review, 2026-11-27: a failure for the moment keeps the link; only the server's sign_in_link_invalid ends it.
+  it("keeps the link after a 503 or a lost connection and offers the press again", async () => {
+    auth.currentUser = null;
+    linkSignIn.mockRejectedValueOnce(new CompanySignInLinkFailure("Sign-in is temporarily unavailable. Try again shortly.", false))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockReturnValueOnce(new Promise(() => undefined));
+    render(<CompanyJob />);
+    fireEvent.click(await screen.findByRole("button", { name: "Sign in" }));
+    expect(await screen.findByRole("heading", { name: "Sign in to see this job" })).toBeInTheDocument();
+    expect(screen.getByRole("status").textContent).toBe("Sign-in is temporarily unavailable. Try again shortly.");
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await waitFor(() => expect(linkSignIn).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole("heading", { name: "Sign in to see this job" })).toBeInTheDocument();
+    expect(screen.getByRole("status").textContent).toBe("Sign-in is temporarily unavailable. Try again shortly.");
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await waitFor(() => expect(linkSignIn).toHaveBeenCalledTimes(3));
+    expect(linkSignIn.mock.calls.every(([link]) => link === "emailed-token")).toBe(true);
+    expect(screen.queryByText("Apply to see this job", { selector: "h1" })).toBeNull();
   });
 });

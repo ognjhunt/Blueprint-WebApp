@@ -21,7 +21,7 @@ import { JOB_PAGE_HEADINGS, JOB_SUMMARY_DOWNLOAD_LABEL, JOB_SUMMARY_UNAVAILABLE,
   sharedOnInWords, simulationDownloadLabel, type FitSummaryRow } from "@/lib/companyJobPage";
 import { SITE_REPLY_BEING_PREPARED, SITE_REPLY_LIMIT, SUCCESS_RULE_CANT_BE_SHOWN } from "@/lib/companiesRead";
 import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
-import { readSignInLinkFromAddress, SIGN_IN_LINK_ENDED, signInWithCompanyLink, stripSignInLinkFromAddress } from "@/lib/companySignInLink";
+import { CompanySignInLinkFailure, readSignInLinkFromAddress, SIGN_IN_LINK_ENDED, SIGN_IN_TRY_AGAIN, signInWithCompanyLink, stripSignInLinkFromAddress } from "@/lib/companySignInLink";
 import { PartnerApplication } from "@/components/site/PartnerApplication";
 import { COMPANY } from "@/data/company";
 
@@ -170,6 +170,9 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   const [link] = useState(readSignInLinkFromAddress);
   useEffect(() => { stripSignInLinkFromAddress(); }, []);
   const [linkState, setLinkState] = useState<"unused" | "signing_in" | "ended">("unused");
+  // A press that failed for a moment (a 503, no answer): the link is kept and the page says to try again (review,
+  // 2026-11-27). Only the server's sign_in_link_invalid ends it.
+  const [linkRetry, setLinkRetry] = useState<string | null>(null);
   const from = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("from");
   const browseQuery = new URLSearchParams();
   if (from && from.length <= 1200) {
@@ -183,8 +186,13 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   const spendLink = () => {
     if (!link || user || linkState !== "unused") return;
     setLinkState("signing_in");
+    setLinkRetry(null);
     // Signing in changes the account, and the job loads for it below.
-    signInWithCompanyLink(link).catch(() => setLinkState("ended"));
+    signInWithCompanyLink(link).catch((error: unknown) => {
+      if (error instanceof CompanySignInLinkFailure && error.ended) { setLinkState("ended"); return; }
+      setLinkRetry(error instanceof CompanySignInLinkFailure ? error.message : SIGN_IN_TRY_AGAIN);
+      setLinkState("unused");
+    });
   };
   useEffect(() => {
     const signingIn = Boolean(link) && linkState === "signing_in";
@@ -231,6 +239,7 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   if (state === "loading") return <div className="bare-screen company-job"><p role="status">Loading…</p></div>;
   if (state === "signed_out" && link && linkState === "unused") return <div className="bare-screen company-job">
     <h1>{LINK_SIGN_IN_HEADING}</h1><p>{LINK_SIGN_IN_LINE}</p>
+    {linkRetry && <p role="status">{linkRetry}</p>}
     <button type="button" className="ms-button" onClick={spendLink}>Sign in</button></div>;
   if (state === "terms" && user) return <div className="bare-screen company-job"><CompanyTermsPrompt user={user} onAccepted={() => setRetry(retry + 1)} /></div>;
   // Signed out (owner, 2026-11-23: a tap on a public live job): what the job holds, the one step to see it, and the way

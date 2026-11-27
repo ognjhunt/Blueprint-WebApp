@@ -217,8 +217,9 @@ describe("Minimal sign in", () => {
     fetchMock.mockRestore(); assign.mockRestore();
   });
   it("says a spent or expired link no longer works", async () => {
+    // The server's refusal of a spent link carries its code (`companySignInLink.ts`: 403 sign_in_link_invalid).
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
-      error: "This sign-in link no longer works. Ask for a new one on this page." }), { status: 403 }));
+      error: "This sign-in link no longer works. Ask for a new one on this page.", code: "sign_in_link_invalid" }), { status: 403 }));
     customSignIn.mockReset();
     window.history.replaceState({}, "", "/sign-in?link=spent");
     render(<Login />);
@@ -227,6 +228,31 @@ describe("Minimal sign in", () => {
     expect(customSignIn).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Sign in with this link" })).toBeNull();
     fetchMock.mockRestore();
+  });
+  // Review, 2026-11-27: a 503 says "Try again shortly"; the link is out of the address bar, so dropping it would send the
+  // company back to its email. Only the server's sign_in_link_invalid lets it go.
+  it("keeps the link after a 503 or a lost connection, so a second press can spend it", async () => {
+    const assign = vi.spyOn(window.location, "replace").mockImplementation(() => undefined);
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "Sign-in is temporarily unavailable. Try again shortly.",
+        code: "sign_in_link_unavailable" }), { status: 503 }))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ customToken: "custom", returnTo: "/jobs/job-1" }), { status: 200 }));
+    customSignIn.mockReset();
+    customSignIn.mockResolvedValue({ user: { uid: "u1" } });
+    window.history.replaceState({}, "", "/sign-in?link=signed-link");
+    render(<Login />);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with this link" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sign-in is temporarily unavailable. Try again shortly.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in with this link" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with this link" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sign-in is temporarily unavailable. Try again shortly.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in with this link" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with this link" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/jobs/job-1"));
+    expect(fetchMock.mock.calls.every(([, init]) => (init as RequestInit).body === JSON.stringify({ link: "signed-link" }))).toBe(true);
+    fetchMock.mockRestore(); assign.mockRestore();
   });
   // Outreach gap 1 (2026-11-27): the approval email's "Find jobs" link goes through sign-in.
   it("sends a company already signed in straight to Find jobs from the emailed link, and shows the form otherwise", async () => {
