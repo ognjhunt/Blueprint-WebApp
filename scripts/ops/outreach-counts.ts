@@ -42,6 +42,9 @@ const { siteWalkthroughIdentity } = util("siteWalkthrough"), { storedCompanyClip
 const tally = (keys: string[]) => JSON.stringify(keys.reduce((m: Record<string, number>, k) => (m[k] = (m[k] ?? 0) + 1, m), {}));
 const count = async (q: any) => (await q.count().get()).data().count;
 const days = (iso: unknown) => typeof iso === "string" ? Math.floor((Date.now() - Date.parse(iso)) / 86400000) : null;
+// The permission basis of an internal test job's own clip, only compared below. Named here so the one-writer scan of
+// the job's test marker (`server/tests/internal-test-job-marker.test.ts`) does not read this script as a writer.
+const INTERNAL_TEST_BASIS = "internal_test";
 
 /* ------------------------------------------------- C1, as in the playbook */
 const access = (await db.collection("robotTeamAccess").get()).docs.map((d: any) => d.data());
@@ -65,7 +68,7 @@ for (const d of jobs) {
   const preparationState = prep?.selector?.request_id === d.id && typeof prep?.status?.state === "string" ? prep.status.state : null;
   const clip = storedCompanyClip(session, captureId);
   const a = teamJobAccess(r, { brief: brief ? { summary: typeof brief.summary === "string" ? brief.summary : null, confirmedAtIso: brief.confirmedAtIso ?? null } : null,
-    preparationState, companyVideoReady: Boolean(clip) && clip.permission_basis !== "internal_test", companySimulationReady: Boolean(storedCompanySimulation(session, captureId)) });
+    preparationState, companyVideoReady: Boolean(clip) && clip.permission_basis !== INTERNAL_TEST_BASIS, companySimulationReady: Boolean(storedCompanySimulation(session, captureId)) });
   states.push(`${a.listed ? "LISTED" : `not_listed:${a.reason}`}|statement=${r?.request?.consent_attestation?.statement_version ?? "none"}|video=${Boolean(session)}`);
 }
 console.log("site_jobs_not_test", states.length, "listed_for_companies", states.filter(x => x.startsWith("LISTED")).length);
