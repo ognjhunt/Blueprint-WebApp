@@ -108,7 +108,8 @@ test("1. a stranger applies on /jobs; the application is saved with no receipt e
 test("2. the invitation link: GET, HEAD and a scanner's load create nothing; the tick and Create account land on Find jobs with zero jobs", async ({ request, browser }) => {
   const body = (await outboxTo(request, C.email)).find(row => row.kind === "robot_team_access_approved")!.body;
   const invitation = urlIn(body, /\/signup\/business\?invitation=/);
-  const findJobs = urlIn(body, /\/contact\/robot-team$/);
+  // "Find jobs" goes through sign-in (2026-11-27): read signed out, Find jobs itself leads with "Apply to see jobs".
+  const findJobs = urlIn(body, /\/sign-in\?next=%2Fcontact%2Frobot-team$/);
   expect(invitation.startsWith(ORIGIN)).toBe(true);
 
   expect((await request.get(invitation)).status()).toBe(200);
@@ -133,6 +134,9 @@ test("2. the invitation link: GET, HEAD and a scanner's load create nothing; the
   expect(user).not.toBeNull();
   observed.accountProviders = (user.providerUserInfo ?? []).map((info: { providerId: string }) => info.providerId);
   expect(observed.accountProviders).not.toContain("password");
+  // Signed in, the emailed "Find jobs" link goes straight to Find jobs.
+  await page.goto(findJobs.replace("https://tryblueprint.io", ORIGIN));
+  await expect(page).toHaveURL(/\/contact\/robot-team$/, { timeout: 30_000 });
   await context.close();
 
   // The same invitation opened again, after the account exists.
@@ -150,6 +154,8 @@ test("2. the invitation link: GET, HEAD and a scanner's load create nothing; the
   await out.page.goto(findJobs.replace("https://tryblueprint.io", ORIGIN), { waitUntil: "networkidle" });
   await out.page.waitForTimeout(2_000);
   observed.findJobsSignedOut = await mainText(out.page);
+  await expect(out.page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
+  await expect(out.page.getByRole("button", { name: "Email me a sign-in link" })).toBeVisible();
   await out.context.close();
 });
 

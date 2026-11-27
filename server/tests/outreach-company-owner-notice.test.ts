@@ -165,7 +165,7 @@ describe("the owner's one press", () => {
     expect(row.subject).toBe("Your company is approved to see jobs on Blueprint");
     expect(row.body).toMatch(/\/signup\/business\?invitation=/);
     expect(row.body).toMatch(/expires in 7 days/);
-    expect(row.body).toMatch(/Find jobs:\nhttps:\/\/tryblueprint\.io\/contact\/robot-team/);
+    expect(row.body).toMatch(/Find jobs:\nhttps:\/\/tryblueprint\.io\/sign-in\?next=%2Fcontact%2Frobot-team\n/);
     expect(row.body).not.toMatch(/vendor|integrator|OEM|\$\d|price/i);
   });
 

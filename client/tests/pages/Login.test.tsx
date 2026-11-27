@@ -7,7 +7,9 @@ const signIn = vi.hoisted(() => vi.fn());
 const signInWithGoogle = vi.hoisted(() => vi.fn());
 const prepareGoogleSignIn = vi.hoisted(() => vi.fn());
 const completeGoogleRedirect = vi.hoisted(() => vi.fn());
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn }) }));
+const account = vi.hoisted(() => ({ currentUser: null as null | { uid: string }, loading: false }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn,
+  currentUser: account.currentUser, loading: account.loading }) }));
 const customSignIn = vi.hoisted(() => vi.fn());
 vi.mock("firebase/auth", () => ({ signInWithCustomToken: customSignIn }));
 vi.mock("@/lib/firebase", () => ({ auth: { fixture: true } }));
@@ -18,6 +20,7 @@ beforeEach(() => {
   prepareGoogleSignIn.mockReset().mockResolvedValue(undefined);
   completeGoogleRedirect.mockReset().mockResolvedValue(undefined);
   sessionStorage.clear();
+  account.currentUser = null;
   window.history.replaceState({}, "", "/sign-in");
 });
 
@@ -224,5 +227,18 @@ describe("Minimal sign in", () => {
     expect(customSignIn).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Sign in with this link" })).toBeNull();
     fetchMock.mockRestore();
+  });
+  // Outreach gap 1 (2026-11-27): the approval email's "Find jobs" link goes through sign-in.
+  it("sends a company already signed in straight to Find jobs from the emailed link, and shows the form otherwise", async () => {
+    const replace = vi.spyOn(window.location, "replace").mockImplementation(() => undefined);
+    window.history.replaceState({}, "", "/sign-in?next=%2Fcontact%2Frobot-team");
+    const signedOut = render(<Login />);
+    expect(screen.getByRole("link", { name: "Apply to see jobs" })).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+    signedOut.unmount();
+    account.currentUser = { uid: "u1" };
+    render(<Login />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/contact/robot-team"));
+    replace.mockRestore();
   });
 });

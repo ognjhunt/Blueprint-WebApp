@@ -55,7 +55,8 @@ export function accessApprovedEmail(record: RobotTeamAccessRecord) {
       "Once you are signed in, open Find jobs to see the jobs sites have posted. Open a job to see its job packet and respond.",
       "",
       "Find jobs:",
-      `${base}/contact/robot-team`,
+      // Through sign-in (outreach gap 1, 2026-11-27): read signed out, Find jobs itself leads with "Apply to see jobs".
+      `${base}/sign-in?next=%2Fcontact%2Frobot-team`,
       "",
       "Nothing is charged today.",
       "",

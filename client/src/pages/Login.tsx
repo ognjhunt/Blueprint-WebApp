@@ -51,13 +51,19 @@ export default function Login() {
   const [linkStatus, setLinkStatus] = useState<string | null>(null);
   // A deployment company's emailed sign-in link, read once and kept until the company presses to spend it.
   const [pendingLink, setPendingLink] = useState<string | null>(readSignInLinkFromAddress);
-  const { signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn } = useAuth();
+  const { signIn, signInWithGoogle, completeGoogleRedirect, prepareGoogleSignIn, currentUser, loading: authLoading } = useAuth();
   const browserLocation = typeof window === "undefined" ? null : window.location;
   const returnPath = authReturnPath(new URLSearchParams(browserLocation?.search || "").get("next"));
   const isCompanyJob = returnPath?.startsWith("/jobs/") || returnPath?.startsWith("/contact/robot-team");
   const returnLink = returnPath && browserLocation
     ? new URL(returnPath, browserLocation.origin).href
     : browserLocation?.href || "";
+
+  // A company already signed in that follows an emailed "Find jobs" link (`/sign-in?next=/contact/robot-team`) goes
+  // straight there; a form for an account already signed in would mislead.
+  useEffect(() => {
+    if (!authLoading && currentUser && isCompanyJob && returnPath && !pendingLink) window.location.replace(returnPath);
+  }, [authLoading, currentUser, isCompanyJob, returnPath, pendingLink]);
 
   useEffect(() => {
     if (returnPath) {
