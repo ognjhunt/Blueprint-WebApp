@@ -30,6 +30,8 @@ import {
   CAPTURE_VIDEO_ACCEPT,
   captureTokenFromUrl,
   isCaptureVideoFile,
+  isCaptureVideoTooLarge,
+  VIDEO_TOO_LARGE,
   uploadSelfCaptureVideo,
   receivedVideoResult,
   retrySelfCaptureProcessing,
@@ -879,6 +881,12 @@ function SiteCaptureStartForm({ storageKey, onSavedChange }: { storageKey: strin
                     event.target.value = "";
                     setFootage(null);
                     setFootageError("That file is not a .mov or .mp4 video. Pick the video straight from your phone's library.");
+                    return;
+                  }
+                  if (file && isCaptureVideoTooLarge(file)) {
+                    event.target.value = "";
+                    setFootage(null);
+                    setFootageError(VIDEO_TOO_LARGE);
                     return;
                   }
                   setFootage(file);

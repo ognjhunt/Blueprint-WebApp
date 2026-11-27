@@ -172,3 +172,22 @@ describe("the browser never blocks an upload because it cannot read the video", 
     expect(document.createElement).not.toHaveBeenCalled();
   });
 });
+
+describe("a video over the upload limit (outreach audit D1, 2026-11-27)", () => {
+  it("is refused before any byte is sent, in words the site can act on", async () => {
+    const { MAX_CAPTURE_VIDEO_BYTES, VIDEO_TOO_LARGE } = await import("@/lib/selfCaptureVideo");
+    const file = new File(["x"], "big.mp4", { type: "video/mp4" });
+    Object.defineProperty(file, "size", { value: MAX_CAPTURE_VIDEO_BYTES + 1 });
+    expect(await uploadSelfCaptureVideo(token, file)).toEqual({ status: "failed", message: VIDEO_TOO_LARGE });
+    expect(requests).toHaveLength(0);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("the server's own refusal (413, video_too_large) is the whole answer, not 'we couldn't confirm'", async () => {
+    const { VIDEO_TOO_LARGE } = await import("@/lib/selfCaptureVideo");
+    xhrOutcome.status = 413;
+    xhrOutcome.body = { error: VIDEO_TOO_LARGE, code: "video_too_large" };
+    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({ ok: true, captureReceived: false }) } as Response);
+    expect(await uploadSelfCaptureVideo(token, new File(["small here"], "big.mp4"))).toEqual({ status: "failed", message: VIDEO_TOO_LARGE });
+  });
+});
