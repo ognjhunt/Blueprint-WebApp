@@ -3,7 +3,7 @@ import {
   JOB_FACT_CHOICES, JOB_FACT_KEYS, NOT_SURE_LABEL, isJobFactCode, jobFactKeysForType, jobFactLabel, jobFactNumber, jobFactQuestion, jobFactQuestionHint,
   jobFactsInWords, jobFactKeysFor, looksPlural, sanitizeJobFacts, sanitizeJobReading, typedJobFactNumber, weightLowerBoundKg, weightUpperBoundKg,
 } from "@/lib/jobFacts";
-import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
+import { anonymizedOpportunityDraft, jobTitleForDisplay, storedAnonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { outcomeThanksSentence } from "@/pages/JobOutcomeThanks";
 
 describe("job facts code lists (PACKAGE_E E1)", () => {
@@ -133,6 +133,48 @@ describe("job facts code lists (PACKAGE_E E1)", () => {
     // The reading agrees (a pallet job): the narrower depalletizing questions stay. It disagrees: the reading's own.
     expect(jobFactKeysFor(depalletizing, { kind: "palletizing", object: "carton" })[0]).toBe("incomingLoads");
     expect(jobFactKeysFor(depalletizing, { kind: "pick_and_place", object: "carton" })).toEqual(["weight", "size", "perHour", "hours", "timing"]);
+  });
+
+  // Stress test, 2026-11-27, on real test jobs: "Mop the hard floors … after each move-out." was filed as material
+  // handling ("Move materials", asked the heaviest loaded item and the peak incoming rate) because of "move-out", and
+  // "Unload the cartons from the back of the truck." had no category, so the reading's palletizing kind titled it
+  // "Stack … on pallets". Cleaning and unloading are read by their own words; a move-out or move-in moves nothing.
+  it("reads cleaning and unloading jobs by their words, and never files a move-out as moving things", () => {
+    const family = (sentence: string) => anonymizedOpportunityDraft(sentence).taskFamily;
+    for (const sentence of ["Mop the hard floors in the kitchen, living room and hallway of the empty unit after each move-out.",
+      "Wipe down the tables after each meal.", "Sweep the warehouse aisles every night.", "Vacuum the hallway carpet.",
+      "Scrub the bathroom floor.", "Clean the shelves and dust the displays.", "Disinfect the door handles every hour.",
+      "Polish the brass rails in the lobby.", "Wash the windows on the ground floor.",
+      "Pick up the trash, then sweep the floor.", "The robot should vacuum the lobby every night.",
+      "Floor cleaning in the lobby.", "We need someone to clean the kitchen after service."])
+      expect(family(sentence), sentence).toBe("Cleaning");
+    for (const sentence of ["Unload the cartons from the back of the truck.", "Offload boxes from the delivery van.",
+      "Unload the shipping container onto the dock.", "Truck unloading at the loading bay."])
+      expect(family(sentence), sentence).toBe("Unloading");
+    // Words that only look like these stay where they were.
+    for (const [sentence, kind] of [["Move the wafers into the cleanroom.", "Material handling"],
+      ["Unload the dishwasher and put the plates away.", "Dish handling"],
+      ["Unload the pallets of bottles onto the line.", "Depalletizing"],
+      ["Unload parts from the CNC lathe.", "Machine tending"],
+      ["Check every room before the move-in.", "Other"],
+      ["Move the boxes to the shelf.", "Material handling"],
+      // A review of PR #1466: "clean" describing the things moved is not the job's action.
+      ["Move clean towels from the laundry to the shelves.", "Material handling"],
+      ["Pick clean parts from the conveyor and place them in trays.", "Material handling"],
+      ["Move the cleaned trays to the drying rack.", "Material handling"]] as const)
+      expect(family(sentence), sentence).toBe(kind);
+    expect(anonymizedOpportunityDraft("Mop the floors after each move-out.").title).toBe("Cleaning opportunity");
+    expect(jobTitleForDisplay(anonymizedOpportunityDraft("Mop the floors.").title)).toBe("Clean surfaces");
+    expect(jobTitleForDisplay(anonymizedOpportunityDraft("Unload the truck.").title)).toBe("Unload items");
+    // A cleaning job is asked how the work varies and whether its area can change, never a loaded weight or an
+    // incoming rate; an unloading job the general questions, unless the reading's kind disagrees.
+    expect(jobFactKeysFor("Cleaning", null)).toEqual(["variation", "areaChange", "perHour", "hours", "timing"]);
+    expect(jobFactKeysFor("Unloading", null)).toEqual(["weight", "size", "perHour", "hours", "timing"]);
+    expect(jobFactKeysFor("Unloading", { kind: "palletizing", object: "carton" })).toEqual(["weight", "size", "perHour", "hours", "timing"]);
+    expect(jobFactKeysFor("Unloading", { kind: "other", object: "carton" })).toEqual(["variation", "areaChange", "perHour", "hours", "timing"]);
+    // A stored category the sentence no longer names stays readable.
+    expect(storedAnonymizedOpportunityDraft("Cleaning opportunity").taskFamily).toBe("Cleaning");
+    expect(storedAnonymizedOpportunityDraft("Unloading opportunity").taskFamily).toBe("Unloading");
   });
 
   it("names the object in the same-every-time question, and says a company only the job's own answers", () => {

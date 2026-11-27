@@ -13,13 +13,29 @@ const headline = (kind: Parameters<typeof jobHeadline>[0]["kind"], object: strin
 describe("the job's title", () => {
   it("says what is done to what, from the video reading", () => {
     expect(headline("other", "cake batter", { actions: ["scraping", "scooping"] })).toBe("Scrape and scoop cake batter");
-    expect(headline("palletizing", "cartons")).toBe("Stack cartons on pallets");
+    expect(headline("palletizing", "cartons", { taskFamily: "Palletizing" })).toBe("Stack cartons on pallets");
     expect(headline("palletizing", "cartons", { taskFamily: "Depalletizing" })).toBe("Take cartons off pallets");
     expect(headline("machine_tending", "metal blanks")).toBe("Load and unload metal blanks at a machine");
     expect(headline("transport", "linen carts")).toBe("Carry linen carts between places");
     expect(headline("transport", null)).toBe("Go between places");
     expect(headline("pick_and_place", "jars")).toBe("Pick and place jars");
     expect(headline("pick_and_place", "jars", { taskFamily: "Case packing" })).toBe("Pack jars into cases");
+  });
+
+  // Stress test, 2026-11-27: "Unload the cartons from the back of the truck." was titled "Stack carton of motor oil on
+  // pallets", because the reading's kind was palletizing. Which way a pallet job goes is the site's own words, never
+  // the reading's kind alone.
+  it("says a pallet job's direction only from the site's words", () => {
+    expect(headline("palletizing", "cartons", { taskFamily: "Palletizing" })).toBe("Stack cartons on pallets");
+    expect(headline("palletizing", "cartons", { taskFamily: "Depalletizing" })).toBe("Take cartons off pallets");
+    expect(headline("palletizing", "cartons")).toBe("Automation job: cartons");
+    expect(headline("palletizing", "pallets", { taskFamily: "Pallet handling", fallback: "Handle pallets" }))
+      .toBe("Handle pallets: pallets");
+    // An unloading job is titled by its own verb, whatever kind the reading gives.
+    for (const kind of ["palletizing", "pick_and_place", "transport", null] as const)
+      expect(headline(kind, "carton of motor oil", { taskFamily: "Unloading", fallback: "Unload items" }), String(kind))
+        .toBe("Unload carton of motor oil");
+    expect(headline("palletizing", null, { taskFamily: "Unloading", fallback: "Unload items" })).toBe("Unload items");
   });
 
   it("keeps the category title until a reading names the job, and never makes up a task", () => {
@@ -102,6 +118,9 @@ describe("what a visit must confirm", () => {
     expect(visitMustConfirm(null, "Depalletizing")).toBe(VISIT_MUST_CONFIRM.palletizing);
     expect(visitMustConfirm(null, "Machine tending")).toBe(VISIT_MUST_CONFIRM.machine_tending);
     expect(visitMustConfirm(null, "Other")).toBe(VISIT_MUST_CONFIRM.other);
+    // A cleaning job is asked about its work area and environment, never where items are picked from (2026-11-27).
+    expect(visitMustConfirm(null, "Cleaning")).toBe(VISIT_MUST_CONFIRM.other);
+    expect(visitMustConfirm(null, "Unloading")).toBe(VISIT_MUST_CONFIRM.pick_and_place);
     // The reading's kind wins over the keyword match.
     expect(visitMustConfirm("transport", "Palletizing")).toBe(VISIT_MUST_CONFIRM.transport);
   });

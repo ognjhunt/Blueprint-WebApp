@@ -41,10 +41,15 @@ export function jobHeadline({ kind, object, actions, taskFamily, fallback }: Hea
   const name = object?.trim() || null;
   const verbs = actions.map(action => ACTION_VERBS[action]).filter(Boolean).slice(0, 2);
   const withObject = (text: string) => name ? `${text}: ${name}` : text;
+  // Taking goods out of a vehicle is the site's own verb, whatever kind the reading gives (stress test, 2026-11-27).
+  if (taskFamily === "Unloading") return name ? `Unload ${name}` : fallback;
   switch (kind) {
     case "palletizing":
+      // Which way a pallet job goes comes from the site's words, never from the reading's kind alone (stress test,
+      // 2026-11-27: "Unload the cartons from the back of the truck." was titled "Stack … on pallets").
       if (taskFamily === "Depalletizing") return name ? `Take ${name} off pallets` : "Unload pallets";
-      return name ? `Stack ${name} on pallets` : withObject(fallback);
+      if (taskFamily === "Palletizing") return name ? `Stack ${name} on pallets` : fallback;
+      return withObject(fallback);
     case "machine_tending":
       return name ? `Load and unload ${name} at a machine` : "Load or unload a machine";
     case "transport":
@@ -73,7 +78,7 @@ const GENERIC_CATEGORY_TITLES = new Set(["Automation job"]);
 const CATEGORY_KINDS: Readonly<Record<string, ReaderJobKind>> = {
   Palletizing: "palletizing", Depalletizing: "palletizing", "Pallet handling": "palletizing", "Machine tending": "machine_tending",
   "Material handling": "pick_and_place", "Case packing": "pick_and_place", Packaging: "pick_and_place",
-  "Dish handling": "pick_and_place", "Quality inspection": "pick_and_place",
+  "Dish handling": "pick_and_place", "Quality inspection": "pick_and_place", Cleaning: "other", Unloading: "pick_and_place",
 };
 
 /**
@@ -244,6 +249,7 @@ const KIND_OF_JOB_TYPE: Readonly<Record<string, ReaderJobKind>> = {
   Palletizing: "palletizing", Depalletizing: "palletizing", "Pallet handling": "palletizing",
   "Machine tending": "machine_tending", "Material handling": "pick_and_place", "Case packing": "pick_and_place",
   Packaging: "pick_and_place", "Dish handling": "pick_and_place", "Quality inspection": "pick_and_place",
+  Cleaning: "other", Unloading: "pick_and_place",
 };
 
 export function visitMustConfirm(kind: ReaderJobKind | null, taskFamily: string): readonly string[] {

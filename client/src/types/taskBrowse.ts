@@ -117,6 +117,8 @@ const generatedJobTitles: ReadonlyMap<string, string> = new Map([
   ["Packing opportunity", "Pack items"],
   ["Inspection opportunity", "Inspect items"],
   ["Material handling opportunity", "Move materials"],
+  ["Cleaning opportunity", "Clean surfaces"],
+  ["Unloading opportunity", "Unload items"],
   ["Job opportunity", "Automation job"],
 ]);
 
@@ -136,6 +138,8 @@ const opportunityCategories = {
   machineTending: ["Machine tending opportunity", "Machine tending", ""],
   inspection: ["Inspection opportunity", "Quality inspection", ""],
   materialHandling: ["Material handling opportunity", "Material handling", ""],
+  cleaning: ["Cleaning opportunity", "Cleaning", ""],
+  unloading: ["Unloading opportunity", "Unloading", ""],
 } as const;
 
 type OpportunityCategory = typeof opportunityCategories[keyof typeof opportunityCategories];
@@ -157,6 +161,32 @@ export function storedAnonymizedOpportunityDraft(title: unknown): TaskListingDet
 const PALLET_WORDS = String.raw`(?:(?:the|a|an|each|every|its|their|our|incoming|inbound|arriving|delivered|full|loaded|mixed|stacked|supplier|received|wooden|plastic)\s+){0,3}pallets?\b`;
 const DEPALLETIZING_WORDS = new RegExp(String.raw`\b(?:off|out of|from)\s+${PALLET_WORDS}|\b(?:unload|unstack|destack|break(?:ing)? down)\w*\s+${PALLET_WORDS}`);
 
+/**
+ * Taking goods out of a vehicle: "unload the cartons from the back of the truck", "offload boxes from the delivery van",
+ * "truck unloading" (stress test, 2026-11-27: with no category of its own, the reading's palletizing kind titled it
+ * "Stack … on pallets"). Unloading a pallet, a machine or a dishwasher is matched before this, by its own words.
+ */
+const VEHICLE = String.raw`(?:trucks?|trailers?|lorr(?:y|ies)|vans?|(?:shipping )?containers?|vehicles?)`;
+const UNLOADING_WORDS = new RegExp(String.raw`\b(?:un-?load|off-?load)\w*\b.{0,60}\b${VEHICLE}\b|\b(?:truck|trailer|lorry|container)[ -]?(?:un-?load|off-?load)\w*`);
+
+/**
+ * Work done to a surface: mopping, sweeping, vacuuming, scrubbing, wiping, cleaning, dusting, polishing, disinfecting
+ * and washing (stress test, 2026-11-27: "Mop the hard floors … after each move-out." was filed as moving materials). A
+ * cleanroom or a washing machine is a place or a machine, not this work, so neither counts.
+ *
+ * Such a word is the job's action where a clause leads with it ("Mop the floors", "…, then wipe the tables", "the robot
+ * should sweep"), and then wins over any moving word; anywhere else ("Move clean towels to the shelves", "Pick clean
+ * parts from the conveyor", a review of PR #1466) it describes the things moved, and counts only when nothing in the
+ * sentence moves things ("Floor cleaning in the lobby").
+ */
+const CLEANING_WORDS = /\b(?:mop(?:s|ped|ping)?|sweep(?:s|ing)?|swept|vacuum(?:s|ed|ing)?|hoover(?:s|ed|ing)?|scrub(?:s|bed|bing)?|wip(?:e|es|ed|ing)|clean(?:s|ed|ing)?|dust(?:s|ed|ing)?|polish(?:es|ed|ing)?|disinfect\w*|saniti[sz]\w*|wash(?:es|ed|ing)?)\b/;
+const CLEANING_VERB = String.raw`(?:mop(?:ping)?|sweep(?:ing)?|vacuum(?:ing)?|hoover(?:ing)?|scrub(?:bing)?|wip(?:e|ing)|clean(?:ing)?|dust(?:ing)?|polish(?:ing)?|disinfect(?:ing)?|saniti[sz](?:e|ing)|wash(?:ing)?)`;
+const CLEANING_ACTION = new RegExp(String.raw`(?:^\s*|[.;:!?,]\s*|\b(?:and|then|or|to|please|should|must|will|would|can|could)\s+)${CLEANING_VERB}\b`);
+const NOT_CLEANING = /\bclean ?rooms?\b|\bwashing machines?\b/g;
+
+/** A move-out or a move-in (a tenant leaving or arriving) is a noun, not moving things. */
+const MOVING_WORDS = /\b(?:pick|place|transfer|move)\w*\b(?!-(?:ins?|outs?)\b)/;
+
 /** Use the site's description to select a fixed category. No description text crosses into the listing. */
 export function anonymizedOpportunityDraft(description: string): TaskListingDetails {
   const text = description.toLowerCase();
@@ -170,12 +200,16 @@ export function anonymizedOpportunityDraft(description: string): TaskListingDeta
   if (/\bpalleti[sz]\w*\b|\bstack\w*\b.{0,70}\b(?:on|onto) (?:\w+ ){0,3}pallets?\b/.test(text)) {
     return categoryDraft(/\b(?:cartons?|box(?:es)?)\b/.test(text) ? categories.cartonPalletizing : categories.palletizing);
   }
+  if (UNLOADING_WORDS.test(text) && !/\b(?:dish(?:es)?|dishwashers?)\b/.test(text)) return categoryDraft(categories.unloading);
   if (/\bcase[ -]pack\w*\b|\b(?:pack|load)\w*\b.{0,55}\binto (?:\w+ ){0,2}(?:cases?|cartons?|boxes)\b/.test(text)) return categoryDraft(categories.casePacking);
   if (/\binspect\w*\b|\bquality (?:check|control)\b/.test(text)) return categoryDraft(categories.inspection);
   if (/\b(?:dish(?:es)?|dishwashers?)\b/.test(text)) return categoryDraft(categories.dishes);
   if (/\bpallets?\b/.test(text)) return categoryDraft(categories.palletHandling);
   if (/\bpack(?:s|ing|ed|ag\w*)?\b/.test(text)) return categoryDraft(categories.packaging);
-  if (/\b(?:pick|place|transfer|move)\w*\b/.test(text)) return categoryDraft(categories.materialHandling);
+  const cleaningText = text.replace(NOT_CLEANING, " ");
+  const moving = MOVING_WORDS.test(text);
+  if (CLEANING_ACTION.test(cleaningText) || (!moving && CLEANING_WORDS.test(cleaningText))) return categoryDraft(categories.cleaning);
+  if (moving) return categoryDraft(categories.materialHandling);
   return categoryDraft(categories.other);
 }
 
