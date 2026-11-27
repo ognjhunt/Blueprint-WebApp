@@ -31,7 +31,7 @@
  */
 import { createHash, randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { REMOVED, asWritten, capitalisedWordsAfterFirst, removeIdentifyingDetails, type KnownSiteIdentity }
+import { REMOVED, asWritten, capitalisedWordsAfterFirst, foldedForPatterns, removeIdentifyingDetails, type KnownSiteIdentity }
   from "../../client/src/lib/contactRedaction";
 import { logger } from "../logger";
 
@@ -199,8 +199,11 @@ const INSTRUCTION_TO_A_MODEL: readonly RegExp[] = [
 /** A word in a script other than Latin: the deterministic pass reads no name in it, so only the model pass can. */
 const NON_LATIN_WORD = /(?![\p{Script=Latin}])\p{L}/u;
 
-/** The text as the distrust rules read it: placeholders out of the way. */
-const distrustForm = (text: string) => text.split(REMOVED).join(" ").replace(/\b[Tt]he (?:site|company)\b/g, "the");
+/** The text as the distrust rules read it: folded as every pattern reads it (look-alikes, circled and full-width
+ * letters plain, marks and invisible characters dropped), so a name or an instruction written with them still reads as
+ * one (a review of PR #1467: "D\u034Fana W\u034Fhitfield" and "Ⓓⓐⓝⓐ" had a first empty answer trusted), and
+ * placeholders out of the way. */
+const distrustForm = (text: string) => foldedForPatterns(text).split(REMOVED).join(" ").replace(/\b[Tt]he (?:site|company)\b/g, "the");
 
 /**
  * The words of a text that may still name someone and that only the model pass can judge (stress test round 2,
