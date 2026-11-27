@@ -134,6 +134,36 @@ describe("the words a redaction kept, as written", () => {
       .toBe(`Call ${REMOVED}, ${REMOVED}, ${REMOVED} or ${REMOVED}.`);
   });
 
+  // A third review of PR #1467: a count after a number is never a postcode and town, and a whole continental address goes
+  // wherever its sentence goes on.
+  it("tells a count from a postcode, and takes a continental address mid-sentence", () => {
+    for (const sentence of ["Halle 2, 2000 Teile.", "Wir packen in Halle 3, 1500 Kisten.", "Lager 4, 12000 Paletten.",
+      "Wir haben Linie 1 und Linie 2, 3000 Flaschen.", "Use Line 2, 1500 Units.", "Dock 4, 2000 Boxes.", "Station 3 1200 Totes.",
+      "Zet de bakken in Gang 4, 1200 Dozen.", "Coloca 1500 Cajas en Pasillo 2, 3000 Bolsas.", "Robot KR 1000, 1500 Zyklen.",
+      "Halle 2\n2000 Teile\nSchicht 1", "Aufgabe\nHalle 2\n2000 Teile", "Station 4\n1200 Boxes\nMorning shift",
+      "Halten Sie Fluchtweg 3 frei.", "Fahren Sie zur Regalgasse 12.", "Fluchtweg 2, 1500 Kisten pro Tag.",
+      "Via Dock 4, move totes to the line.", "Via Gate 2, bring pallets to the dock.", "Route: Via Conveyor 3 to packing.",
+      "Our Florida 20000 sq ft warehouse is busy.", "We ship to Texas 12000 units a month.", "New York 10000 orders go out daily.",
+      "We use the Epson SA 2000.", "Our robot is the Yaskawa WA 1200.", "Mettez 4 Boulevard Cartons sur la palette.",
+      "Ship 1800 bottles.", "Déplacez 1 500 cartons par jour.", "Text the team when 1800 bottles are packed."])
+      expect(deterministic(sentence), sentence).toBe(sentence);
+    for (const [sentence, gone] of [
+      ["Levering op Damrak 1, 1012 LG Amsterdam voor de middag.", /Damrak|1012|Amsterdam/],
+      ["The plant at Kanal 7, 20457 Hamburg ships nightly.", /Kanal|20457|Hamburg/],
+      ["Lieferung an Alexanderplatz 1, 10178 Berlin bis Mittag.", /Alexanderplatz|10178|Berlin/],
+      ["Prins Hendrikkade 12, 1011 TB Amsterdam is our dock.", /Hendrikkade|1011|Amsterdam/],
+      ["Damrak 1\n1012 LG Amsterdam is ons adres", /Damrak|1012|Amsterdam/],
+      ["Our dock is at 12 Smith St, Fitzroy VIC 3065 behind the cafe.", /Smith|3065/], ["Perth, WA 6000.", /6000/],
+      ["Call 1 800 flowers today.", /flowers/i], ["Call 1800 Flowers today.", /flowers/i], ["Call 1-800 flowers today.", /flowers/i]] as const)
+      expect(deterministic(sentence), sentence).not.toMatch(gone);
+    // The word before an email stays, and so do the accents of short words kept after it.
+    expect(deterministic("Écrivez à marie.desile@exemple.fr, puis la lampe à côté."))
+      .toBe(`Écrivez à ${REMOVED}, puis la lampe à côté.`);
+    // Two pieces of dropped words joined into one ("カat" and "Streetラス" leave "カラス") show no removed word's marks.
+    expect(deterministic("12 ガラス Street, カat 12 Mill Streetラス")).not.toContain("ガ");
+    expect(deterministic("12 गांधी Street, गat 12 Mill Streetध")).not.toContain("गां");
+  });
+
   // Owner, 2026-11-27: a name the record does not hold is the model pass's to judge, a titled one too ("Mr. Smith");
   // no pattern takes it, as none takes "Dr Pepper".
   it("leaves a titled name the record does not hold to the model pass", () => {
