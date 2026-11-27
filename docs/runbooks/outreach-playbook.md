@@ -739,10 +739,12 @@ Only what is true today.
 | Questions about what happened | 14, 45 and 90 days after an introduction | `server/utils/jobOutcomeGate.ts:26` |
 | The cost to the site | Nothing | `client/src/lib/publicCopy.ts:35` |
 
-On the branch, the site's page says when the simulation is the room without
-the job's object: "It shows your room without the job's object in it, so it
-does not check what counts as done." (`client/src/lib/simulationContents.ts`,
-fix 6). It decides from `object_included` or the package's files, as the
+On the branch, the site's page says when the simulation is the room only:
+"It shows your room. Nothing in it is set up as a separate object a robot can
+move, and it has no rule for what counts as done."
+(`client/src/lib/simulationContents.ts`, fix 6). The words hold whether the
+job's objects were taken out of the room scan, are still part of it, or the
+job has no object of its own; the stored record cannot tell these apart. It decides from `object_included` or the package's files, as the
 company's page now does too. A delivered simulation stays "ready" after the
 job's time runs out (fix 22). On the live code the page still reads only "The
 simulation of your site is ready." (`client/src/lib/jobOutlook.ts:28`): until

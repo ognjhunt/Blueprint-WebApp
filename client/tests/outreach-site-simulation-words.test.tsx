@@ -50,10 +50,13 @@ describe("step 7: the simulation section of the site's page, by outcome", () => 
   // Fixed 2026-11-27 (D2): this was an `it.fails` gap test.
   it("a room-only package says so on the site's page, as the company is told", () => {
     // A company reads this beside the download when the package has no object (`CompanyJob.tsx:281`).
-    expect(SIMULATION_WITHOUT_OBJECT).toBe("This simulation is the site's room without the job's object in it.");
+    expect(SIMULATION_WITHOUT_OBJECT).toBe("This simulation is the site's room. Nothing in it is set up as a separate object a robot can move.");
     const text = simulationSection(READY_OUTLOOK, { simulationContents: { objectIncluded: false, successRuleIncluded: false } });
     expect(text).toContain(SIMULATION_READY);
-    expect(text).toContain("It shows your room without the job's object in it, so it does not check what counts as done.");
+    // Changed 2026-11-27 (review): the old "without the job's object in it" was false for a room package whose objects
+    // are still part of the room scan, and for a job with no object; this is true for all three.
+    expect(text).toContain("It shows your room. Nothing in it is set up as a separate object a robot can move, and it has no rule for what counts as done.");
+    expect(text).not.toMatch(/without the job's object/);
     // The site's rule is said as its own words, not under "ready" as if the simulation checked it.
     expect(text).toContain(`You said done means: ${RULE}.`);
     expect(text).not.toContain(`Done means: ${RULE}.`);
@@ -63,14 +66,14 @@ describe("step 7: the simulation section of the site's page, by outcome", () => 
     const text = simulationSection(READY_OUTLOOK, { simulationContents: { objectIncluded: true, successRuleIncluded: false } });
     expect(text).toContain(SIMULATION_NO_RULE);
     expect(text).toContain(`You said done means: ${RULE}.`);
-    expect(text).not.toMatch(/without the job's object/);
+    expect(text).not.toMatch(/separate object/);
   });
 
   it("the contents line shows only while the simulation is ready", () => {
     const text = simulationSection({ phase: "building", reason: null, sentence: null },
       { simulationContents: { objectIncluded: false, successRuleIncluded: false } });
     expect(text).toContain(SIMULATION_BUILDING);
-    expect(text).not.toMatch(/without the job's object/);
+    expect(text).not.toMatch(/separate object/);
   });
 
   it("still building", () => {

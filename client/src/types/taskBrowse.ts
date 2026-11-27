@@ -224,7 +224,7 @@ export interface CompanyJobPage {
    * "Download the simulation" (E9): the job's simulation package behind a short ticket, or "not finished yet".
    * `sizeBytes` is the stored package's size, said on the button in whole megabytes; `fileName` the name it is saved
    * under, by the package's version (`companySimulationFileName`). `objectIncluded: false` when the Pipeline says the
-   * package is the site's room without the job's object.
+   * package is the site's room with no object of the job's as a separate part.
    */
   simulationDownload: { state: "ready"; url: string; sizeBytes: number; fileName: string; objectIncluded?: false } | { state: "not_finished" };
   /** The simulation of the site in the viewer, behind a short ticket, or "not finished yet". */

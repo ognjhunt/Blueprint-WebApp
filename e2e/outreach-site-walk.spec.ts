@@ -2,7 +2,7 @@
  * Outreach audit, 2026-11-27: a site's journey walked in a browser against the local stack, as a person at a site
  * would, desktop and phone, for what the core journey (`site-answer-journey.spec.ts`) does not reach:
  * - the simulation section once a room-only package is delivered, and after the job's window ends (gap 5; fixed
- *   2026-11-27: the page says it is the room without the job's object, and stays "ready" after the window ends);
+ *   2026-11-27: the page says it is the room with nothing in it set up as a separate object, and stays "ready" after the window ends);
  * - what the withdrawal tells the site about the copy Blueprint keeps;
  * - a draft started with no video;
  * - a video over the upload limit (only when the server runs with a small `SELF_CAPTURE_MAX_UPLOAD_BYTES`, passed to
@@ -67,7 +67,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 900 }], ["ph
     const roomOnly = (await section.innerText()).replace(/\s+/g, " ");
     console.log(`[${label}] room-only package delivered, simulation section:`, roomOnly);
     // Fixed 2026-11-27 (D2): the site reads what the company reads, and its rule as its own words.
-    await expect(section).toContainText("It shows your room without the job's object in it, so it does not check what counts as done.");
+    await expect(section).toContainText("It shows your room. Nothing in it is set up as a separate object a robot can move, and it has no rule for what counts as done.");
     // This job gave no success rule, so no rule line: the client test covers "You said done means".
     expect(roomOnly).not.toContain("Done means: ");
     if (label === "phone") {

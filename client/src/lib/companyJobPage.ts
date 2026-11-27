@@ -263,11 +263,13 @@ export const SIMULATION_STATUS = {
 } as const;
 
 /**
- * Said beside the download when the Pipeline says the package is the site's room without the job's object
- * (`object_included: false`): what the download holds, and nothing more. No answer asks what a company tested (owner,
+ * Said beside the download when the Pipeline says the package is the site's room with no object of the job's in it
+ * (`object_included: false`): what the download holds, and nothing more. True whether the job's objects were taken out
+ * of the room scan, are still part of it (not separate files), or the job has none (review, 2026-11-27); the site reads
+ * the same fact (`simulationContents.ts`). No answer asks what a company tested (owner,
  * 2026-11-25: the tested answers are gone).
  */
-export const SIMULATION_WITHOUT_OBJECT = "This simulation is the site's room without the job's object in it.";
+export const SIMULATION_WITHOUT_OBJECT = "This simulation is the site's room. Nothing in it is set up as a separate object a robot can move.";
 
 /** Said while the facts about the job's object are being checked for names and contact details before they are shown. */
 export const PACKET_FACTS_PENDING = "The facts about the object are being checked for names and contact details. They appear here once that is done.";

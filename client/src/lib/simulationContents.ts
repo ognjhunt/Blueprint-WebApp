@@ -31,10 +31,16 @@ export function readSimulationContents(value: unknown): SimulationContents | nul
   return typeof objectIncluded === "boolean" && typeof successRuleIncluded === "boolean" ? { objectIncluded, successRuleIncluded } : null;
 }
 
-/** Under "The simulation of your site is ready." for the room without the job's object (the company's SIMULATION_WITHOUT_OBJECT). */
-export const SIMULATION_ROOM_ONLY = "It shows your room without the job's object in it, so it does not check what counts as done.";
-/** The same, when the package does carry a success rule of its own. */
-export const SIMULATION_ROOM_ONLY_WITH_RULE = "It shows your room without the job's object in it.";
+/**
+ * Under "The simulation of your site is ready." for a room package (the company's SIMULATION_WITHOUT_OBJECT). True for
+ * each kind of room package the Pipeline ships, which the stored record cannot tell apart (review, 2026-11-27): the
+ * job's objects taken out of the room scan, the job's objects left as part of the scan (the geometry-only route:
+ * "The job's objects are part of the room scan; they are not separate files."), and a job with no object of its own
+ * (walking or driving to a place). In none of them is anything a separate object, so the room may still show it.
+ */
+export const SIMULATION_ROOM_ONLY = "It shows your room. Nothing in it is set up as a separate object a robot can move, and it has no rule for what counts as done.";
+/** The same, when the package does carry a success rule of its own (a navigation job's goal region). */
+export const SIMULATION_ROOM_ONLY_WITH_RULE = "It shows your room. Nothing in it is set up as a separate object a robot can move.";
 /** The object is in it, but the package has no success rule. */
 export const SIMULATION_NO_RULE = "It does not check what counts as done.";
 
