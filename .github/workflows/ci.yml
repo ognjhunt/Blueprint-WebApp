@@ -224,6 +224,9 @@ jobs:
       - name: Run the core-journey spec
         run: npm run test:core-journey
 
+      - name: Run the company links spec (no GET, HEAD or scripted load spends an emailed link; a press does)
+        run: npm run test:company-links
+
       - name: Run the site-intake backend spec against the emulators
         run: npx -y firebase-tools@13.35.1 emulators:exec --only firestore,storage,auth --project demo-blueprint-reliability --config firebase.json "npx playwright test --config playwright.intake-backend.config.ts --trace off"
 
