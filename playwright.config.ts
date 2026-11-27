@@ -31,7 +31,7 @@ export default defineConfig({
   // by `npm run qa:operator` (scripts/qa/run-operator-surfaces.ts), which
   // targets that file directly. It is excluded from the default sweep so a
   // plain `playwright test` run doesn't load it without that bypass.
-  testIgnore: ['**/site-intake-first.spec.ts', '**/site-intake-durability.spec.ts', '**/reliability-program-intake.spec.ts', '**/site-intake-backend-reliability.spec.ts', '**/site-intake-recovery.spec.ts', '**/site-private-link-reliability.spec.ts', '**/site-answer-journey.spec.ts', '**/site-answer-stress-flows.spec.ts', '**/site-journey-*.spec.ts', '**/outreach-company-links.spec.ts', '**/invited-site-beta.spec.ts', ...(operatorQaFakeAuthEnabled
+  testIgnore: ['**/site-intake-first.spec.ts', '**/site-intake-durability.spec.ts', '**/reliability-program-intake.spec.ts', '**/site-intake-backend-reliability.spec.ts', '**/site-intake-recovery.spec.ts', '**/site-private-link-reliability.spec.ts', '**/site-answer-journey.spec.ts', '**/site-answer-stress-flows.spec.ts', '**/site-journey-*.spec.ts', '**/outreach-company-links.spec.ts', '**/outreach-site-*.spec.ts', '**/invited-site-beta.spec.ts', ...(operatorQaFakeAuthEnabled
     ? ['**/workspace-account-setup.spec.ts']
     : [
         '**/workspace-account-setup.spec.ts',
