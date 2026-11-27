@@ -125,8 +125,13 @@ describe("where a site's job stands with deployment companies", () => {
     expect(teamJobAccess(older, { brief: { summary: "Stack the dish racks on the shelf." } }).details)
       .toMatchObject({ title: "Dish handling opportunity", taskFamily: "Dish handling" });
     // A sentence that names no category: plain words, never "To be determined".
-    expect(teamJobAccess(videoOnly, { brief: { summary: "Wipe each table after the lunch rush." } }).details)
+    expect(teamJobAccess(videoOnly, { brief: { summary: "Show the process at the bench." } }).details)
       .toMatchObject({ title: "Job opportunity", taskFamily: "Other" });
+    // Wiping is cleaning, read by its words (stress test, 2026-11-27), never moving materials.
+    expect(teamJobAccess(videoOnly, { brief: { summary: "Wipe each table after the lunch rush." } }).details)
+      .toMatchObject({ title: "Cleaning opportunity", taskFamily: "Cleaning" });
+    expect(teamJobAccess(videoOnly, { brief: { summary: "Mop the hard floors after each move-out." } }).details)
+      .toMatchObject({ title: "Cleaning opportunity", taskFamily: "Cleaning" });
     // A supported category reflects the current job description, including for existing listings.
     expect(teamJobAccess(shared(), { brief: { summary: "Inspect each part before it ships." } }).details)
       .toMatchObject({ title: "Inspection opportunity", taskFamily: "Quality inspection" });

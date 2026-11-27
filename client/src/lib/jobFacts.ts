@@ -175,6 +175,8 @@ const QUESTIONS_BY_JOB_TYPE: Readonly<Partial<Record<string, readonly JobFactKey
   Packaging: ["packPresentation", "peakPerMinute", "weight", "hours", "timing"],
   "Machine tending": ["machineAccess", "machineCycleSeconds", "weight", "hours", "timing"],
   "Quality inspection": ["inspectionTarget", "peakPerMinute", "hours", "timing"],
+  // Work done to a surface is asked what the "other" kind is asked: how it varies and whether its area can change.
+  Cleaning: ["variation", "areaChange", "perHour", "hours", "timing"],
 };
 
 /** The questions for a job type the keyword match gave (`anonymizedOpportunityDraft`); the general five otherwise. */
@@ -216,6 +218,9 @@ export const KINDS_OF_JOB_TYPE: Readonly<Partial<Record<string, readonly ReaderJ
   Packaging: ["pick_and_place"],
   "Machine tending": ["machine_tending"],
   "Quality inspection": ["pick_and_place", "other"],
+  Cleaning: ["other"],
+  // Goods taken out of a vehicle: a reading may call it picking, palletizing or carrying; the general questions stay.
+  Unloading: ["pick_and_place", "palletizing", "transport"],
 };
 
 /**
