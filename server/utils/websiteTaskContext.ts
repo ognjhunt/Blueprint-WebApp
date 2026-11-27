@@ -4,7 +4,7 @@ import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { TaskItem, TaskItemInventoryRecord } from "./taskItemInventory";
-import { REMOVED, identifyingDetailsRemoved, removeIdentifyingDetails, type KnownSiteIdentity, type RedactionRules }
+import { REMOVED, asWritten, identifyingDetailsRemoved, removeIdentifyingDetails, type KnownSiteIdentity, type RedactionRules }
   from "../../client/src/lib/contactRedaction";
 import { knownSiteIdentity } from "./siteIdentity";
 
@@ -26,13 +26,28 @@ import { knownSiteIdentity } from "./siteIdentity";
 export const TASK_CONTEXT_IDENTITY_FIELD = "task_context_without_site_identity";
 
 /**
+ * A job created from 2026-11-27 on carries this field, set once when it is created: when something is removed from one
+ * of its texts, the rest of that text reaches the Pipeline as the site wrote it (`asWritten`), not in the folded form
+ * the removal reads (stress test, 2026-11-27: a sentence that held a phone number reached the Pipeline's reading with
+ * every accent and Japanese voicing mark dropped, "ガラス棚", a glass shelf, as "カラス棚", a crow shelf). The removals
+ * themselves are the 2026-11-19 rules' as before. A job created before keeps its folded text, byte for byte, so nothing
+ * bound to its context's digest changes.
+ */
+export const TASK_CONTEXT_AS_WRITTEN_FIELD = "task_context_as_written";
+
+/**
  * The identity a job's task context is cleaned of: the record's decrypted identity for a job created with
  * `TASK_CONTEXT_IDENTITY_FIELD`, else null (its text goes as typed). Every projection whose text or digest matters
  * passes this, so every digest of one job is computed from the same text.
  */
-export async function taskContextSiteIdentity(record: Record<string, any> | null | undefined): Promise<KnownSiteIdentity | null> {
-  return record?.[TASK_CONTEXT_IDENTITY_FIELD] === true ? knownSiteIdentity(record) : null;
+export async function taskContextSiteIdentity(record: Record<string, any> | null | undefined): Promise<TaskContextIdentity | null> {
+  if (record?.[TASK_CONTEXT_IDENTITY_FIELD] !== true) return null;
+  const identity = await knownSiteIdentity(record);
+  return record?.[TASK_CONTEXT_AS_WRITTEN_FIELD] === true ? { ...identity, asWritten: true } : identity;
 }
+
+/** The identity a job's task context is cleaned of, and whether its kept words go as written (`TASK_CONTEXT_AS_WRITTEN_FIELD`). */
+export type TaskContextIdentity = KnownSiteIdentity & { asWritten?: true };
 
 /**
  * The rules the task context is cleaned with: those of 2026-11-19, fixed. The rules for what crosses between a site and
@@ -43,9 +58,10 @@ export const TASK_CONTEXT_REDACTION_RULES: RedactionRules = "2026-11-19";
 
 /** One text without the site's identity, or the very same text when there is nothing to remove. A text that was
  * nothing but the site's identity reads `[removed]`, never empty: the Pipeline refuses a context with no description. */
-function withoutIdentity(text: string, identity: KnownSiteIdentity): string {
+function withoutIdentity(text: string, identity: TaskContextIdentity): string {
   if (!identifyingDetailsRemoved(text, identity, TASK_CONTEXT_REDACTION_RULES)) return text;
-  const cleaned = removeIdentifyingDetails(text, identity, { rules: TASK_CONTEXT_REDACTION_RULES });
+  const folded = removeIdentifyingDetails(text, identity, { rules: TASK_CONTEXT_REDACTION_RULES });
+  const cleaned = identity.asWritten ? asWritten(text, folded, TASK_CONTEXT_REDACTION_RULES) : folded;
   return cleaned.trim() ? cleaned : REMOVED;
 }
 
@@ -60,7 +76,7 @@ export async function manifestTaskDescription(requestId: string, summary: string
 }
 
 /** The brief with the site's identity removed from every free text the task context carries. Pure. */
-export function briefWithoutSiteIdentity(brief: SiteTaskBriefRecord, identity: KnownSiteIdentity | null): SiteTaskBriefRecord {
+export function briefWithoutSiteIdentity(brief: SiteTaskBriefRecord, identity: TaskContextIdentity | null): SiteTaskBriefRecord {
   if (!identity) return brief;
   const text = (value: unknown) => typeof value === "string" ? withoutIdentity(value, identity) : value;
   const texts = <T extends Record<string, unknown> | null | undefined>(value: T): T => value && typeof value === "object"
