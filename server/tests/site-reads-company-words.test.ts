@@ -52,7 +52,6 @@ const CASES: Array<[string, string[]]> = [
   ["We do this daily. Casey will bring the drawings.", ["Casey"]],
   ["Mr. Hlington leads our installs.", ["Hlington", "Mr."]],
   ["Thanks, Casey", ["Casey"]],
-  ["Our lead engineer is Dana Whitfield; she will visit.", ["Dana", "Whitfield"]],
   ["Call 415 555 0101 or casey at stress-h dot example.", ["415 555 0101", "stress-h"]],
   ["Text 1-800-ROBOTIX or see stress-h.robotics for our cells.", ["ROBOTIX", "stress-h"]],
 ];
@@ -65,9 +64,12 @@ describe("what a site reads of a company's own words before Accept", () => {
     expect(siteReasonOf(answer("We will visit. Will brings the drawings."), will)).toBe("We will visit. The company brings the drawings.");
   });
 
-  it("with the model pass, a name in lower case goes too, and the patterns apply again after it", async () => {
+  it("with the model pass, a name the record does not hold goes too, and the patterns apply again after it", async () => {
     modelPassRemoves(["dana", "harbor robotics"]);
     expect(await forSite("We do this daily; ask for dana at harbor robotics.")).toBe("We do this daily; ask for [removed] at [removed].");
+    // Since 2026-11-27 (owner) the model pass, not a capitalised-word rule, judges a name the record does not hold.
+    modelPassRemoves(["Dana Whitfield"]);
+    expect(await forSite("Our lead engineer is Dana Whitfield; she will visit.")).toBe("Our lead engineer is [removed]; she will visit.");
     modelPassFindsNothing();
     expect(await forSite("Casey will call 415 555 0101 to plan the cell.")).toBe("The company will call [removed] to plan the cell.");
   });

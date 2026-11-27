@@ -311,13 +311,15 @@ describe("what a company reads of the brief", () => {
       .toContain("From table to shelf");
   });
 
-  it("leaves out a label whose inner capitals read as a name, as every word a model read from the site is", async () => {
+  // Since 2026-11-27 (owner) a capitalised word is not taken for a name before the model pass: a label the model pass
+  // keeps whole is shown as written, inner capitals and all; one it takes a piece out of is left out (below).
+  it("shows a label with inner capitals once the model pass keeps it, as every word a model read from the site", async () => {
     const { companyFitSummary } = await import("../utils/companyJobPage");
     const { screeningsFrom } = await import("../utils/freeTextScreening");
     const everything = { ...screeningsFrom(new Map()), stateOf: (_writer: string, text: string) => ({ state: "shown" as const, text }) };
     const titled = [{ ...ROWS[0], label: "Lamp Size and Weight" }, ROWS[1], ROWS[2], ROWS[3]];
     expect(companyFitSummary(input(titled), known, everything as never).map(row => row.label))
-      .toEqual(["Object", "From table to shelf", "How often it is moved", "Hours a day"]);
+      .toEqual(["Object", "Lamp Size and Weight", "From table to shelf", "How often it is moved", "Hours a day"]);
   });
 
   it("never shows a label, quote or choice that names the site, and never without the site's identity", async () => {

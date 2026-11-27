@@ -225,6 +225,110 @@ function fold(text: string): string {
   return text.normalize("NFKC").replace(ZERO_WIDTH, "").normalize("NFKD").replace(/\p{M}+/gu, "").normalize("NFC");
 }
 
+/* ------------------------------------------------------- the kept words as written (stress test, 2026-11-27) */
+
+/** The form every pattern reads (`removeIdentifyingDetails`): what its output was built from. */
+function matchingForm(text: string, rules: RedactionRules): string {
+  return widened(rules) ? patternForm(fold(text), rules) : fold(text);
+}
+
+const GRAPHEMES = typeof Intl !== "undefined" && typeof (Intl as { Segmenter?: unknown }).Segmenter === "function"
+  ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : null;
+/** A word (letters, digits and their marks), a run of spaces, or one other character. */
+const TOKEN = /[\p{L}\p{N}\p{M}]+|\s+|[^\p{L}\p{N}\p{M}\s]/gu;
+
+/** Each token's text and its span in code points. */
+function tokens(text: string): Array<{ text: string; start: number; end: number }> {
+  const out: Array<{ text: string; start: number; end: number }> = [];
+  let at = 0;
+  for (const match of text.matchAll(TOKEN)) {
+    const length = [...match[0]].length;
+    out.push({ text: match[0], start: at, end: at + length });
+    at += length;
+  }
+  return out;
+}
+
+/**
+ * The shortest edit from `a` to `b` (Myers), as runs: `=` kept (a's indices), `-` dropped from `a`, `+` added from `b`
+ * (b's indices). Equal items are compared as strings.
+ */
+function editRuns(a: readonly string[], b: readonly string[]): Array<{ op: "=" | "-" | "+"; from: number; to: number }> {
+  const n = a.length, m = b.length, max = n + m, offset = max + 1;
+  const trace: Int32Array[] = [];
+  let v = new Int32Array(2 * max + 3);
+  let found = false;
+  for (let d = 0; d <= max && !found; d += 1) {
+    trace.push(v.slice());
+    for (let k = -d; k <= d; k += 2) {
+      let x = k === -d || (k !== d && v[offset + k - 1] < v[offset + k + 1]) ? v[offset + k + 1] : v[offset + k - 1] + 1;
+      let y = x - k;
+      while (x < n && y < m && a[x] === b[y]) { x += 1; y += 1; }
+      v[offset + k] = x;
+      if (x >= n && y >= m) { found = true; break; }
+    }
+  }
+  trace.push(v.slice());
+  const steps: Array<{ op: "=" | "-" | "+"; index: number }> = [];
+  let x = n, y = m;
+  for (let d = trace.length - 2; d >= 0 && (x > 0 || y > 0); d -= 1) {
+    const vd = trace[d], k = x - y;
+    const prevK = k === -d || (k !== d && vd[offset + k - 1] < vd[offset + k + 1]) ? k + 1 : k - 1;
+    const prevX = vd[offset + prevK], prevY = prevX - prevK;
+    while (x > prevX && y > prevY) { x -= 1; y -= 1; steps.push({ op: "=", index: x }); }
+    if (d > 0) {
+      if (x === prevX) { y -= 1; steps.push({ op: "+", index: y }); } else { x -= 1; steps.push({ op: "-", index: x }); }
+    }
+  }
+  steps.reverse();
+  const runs: Array<{ op: "=" | "-" | "+"; from: number; to: number }> = [];
+  for (const step of steps) {
+    const last = runs[runs.length - 1];
+    if (last && last.op === step.op && last.to === step.index) last.to += 1;
+    else runs.push({ op: step.op, from: step.index, to: step.index + 1 });
+  }
+  return runs;
+}
+
+/**
+ * The redacted text with every word it kept written as the writer wrote it (stress test, 2026-11-27: "l'étagère"
+ * reached a company as "l'etagere", and "ガラス棚", a glass shelf, as "カラス棚", a crow shelf). The patterns read a folded
+ * form (`fold`, `patternForm`: accents and other marks dropped, look-alikes and digits plain) and each removal is made
+ * there, as before; this changes no removal. Only a word the redaction kept unchanged, matched word for word against
+ * the folded original, takes the writer's own characters back, still without zero-width characters; everything it
+ * added ("[removed]", "the site") and every word it changed stays as it made them. Any text whose folded form is not
+ * the sum of its characters' (no grapheme segmenter, or a composition across characters) is returned as redacted.
+ */
+export function asWritten(original: string, redacted: string, rules: RedactionRules = CURRENT_REDACTION_RULES): string {
+  if (!GRAPHEMES || !redacted) return redacted;
+  const clusters = [...GRAPHEMES.segment(original)].map(part => part.segment);
+  const forms = clusters.map(cluster => matchingForm(cluster, rules));
+  const matched = matchingForm(original, rules);
+  if (forms.join("") !== matched) return redacted;
+  if (matched === redacted) return clusters.map(cluster => cluster.replace(ZERO_WIDTH, "")).join("").normalize("NFC");
+  // Where each cluster's form starts and ends, in code points of `matched`.
+  const starts: number[] = [], ends: number[] = [];
+  let at = 0;
+  for (const form of forms) { starts.push(at); at += [...form].length; ends.push(at); }
+  const points = [...matched];
+  const asOriginal = (from: number, to: number): string => {
+    let out = "";
+    for (let k = 0; k < clusters.length; k += 1) {
+      if (ends[k] <= from || starts[k] >= to) continue;
+      out += starts[k] >= from && ends[k] <= to ? clusters[k].replace(ZERO_WIDTH, "")
+        : points.slice(Math.max(from, starts[k]), Math.min(to, ends[k])).join("");
+    }
+    return out;
+  };
+  const before = tokens(matched), after = tokens(redacted);
+  let out = "";
+  for (const run of editRuns(before.map(token => token.text), after.map(token => token.text))) {
+    if (run.op === "=") out += asOriginal(before[run.from].start, before[run.to - 1].end);
+    else if (run.op === "+") out += after.slice(run.from, run.to).map(token => token.text).join("");
+  }
+  return out.normalize("NFC");
+}
+
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** A word of a held name: one of six or more letters may be written with separators between its letters ("Zebra
@@ -392,6 +496,19 @@ const POSTCODES = [
   new RegExp(`(?<![\\p{L}\\p{N}])(?:${US_STATES})\\s+\\d{5}(?:-\\d{4})?(?![\\p{L}\\p{N}])`, "gu"),
 ];
 const PLACE_FORMS: readonly RegExp[] = [ROADS, PO_BOX, ...POSTCODES];
+/**
+ * The address line before a postal code, on the same line: up to four comma-separated parts, each a unit ("Unit 7",
+ * "Suite 5B"), a number and capitalised words ("12 Mill Road"), or capitalised words ("Riverside Industrial Estate",
+ * "Leeds"), ending just before the code ("Unit 7, Riverside Industrial Estate, Leeds LS10 1AB", "Oakland, CA 94607").
+ * A postal code says the words before it are an address (owner, 2026-11-27: the capitalised-word rule that caught these
+ * parts by accident no longer runs, and a street address stays a pattern's to remove). Only its parts go here; the code
+ * itself is a place form.
+ */
+const ADDRESS_WORD = String.raw`\p{Lu}[\p{L}'’.&-]*`;
+const ADDRESS_PART = String.raw`(?:(?:Unit|Suite|Ste|Floor|Fl|Building|Bldg|Block|Apt|Flat|Room)\.?\s+#?[\p{L}\p{N}-]{1,6}`
+  + String.raw`|\d{1,6}[A-Za-z]?(?:\s+${ADDRESS_WORD}){1,5}|${ADDRESS_WORD}(?:\s+${ADDRESS_WORD}){0,5})`;
+const ADDRESS_BEFORE_POSTCODE = new RegExp(String.raw`(?<![\p{L}\p{N}])(?:${ADDRESS_PART}[^\S\n]*,[^\S\n]*){0,3}${ADDRESS_PART}`
+  + String.raw`[^\S\n]*,?[^\S\n]*(?=(?:${POSTCODES.map(code => code.source).join("|")}))`, "gu");
 
 /** Tidy what removal leaves: doubled spaces and commas, a space before punctuation, a comma at either end. `noun` is
  * what a held name became ("site" in "the site", or "company"). */
@@ -467,6 +584,7 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity,
     if (pattern) out = out.replace(pattern, (_match: string, offset: number, whole: string) => nameAs(whole, offset));
   }
   for (const street of wide ? [...STREETS, ...ORDINAL_STREETS] : STREETS) out = out.replace(street, "");
+  if (wide) out = out.replace(ADDRESS_BEFORE_POSTCODE, "");
   if (wide) for (const form of PLACE_FORMS) out = out.replace(form, REMOVED);
   out = out.replace(new RegExp(`\\bthe ${noun}(\\s+the ${noun})+\\b`, "gi"), `the ${noun}`);
   return tidy(removeContactDetails(out, rules), noun);

@@ -20,7 +20,7 @@ import { readJobFacts } from "./jobFacts";
 import { jobThumbnailViewUrl } from "./jobThumbnailTicket";
 import { jobReadingOf, readingActionsOf } from "./siteRobotFit";
 import { companySimulationFileName, companySimulationUrl, storedCompanySimulation } from "./websiteCompanySimulation";
-import { REMOVED, identifyingDetailsRemoved, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
+import { REMOVED, identifyingDetailsRemoved } from "../../client/src/lib/contactRedaction";
 import { clarificationOnReply, questionOnReply } from "./jobClarifications";
 import { knownSiteIdentity } from "./siteIdentity";
 import { loadCompanyJobAccess, RECORDING_VERSION_PLACE_LEVEL, taskThumbnailUrl, thumbnailSourceOf } from "./teamJobAccess";
@@ -165,8 +165,8 @@ const SITE_QUESTION: Readonly<Record<(typeof PACKET_FACT_QUESTIONS)[number], Job
  * Words from a model reading of the site's video and sentence, as a company may read them (round 2, 2026-11-24: an
  * object's name such as "Harbor Fresh Foods produce crate" and a place such as "Dana Whitfield's returns cart" reached
  * companies through the identity pass alone). Shown only exactly as written, and only when nothing would be taken out of
- * them: not by the site's known identity (`identifyingDetailsRemoved`), not by the name pass (`removeNamesNotHeld`), and
- * not by the model pass over free text (`server/utils/freeTextScreening.ts`, the site's words and budget). A text any of
+ * them: not by the site's known identity (`identifyingDetailsRemoved`) and not by the model pass over free text, which
+ * judges a name the record does not hold (owner, 2026-11-27) (`server/utils/freeTextScreening.ts`, the site's words and budget). A text any of
  * them would change is left out whole rather than shown with a gap; until the model pass has succeeded for the exact
  * text nothing is shown (it fails closed). Blueprint's own name is read by the model pass as "the company", a phrase it
  * leaves alone, so "Blueprint's estimate" is never taken for a business that may name the site; "Blueprint" followed
@@ -174,9 +174,10 @@ const SITE_QUESTION: Readonly<Record<(typeof PACKET_FACT_QUESTIONS)[number], Job
  */
 const OUR_NAME = /\bBlueprint\b(?![^\S\n]*\p{Lu})/gu;
 const asScreened = (text: string) => text.replace(OUR_NAME, "the company");
-/** Untouched by the site's identity and by the name pass: the text as written could be shown. */
+/** Untouched by the site's identity: the text as written could be shown, once the model pass keeps it too. A name the
+ * record does not hold is the model pass's to judge (owner, 2026-11-27), not the name-shape pass's. */
 function deterministicPassesKeep(text: string, known: KnownSiteIdentity): boolean {
-  return Boolean(text.trim()) && !text.includes(REMOVED) && !identifyingDetailsRemoved(text, known) && removeNamesNotHeld(text) === text;
+  return Boolean(text.trim()) && !text.includes(REMOVED) && !identifyingDetailsRemoved(text, known);
 }
 type ScreenedLines = { state: "shown"; kept: boolean[] } | { state: "pending" };
 /**
@@ -421,8 +422,8 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
     // site's own page dates it (`jobSharingOf`).
     publishedAtIso: String(record.public_task_listing?.approvedAtIso ?? internalTestJobCreatedAtIso(record) ?? ""),
     // The site's own words, with its own known name, organisation, typed address, email and phone, any street-shaped
-    // text and any other contact detail removed (`removeIdentifyingDetails`), then any name-shaped text the record does
-    // not hold (`removeNamesNotHeld`), then whatever the model pass finds, then both again (`siteWordsForCompany`):
+    // text and any other contact detail removed (`removeIdentifyingDetails`), then whatever the model pass finds (a name
+    // the record does not hold is its to judge, owner 2026-11-27), then the first pass again (`siteWordsForCompany`):
     // a company gets the site's name only through an introduction the site asks for. Empty until the model pass is done.
     sentence,
     ...(successRule ? { successRule } : {}),

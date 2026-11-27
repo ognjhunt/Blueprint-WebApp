@@ -28,9 +28,10 @@ describe("lines from the video reading (packet facts) get every pass", () => {
     expect(text).not.toContain("Dana Whitfield");
   });
 
-  it("nor once the model pass has read them, even when the name pass alone would not catch one", () => {
+  it("nor once the model pass has read them, which judges every name the record does not hold", () => {
+    // Since 2026-11-27 (owner) the model pass, not a capitalised-word rule, judges a name the record does not hold.
     const lower = { ...facts, object: [{ text: "Object: harbor fresh foods produce crate.", answers: null }, ...facts.object] };
-    const read = packetFactsForCompany(lower, null, known, modelPass(["harbor fresh foods"]));
+    const read = packetFactsForCompany(lower, null, known, modelPass(["harbor fresh foods", "Dana Whitfield's"]));
     const text = JSON.stringify(read.packetFacts);
     expect(text).not.toMatch(/harbor fresh/i);
     expect(text).not.toContain("Dana Whitfield");

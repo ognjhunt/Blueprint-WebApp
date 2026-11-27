@@ -837,16 +837,28 @@ describe("the company's page for one job (E3)", () => {
   });
 
   // Core-journey audit, 2026-11-20: the start form asks for no site or person name, so a name typed into the sentence
-  // is one the record does not hold; it still never reaches a company before an introduction.
+  // is one the record does not hold; it still never reaches a company before an introduction. Since 2026-11-27 (owner)
+  // the model pass judges it, in every language, not a rule that takes out every capitalised word: the model points at
+  // the name, plain code takes it out, and nothing is shown before that pass has succeeded.
   it.each([
-    ["At Joe's Diner, move the trays from the dish pit to the rack.", "At [removed], move the trays from the dish pit to the rack."],
-    ["Acme Fulfillment needs cartons moved from the conveyor to a pallet.", "[removed] needs cartons moved from the conveyor to a pallet."],
-    ["Joe Smith at Smith Bakery wants bread trays stacked on the cart.", "[removed] at [removed] wants bread trays stacked on the cart."],
-  ])("removes a business or person name the record does not hold from the sentence: %s", async (summary, expected) => {
+    ["At Joe's Diner, move the trays from the dish pit to the rack.", ["Joe's Diner"], "At [removed], move the trays from the dish pit to the rack."],
+    ["Acme Fulfillment needs cartons moved from the conveyor to a pallet.", ["Acme Fulfillment"], "[removed] needs cartons moved from the conveyor to a pallet."],
+    ["Joe Smith at Smith Bakery wants bread trays stacked on the cart.", ["Joe Smith", "Smith Bakery"], "[removed] at [removed] wants bread trays stacked on the cart."],
+  ])("removes a business or person name the record does not hold from the sentence: %s", async (summary, names, expected) => {
+    const { modelPassRemoves } = await import("./helpers/freeTextScreening");
+    modelPassRemoves(names);
     state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, confirmedAtIso: null, summary });
     const { body, raw } = await page();
     expect(body.item.sentence).toBe(expected);
     expect(raw).not.toMatch(/Joe|Diner|Acme|Fulfillment|Smith|Bakery/);
+  });
+
+  // Owner, 2026-11-27: German capitalises every noun, and the capitalised-word rule left a German sentence as
+  // "[removed] die [removed] auf das [removed]". A company now reads it as written once the model pass keeps it.
+  it("shows a German sentence whole once the model pass finds no name in it", async () => {
+    state.docs.set(`siteTaskBriefs/${ID}`, { requestId: ID, confirmedAtIso: null,
+      summary: "Stellen Sie die Kiste auf das Regal über der Tür." });
+    expect((await page()).body.item.sentence).toBe("Stellen Sie die Kiste auf das Regal über der Tür.");
   });
 
   it("makes the job visible with playable video while the simulation is being built", async () => {

@@ -7,7 +7,9 @@
  * verified and what a visit must confirm):
  *
  * 1. The deterministic pass (`client/src/lib/contactRedaction.ts`): the writer's own identity the website holds, street
- *    and place forms, emails, phone numbers, links, handles, and name-shaped words.
+ *    and place forms, emails, phone numbers, links and handles. Name-shaped words the record does not hold are left to
+ *    step 2 (owner, 2026-11-27: a capitalised word inside a sentence was taken out as a name, which left a German
+ *    sentence, whose nouns are all capitalised, unreadable); the words kept read as written (`asWritten`).
  * 2. This pass: the `free_text_redaction` lane reads what step 1 left and points at the pieces still naming or locating
  *    a person or a business. Plain code replaces each piece it finds in the text with "[removed]" and ignores the rest,
  *    so the model can only take words out, never add or change any (`applyRemovals`).
@@ -29,7 +31,7 @@
  */
 import { createHash, randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { REMOVED, capitalisedWordsAfterFirst, removeIdentifyingDetails, removeNamesNotHeld, type KnownSiteIdentity }
+import { REMOVED, asWritten, capitalisedWordsAfterFirst, removeIdentifyingDetails, type KnownSiteIdentity }
   from "../../client/src/lib/contactRedaction";
 import { logger } from "../logger";
 
@@ -542,7 +544,11 @@ const NO_IDENTITY: KnownSiteIdentity = { names: [], addresses: [], contacts: [] 
 
 /** The deterministic pass over a site's own words for a company: its known identity, then name-shaped text. */
 export function siteWordsDeterministic(text: string, known: KnownSiteIdentity): string {
-  return removeNamesNotHeld(removeIdentifyingDetails(text, known));
+  // What the record holds of the site and every contact-shaped piece (`removeIdentifyingDetails`), made on the folded
+  // form; the words kept read as the site wrote them (`asWritten`). A name the record does not hold is the model pass's
+  // to judge, in every language (owner, 2026-11-27): the name-shape pass (`removeNamesNotHeld`) took out every
+  // capitalised word inside a sentence, which left a German sentence, whose nouns are all capitalised, as "[removed]".
+  return asWritten(text, removeIdentifyingDetails(text, known));
 }
 
 /** Words as the other side may read them: shown, not ready yet, or held at a limit (`ScreeningLimit`). */
