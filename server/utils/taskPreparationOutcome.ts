@@ -240,11 +240,13 @@ export const isProcessingRetrying = (outcome: Pick<TaskOutcome, "title"> | null 
  * or an Atlas preview whose reason is the account's monthly spend check (`account_monthly_spend_*`: the limit reached,
  * the month's spend journal or report unreadable or stale, no limit configured, ...). Each refuses new spend until the
  * check passes again, and the job resumes by itself; nothing is the site's to do. Money is Blueprint's control, never
- * a step for the site, and staff see it as a money stop on the job's admin page (`jobConsoleData`).
+ * a step for the site, and staff see it as a money stop on the job's admin page (`jobConsoleData`). Only the paid work on
+ * the simulation waits: the job stays in front of companies, so the words never say the job is paused (outreach audit
+ * D8, 2026-11-27).
  */
 export const ACCOUNT_LIMIT_WAIT_SENTENCES = {
-  title: "Your job is paused on our side",
-  reason: "Your job is paused on our side for a spending limit.",
+  title: "Building the simulation of your site is paused on our side",
+  reason: "Building the simulation of your site is paused on our side for a spending limit.",
   nextStep: "It resumes by itself; nothing is needed from you.",
 } as const;
 export const ACCOUNT_LIMIT_WAIT_REASON = "account_limit_wait";

@@ -313,8 +313,8 @@ describe("the Pipeline's one outcome for the job's scene (C-04)", () => {
     ["awaiting_site", "task_brief_required", "Building the simulation of your site is waiting on our side for your job's description. Nothing is needed from you.", null],
     ["awaiting_site", "a_later_reason", "Your job is waiting for something from you.", "hello@tryblueprint.io"],
     // The account's monthly spending limit: a money wait, said as that under either wait kind.
-    ["setup_repair", "account_limit_wait", "Your job is paused on our side for a spending limit. It resumes by itself; nothing is needed from you.", null],
-    ["awaiting_site", "account_limit_wait", "Your job is paused on our side for a spending limit. It resumes by itself; nothing is needed from you.", null],
+    ["setup_repair", "account_limit_wait", "Building the simulation of your site is paused on our side for a spending limit. It resumes by itself; nothing is needed from you.", null],
+    ["awaiting_site", "account_limit_wait", "Building the simulation of your site is paused on our side for a spending limit. It resumes by itself; nothing is needed from you.", null],
   ] as const)("a %s wait (%s) says what it waits on in one plain sentence", (kind, reasonCode, sentence, contact) => {
     const status = project(progression(kind, false, reasonCode));
     expect(status.decision).toBe("assessing");

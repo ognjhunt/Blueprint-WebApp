@@ -110,15 +110,15 @@ describe("the words for the codes the sweep found", () => {
   });
   it("a money stop is said as money, and promises no resumption the Pipeline does not make", () => {
     expect(card("needs_input", "atlas_runtime_budget_insufficient_for_pose_and_generation")).toMatchObject({
-      title: "Your job is paused on our side", reason: "Your job is paused on our side for a spending limit.", nextStep: ours,
+      title: "Building the simulation of your site is paused on our side", reason: "Building the simulation of your site is paused on our side for a spending limit.", nextStep: ours,
       actionOwner: "blueprint" });
     for (const code of ["atlas_runtime_price_review_expired", "paid_resource_admission_not_admitted", "paid_resource_a_later_blocker",
       "meta_sam_submission_requires_reconciliation"])
-      expect(card("needs_input", code)).toMatchObject({ title: "Your job is paused on our side",
+      expect(card("needs_input", code)).toMatchObject({ title: "Building the simulation of your site is paused on our side",
         reason: "Work on your job is paused on our side by one of our own spending checks.", nextStep: ours });
     // The Google Cloud budget's own policy file: the same money wait as its other codes.
     expect(card("needs_input", "gcp_monthly_budget_policy_invalid")).toMatchObject({
-      reason: "Your job is paused on our side for a spending limit.", nextStep: "It resumes by itself; nothing is needed from you." });
+      reason: "Building the simulation of your site is paused on our side for a spending limit.", nextStep: "It resumes by itself; nothing is needed from you." });
   });
   it("a review refusal the same inputs repeat, and a stop the Pipeline names for itself, are a step on our side", () => {
     for (const code of ["atlas_scene_planner_intervals_invalid", "atlas_automation_frames_not_selected",
