@@ -226,7 +226,9 @@ export function wordsToConfirm(text: string): string[] {
  */
 export function emptyAnswerDistrust(text: string): "instruction" | "unconfirmed" | null {
   const plain = distrustForm(text);
-  if (INSTRUCTION_TO_A_MODEL.some(pattern => pattern.test(plain)) || /@/.test(plain)
+  // The folded form drops accents, so a pattern written with them ("ningún nombre") reads the text as written too (a
+  // second review of PR #1467).
+  if (INSTRUCTION_TO_A_MODEL.some(pattern => pattern.test(plain) || pattern.test(text.normalize("NFC"))) || /@/.test(plain)
     || /\b(?:at|@)\s+[\p{L}\p{N}-]+(?:\s+[\p{L}\p{N}-]+){0,3}\s+(?:dot|\.)\s+[\p{L}]{2,}\b/iu.test(plain)) return "instruction";
   return capitalisedWordsAfterFirst(plain).length > 0 || NON_LATIN_WORD.test(plain) ? "unconfirmed" : null;
 }

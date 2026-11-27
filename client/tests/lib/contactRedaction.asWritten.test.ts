@@ -8,6 +8,8 @@ import { REMOVED, asWritten, removeIdentifyingDetails, removeNamesNotHeld } from
  */
 const none = { names: [], organisations: [], addresses: [], contacts: [] };
 const company = (text: string, known = none) => asWritten(text, removeNamesNotHeld(removeIdentifyingDetails(text, known)));
+/** What the deterministic pass shows the model today (`siteWordsDeterministic`): no name-shape rule (owner, 2026-11-27). */
+const deterministic = (text: string) => asWritten(text, removeIdentifyingDetails(text, none));
 /** The text as the patterns read it, without its marks and zero-width characters: what may differ is only these. */
 const plain = (text: string) => text.normalize("NFKC").replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, "").normalize("NFKD")
   .replace(/\p{M}+/gu, "").normalize("NFC");
@@ -101,12 +103,55 @@ describe("the words a redaction kept, as written", () => {
       ["Harbour House, Unit 7, Riverside Industrial Estate, Hunslet, Leeds LS10 1AB: stack the totes.", /Harbour|Riverside|Hunslet|Leeds|LS10/],
       ["The Old Mill on the Green, Bakewell DE45 1AA: move the sacks.", /Old Mill|Green|Bakewell|DE45/],
       ["Send cartons to:\nUnit 7\nRiverside Industrial Estate\nLeeds\nLS10 1AB", /Riverside|Leeds|LS10/],
-      ["Ask Mr. Smith at the dock.", /Smith/], ["Mail ダナ@example.com about the totes.", /ダナ|example/],
-      ["Écrivez à josé.garcía@exemple.fr pour entrer.", /jos|garc|exemple/i]] as const)
+      ["Mail ダナ@example.com about the totes.", /ダナ|example/],
+      ["Moved from Kerkstraat 4, 1017 GC Amsterdam to the dock.", /Kerkstraat|1017|Amsterdam/],
+      ["Lieferung an:\nHauptstraße 12\n10115 Berlin", /Hauptstra|10115|Berlin/],
+      ["Deliver to 12 Smith St, Fitzroy, VIC 3065.", /Fitzroy|3065/]] as const)
       expect(removeIdentifyingDetails(sentence, none), sentence).not.toMatch(gone);
+    // An address and its code become one "[removed]".
+    expect(removeIdentifyingDetails("Ship to Unit 7, Riverside Industrial Estate, Leeds LS10 1AB today.", none))
+      .toBe(`Ship to ${REMOVED} today.`);
+    expect(removeIdentifyingDetails("Écrivez à josé.garcía@exemple.fr pour entrer.", none)).not.toMatch(/jos|garc|exemple/i);
     // A postal code never takes the line above it unless that line is the address's own.
     expect(removeIdentifyingDetails("Overflow goes to the dock\nThen Leeds LS10 1AB", none)).toMatch(/^Overflow goes to the dock\s/);
     expect(removeIdentifyingDetails("Bay 4\nLeeds LS10 1AB", none)).toContain("Bay 4");
+  });
+
+  // A second review of PR #1467: the address shapes took ordinary job facts, quantities and station names.
+  it("keeps a count, a station and a machine that only look like an address", () => {
+    for (const sentence of ["Die Roboter packen Kartons in 2000 Kisten pro Tag.", "Wir arbeiten in 2 Schichten, 2000 Teile pro Schicht.",
+      "Halle 2, 2000 Teile pro Schicht.", "Bringen Sie die Kiste zum Lagerplatz 12.", "Leg die Säcke an die Laadkade 2.",
+      "Move totes via Dock 4 to the packing line.", "Use the SA 2000 conveyor and the WA 1200 wrapper.",
+      "Our NT 4000 scanner reads the labels.", "Keep the Miss Rate under 1 percent.", "Move 1500 cartons a day.",
+      "Stack 1200 pallets per shift.", "Consegna in 2 turni, 1500 Pezzi al giorno."])
+      expect(deterministic(sentence), sentence).toBe(sentence);
+    // Title-case steps above a code are steps: the code goes, the steps stay.
+    expect(deterministic("Steps:\nPick Totes\nScan Labels\nCA 94607")).toBe(`Steps:\nPick Totes\nScan Labels\n${REMOVED}`);
+    // "Consegna in" is the sentence, not the address.
+    expect(deterministic("Consegna in Via Roma 10, 00184 Roma.")).toBe(`Consegna in ${REMOVED}.`);
+    // A vanity number is still one, in capitals or with its separators.
+    expect(deterministic("Call 1-800-FLOWERS, 1-800-flowers, +1 800 flowers or (800) got-junk."))
+      .toBe(`Call ${REMOVED}, ${REMOVED}, ${REMOVED} or ${REMOVED}.`);
+  });
+
+  // Owner, 2026-11-27: a name the record does not hold is the model pass's to judge, a titled one too ("Mr. Smith");
+  // no pattern takes it, as none takes "Dr Pepper".
+  it("leaves a titled name the record does not hold to the model pass", () => {
+    expect(removeIdentifyingDetails("Ask Mr. Smith at the dock.", none)).toBe("Ask Mr. Smith at the dock.");
+    expect(removeIdentifyingDetails("Restock the Dr Pepper cans.", none)).toBe("Restock the Dr Pepper cans.");
+  });
+
+  // A second review of PR #1467: a removal that ends inside a word leaves its end ("Streetカラス" leaves "カラス"), and the
+  // diff could line it up with the removed street's name ("ガラス") and show that name's marks.
+  it("gives no removed word's marks to what a removal left of a word", () => {
+    const shown = asWritten("Deliver to 12 ガラス Street, 34 Mill Streetカラス now",
+      removeIdentifyingDetails("Deliver to 12 ガラス Street, 34 Mill Streetカラス now", none));
+    expect(shown).not.toContain("ガ");
+    expect(shown).toContain("カラス now");
+    const devanagari = "12 गांधी Street, गधाat.";
+    expect(asWritten(devanagari, removeIdentifyingDetails(devanagari, none))).not.toContain("गां");
+    // A word kept whole still comes back as written.
+    expect(deterministic("Pon l'étagère en la 12 rue de la Paix, 75002 Paris.")).toBe(`Pon l'étagère en la ${REMOVED}.`);
   });
 
   it("keeps a long text quick and small", () => {
