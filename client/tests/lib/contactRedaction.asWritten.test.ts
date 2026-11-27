@@ -52,6 +52,24 @@ describe("the words a redaction kept, as written", () => {
     expect(shown).not.toMatch(/[\u200B-\u200D\u2060\uFEFF\u00AD]/);
   });
 
+  // A review of PR #1467: a held name folding to a word the redaction writes ("Thé" folds to "The", as in "The site")
+  // took its own characters back through that word: "Thé site moves cartons.". A word the redaction writes is never
+  // given a writer's characters, whichever original word it lines up with.
+  it("never gives a word the redaction wrote the characters of a name it took out", () => {
+    for (const [names, sentence] of [[["Thé"], "Thé moves cartons."], [["Sité"], "Ask Sité to move the cartons."],
+      [["Ｔｈｅ"], "Ｔｈｅ moves cartons."], [["Removéd"], "Removéd stacks the totes."]] as const) {
+      const known = { names: [...names], organisations: [], addresses: [], contacts: [] };
+      const redacted = removeNamesNotHeld(removeIdentifyingDetails(sentence, known));
+      const shown = asWritten(sentence, redacted);
+      expect(shown, sentence).toBe(redacted);
+      expect(shown, sentence).not.toMatch(/é|Ｔ/);
+    }
+    // With nothing taken out the sentence is the writer's whole, "thé" (tea) included; once something is, a kept word
+    // spelt like one of those words reads plain ("the"): privacy over an accent.
+    expect(company("Servez le thé à la cuisine.")).toBe("Servez le thé à la cuisine.");
+    expect(company("Servez le thé, appelez le 06 12 34 56 78.")).toBe(`Servez le the, appelez le ${REMOVED}.`);
+  });
+
   it("gives back what it was given when the folded form is not its characters' own", () => {
     expect(asWritten("abc", "[removed]")).toBe("[removed]");
     expect(asWritten("", "")).toBe("");

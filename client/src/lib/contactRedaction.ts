@@ -323,11 +323,17 @@ export function asWritten(original: string, redacted: string, rules: RedactionRu
   const before = tokens(matched), after = tokens(redacted);
   let out = "";
   for (const run of editRuns(before.map(token => token.text), after.map(token => token.text))) {
-    if (run.op === "=") out += asOriginal(before[run.from].start, before[run.to - 1].end);
-    else if (run.op === "+") out += after.slice(run.from, run.to).map(token => token.text).join("");
+    if (run.op === "+") out += after.slice(run.from, run.to).map(token => token.text).join("");
+    else if (run.op === "=") for (const token of before.slice(run.from, run.to))
+      // A word the redaction writes may stand where a removed name was ("Thé" folds to "The", as in "The site"): it is
+      // never given a writer's characters, whichever original word it lines up with (a review of PR #1467).
+      out += WRITTEN_WORDS.has(token.text) ? token.text : asOriginal(token.start, token.end);
   }
   return out.normalize("NFC");
 }
+
+/** The words the redaction itself writes: "[removed]" and "the site" or "the company", in either case. */
+const WRITTEN_WORDS: ReadonlySet<string> = new Set(["removed", "the", "The", "THE", "site", "Site", "company", "Company"]);
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
