@@ -62,7 +62,9 @@ describe("the owner's notice", () => {
     expect(alert).toHaveBeenCalledTimes(1);
     expect(email).toHaveBeenCalledTimes(1);
     const text = String(alert.mock.calls[0][1]);
-    expect(text).toContain("1 account deletion request is past the 30 days the Privacy Policy promises");
+    // Changed 2026-11-27 (review): said as an age, since no stored state says a request was completed by hand.
+    expect(text).toContain("1 account deletion request is 30 days old or more; if it is not completed, it is past the 30 days the Privacy Policy promises.");
+    expect(text).not.toMatch(/request is past the/);
     expect(text).toContain("- deletion_old: requested, 37 days since it was made");
     expect(text).toContain("/admin/jobs");
     expect(text).not.toContain("deletion_new");
@@ -82,13 +84,21 @@ describe("the owner's notice", () => {
   it("warns at 25 days, then says overdue at 30, once each, whatever the request's status", async () => {
     request("deletion_a", 25, "in_review");
     expect(await scan()).toEqual({ warning: 1, overdue: 0, newlyAlerted: 1 });
-    expect(String(alert.mock.calls[0][1])).toContain("1 account deletion request reaches the 30-day promise within 5 days");
-    expect((email.mock.calls[0][0] as { subject: string }).subject).toMatch(/^\[NOTICE\] /);
+    expect(String(alert.mock.calls[0][1])).toContain("1 account deletion request is 25 days old or more; if it is not completed, it reaches the 30-day promise within 5 days.");
+    expect((email.mock.calls[0][0] as { subject: string }).subject).toMatch(/^\[NOTICE\] 1 account deletion request is 25 days old or more; if it is not completed/);
     expect((await scan(NOW + 2 * DAY)).newlyAlerted).toBe(0);
     expect(await scan(NOW + 5 * DAY)).toEqual({ warning: 0, overdue: 1, newlyAlerted: 1 });
     expect(String(alert.mock.calls[1][1])).toContain("- deletion_a: in_review, 30 days since it was made");
     expect((await scan(NOW + 6 * DAY)).newlyAlerted).toBe(0);
     expect(alert).toHaveBeenCalledTimes(2);
+  });
+
+  it("says several requests as an age too", async () => {
+    request("deletion_a", 31); request("deletion_b", 40); request("deletion_c", 26); request("deletion_d", 27);
+    expect(await scan()).toEqual({ warning: 2, overdue: 2, newlyAlerted: 4 });
+    const texts = alert.mock.calls.map(call => String(call[1]));
+    expect(texts.some(text => text.includes("2 account deletion requests are 30 days old or more; any not completed are past the 30 days the Privacy Policy promises."))).toBe(true);
+    expect(texts.some(text => text.includes("2 account deletion requests are 25 days old or more; any not completed reach the 30-day promise within 5 days."))).toBe(true);
   });
 
   it("sends again on the next pass when neither Slack nor the email took it", async () => {

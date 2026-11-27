@@ -103,9 +103,15 @@ export async function scanAgingAccountDeletionRequests(options: {
       }
     }
     if (!fresh.length) continue;
-    const title = level === "overdue"
-      ? `${fresh.length} account deletion request${fresh.length === 1 ? " is" : "s are"} past the ${ACCOUNT_DELETION_PROMISE_DAYS} days the Privacy Policy promises`
-      : `${fresh.length} account deletion request${fresh.length === 1 ? " reaches" : "s reach"} the ${ACCOUNT_DELETION_PROMISE_DAYS}-day promise within ${ACCOUNT_DELETION_PROMISE_DAYS - ACCOUNT_DELETION_WARNING_DAYS} days`;
+    // Said as an age (review, 2026-11-27): no stored state says a request was completed by hand, so the title cannot say
+    // a request is past the promise, only that it is if it is not completed.
+    const one = fresh.length === 1;
+    const age = level === "overdue" ? ACCOUNT_DELETION_PROMISE_DAYS : ACCOUNT_DELETION_WARNING_DAYS;
+    const title = `${fresh.length} account deletion request${one ? " is" : "s are"} ${age} days old or more; `
+      + (one ? "if it is not completed, it " : "any not completed ")
+      + (level === "overdue"
+        ? `${one ? "is" : "are"} past the ${ACCOUNT_DELETION_PROMISE_DAYS} days the Privacy Policy promises`
+        : `${one ? "reaches" : "reach"} the ${ACCOUNT_DELETION_PROMISE_DAYS}-day promise within ${ACCOUNT_DELETION_PROMISE_DAYS - ACCOUNT_DELETION_WARNING_DAYS} days`);
     const lines = fresh.slice(0, 10).map(item => `- ${item.id}: ${item.status}, ${item.ageDays} days since it was made`);
     const more = fresh.length > 10 ? [`- …and ${fresh.length - 10} more`] : [];
     const text = [`${level === "overdue" ? ":rotating_light:" : ":warning:"} Blueprint: ${title}.`, ...lines, ...more,
