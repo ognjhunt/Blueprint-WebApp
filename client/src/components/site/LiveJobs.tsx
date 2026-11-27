@@ -5,6 +5,8 @@ import type { PublicLiveJob } from "@/types/taskBrowse";
 export const LIVE_JOBS_HEADING = "Live jobs";
 export const LIVE_JOBS_LEAD = "Jobs sites have posted. Open one to apply; approved deployment companies see its video, description and simulation.";
 export const LIVE_JOB_OPEN = "See job";
+/** Said when the list was read and holds no live job (outreach playbook fix 12, 2026-11-27). */
+export const LIVE_JOBS_EMPTY = "No live jobs right now. New jobs appear here when a site posts one.";
 
 /** A simple picture for each kind of job, in place of a thumbnail: the thumbnail is the site's own, for approved companies. */
 const KIND_ICONS: Readonly<Record<PublicLiveJob["kindKey"], LucideIcon>> = {
@@ -22,10 +24,10 @@ const isRef = (value: unknown): value is string => typeof value === "string" && 
  * The live jobs anyone may see on /jobs (owner, 2026-11-23), from `/api/public/live-jobs`: each job's kind, country,
  * the day it was posted and whether its simulation is ready, nothing a site said, with a picture for its kind. Each row
  * opens the job's page: an approved company reads the job there, and anyone else is asked to apply and comes back to
- * that job once approved. Shows nothing while there are no live jobs or the list cannot be read.
+ * that job once approved. Says plainly when the list was read and holds no live job; shows nothing when it cannot be read.
  */
 export function LiveJobs() {
-  const [jobs, setJobs] = useState<PublicLiveJob[]>([]);
+  const [jobs, setJobs] = useState<PublicLiveJob[] | null>(null);
   useEffect(() => {
     let active = true;
     fetch("/api/public/live-jobs").then(response => response.ok ? response.json() : null)
@@ -36,7 +38,11 @@ export function LiveJobs() {
       }).catch(() => undefined);
     return () => { active = false; };
   }, []);
-  if (!jobs.length) return null;
+  if (!jobs) return null;
+  if (!jobs.length) return <section className="live-jobs" aria-labelledby="live-jobs-heading">
+    <h2 id="live-jobs-heading">{LIVE_JOBS_HEADING}</h2>
+    <p className="live-jobs-lead">{LIVE_JOBS_EMPTY}</p>
+  </section>;
   return <section className="live-jobs" aria-labelledby="live-jobs-heading">
     <h2 id="live-jobs-heading">{LIVE_JOBS_HEADING}</h2>
     <p className="live-jobs-lead">{LIVE_JOBS_LEAD}</p>

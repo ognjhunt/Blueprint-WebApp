@@ -83,6 +83,8 @@ test("1. a stranger applies on /jobs; the application is saved with no receipt e
   await localOnly(page.context(), missing);
   await page.context().setExtraHTTPHeaders({ "X-Forwarded-For": C.ip });
   await page.goto("/jobs", { waitUntil: "networkidle" });
+  // No job is live yet on a fresh harness: the list says so plainly (playbook fix 12).
+  await expect(page.getByText("No live jobs right now. New jobs appear here when a site posts one.")).toBeVisible({ timeout: 30_000 });
   const form = page.getByRole("form", { name: "Deployment company application" });
   await expect(form).toBeVisible();
   await form.getByLabel("Your name").fill(C.contact);
