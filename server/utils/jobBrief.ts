@@ -71,11 +71,25 @@ interface JobBriefSources {
   notEvidenced: string[];
 }
 
+/**
+ * Whether the video was read and the reading named neither a kind of job nor an object: a walkthrough of a room with the
+ * work not shown in it, as a site films a cleaning job (stress test, 2026-11-27: "Mop the hard floors …" had a reading
+ * of all nulls, so it never got a brief and At a glance stayed the catalog's rows for whatever the keywords said). The
+ * brief is then written from the site's own words, as it is beside a reading; before any reading, it still waits.
+ */
+function readingFoundNothing(record: Record<string, any>): boolean {
+  const walkthrough = record.walkthrough_job_estimates;
+  return Boolean(walkthrough && typeof walkthrough === "object" && typeof walkthrough.reviewed_at_iso === "string"
+    && walkthrough.job_estimates && typeof walkthrough.job_estimates === "object") || Boolean(usableReading(record.site_video_evidence));
+}
+
 function sourcesOf(record: Record<string, any> | null | undefined, brief: { summary?: unknown; successCriteria?: any } | null | undefined):
   JobBriefSources | null {
-  const reading = jobReadingOf(record);
-  if (!record || !reading) return null;
+  if (!record) return null;
   const sentence = siteSentenceSource(brief);
+  const reading = jobReadingOf(record)
+    ?? (readingFoundNothing(record) && !isPlaceholderSummary(sentence) && sentence.trim() ? { kind: null, object: null, others: [] } : null);
+  if (!reading) return null;
   const found = videoEvidence({ request: record, brief: null, measurements: null })?.estimates ?? null;
   const link = usableReading(record.site_video_evidence);
   const words = (value: unknown, max: number) => typeof value === "string" && value.trim() ? value.trim().slice(0, max) : null;

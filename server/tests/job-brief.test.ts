@@ -163,6 +163,24 @@ describe("writing the brief", () => {
     expect(record()).not.toHaveProperty("job_brief");
   });
 
+  // Stress test, 2026-11-27: "Mop the hard floors …" was filmed as a walkthrough of the empty flat; the reading named no
+  // kind and no object, so the job never got a brief and At a glance stayed the catalog's rows. A reading that ran and
+  // found nothing still lets the brief be written from the site's own words; before any reading it still waits.
+  it("writes the brief from the site's words when the reading ran and found nothing, and waits for a reading", async () => {
+    const { ensureJobBrief, jobBriefOfRecord } = await import("../utils/jobBrief");
+    const nothing = { object: null, job_kind: null, other_actions: [], other_items_likely: [], basis: "doorways" };
+    const brief = () => state.docs.get(`siteTaskBriefs/${ID}`) as never;
+    state.docs.set(`inboundRequests/${ID}`, job({ walkthrough_job_estimates: null }));
+    expect(jobBriefOfRecord(record(), brief()).wanted).toBe(false);
+    state.docs.set(`inboundRequests/${ID}`, job({ walkthrough_job_estimates: { capture_id: `walkthrough-${ID}`,
+      job_estimates: nothing, reviewed_at_iso: "2026-11-25T09:00:00.000Z" } }));
+    expect(jobBriefOfRecord(record(), brief()).wanted).toBe(true);
+    await scripted([LAMP_ROWS[1], LAMP_ROWS[2], LAMP_ROWS[3]]);
+    expect(await ensureJobBrief(ID)).not.toBeNull();
+    expect(inputs.at(-1)!.reading).toMatchObject({ kind: null, object: null, others: [] });
+    expect(inputs.at(-1)!.sentence).toContain("round bedside table");
+  });
+
   it("starts no run when the job's spending cap leaves no room, and says so on the claim", async () => {
     await scripted();
     patch({ website_preparation_reservations: { a: { admission: { maximum_cost_usd: 40 } } } });
