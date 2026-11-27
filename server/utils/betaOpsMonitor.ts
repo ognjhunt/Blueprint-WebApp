@@ -46,6 +46,9 @@ import {
  *     acknowledged 15 minutes after the request, with the cause
  *     (withdrawalNoticeAlerts). Readiness (3) also names a worker that has no
  *     Pipeline address for the withdrawal notice.
+ * 13. tells the owner once per account deletion request at 25 days (warning)
+ *     and once at 30 (overdue), the Privacy Policy's promise
+ *     (accountDeletionAgeAlerts). A notice only: nothing is blocked or deleted.
  *
  * Retired 2026-11-22: the no-grant wait page and the over-budget extension
  * report (grants and the extension are gone).
@@ -420,6 +423,8 @@ export async function runBetaOpsMonitorPass() {
     import("./siteReplyReminders").then(({ remindUnansweredQuestions }) => remindUnansweredQuestions()),
     // 12. a site's withdrawal the Pipeline has not acknowledged 15 minutes on: the owner is told once, with the cause.
     import("./withdrawalNoticeAlerts").then(({ scanUnacknowledgedWithdrawals }) => scanUnacknowledgedWithdrawals()),
+    // 13. an account deletion request at 25 and at 30 days: the owner is told once at each, by Slack and email.
+    import("./accountDeletionAgeAlerts").then(({ scanAgingAccountDeletionRequests }) => scanAgingAccountDeletionRequests()),
   ]);
   for (const [index, result] of results.entries()) {
     if (result.status === "rejected") {
@@ -427,7 +432,7 @@ export async function runBetaOpsMonitorPass() {
         { err: result.reason, step: ["intake_notice_sweep", "outbox_failure_scan", "readiness_check", "outbox_backlog_scan",
           "worker_heartbeat_check", "website_preparation_scan", "outbox_unknown_scan", "access_application_reminder",
           "company_check_sweep", "job_thumbnail_sweep", "company_recheck", "site_reply_reminder",
-          "withdrawal_notice_scan"][index] },
+          "withdrawal_notice_scan", "account_deletion_age_scan"][index] },
         "Beta ops monitor step failed",
       );
     }
