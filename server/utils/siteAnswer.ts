@@ -16,7 +16,8 @@
  * confirmed or for staff to share it.
  */
 import {
-  ALSO_INVOLVES_PREFIX, ALSO_INVOLVES_SUFFIX, JOB_FAMILY_LABELS, REASON_NOT_READ, REASON_UNSIZED, SITE_ANSWER_NOTE, SITE_ANSWER_SCHEMA, sceneOutrankedNote,
+  ALSO_INVOLVES_PREFIX, ALSO_INVOLVES_SUFFIX, JOB_FAMILY_LABELS, REASON_DESCRIBED_CLEANING, REASON_NOT_READ, REASON_UNSIZED, SITE_ANSWER_NOTE,
+  SITE_ANSWER_SCHEMA, sceneOutrankedNote,
   UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, UNKNOWN_SCENE_NOT_COVERED, UNKNOWN_TRANSPORT,
   type AnswerBasis, type AnswerCheck, type AnswerEvidence, type AnswerRobot, type AnswerVerdict, type JobFamily,
   type JobSharing, type SiteAnswer,
@@ -35,6 +36,7 @@ import { multiStepEvidence } from "./siteTaskScope";
 import { getMeasurements, type SiteTaskMeasurementRecord } from "./siteTaskMeasurements";
 import type { PublicRobotFit } from "./websitePreparationStatus";
 import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
+import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { teamJobAccess } from "./teamJobAccess";
 import { internalTestJobCreatedAtIso, isInternalTestJob } from "./internalTestJob";
 import { jobIsShared } from "./jobSharedListing";
@@ -844,6 +846,11 @@ export function composeSiteAnswer(inputs: SiteAnswerInputs): SiteAnswer | null {
   if (!facts.distance && !facts.mass && !facts.size) {
     if (!coverageDone(request, fitInputs))
       return readingEnded(request) ? notRead() : finish({ ...base, state: "reading", headline: HEADLINE_READING });
+    // Nothing to size, and no kind named by the reading: where the site's own sentence says the work is cleaning, that
+    // is why, not the video (stress test, 2026-11-27).
+    if (scope.kindUnknown && summary && anonymizedOpportunityDraft(summary).taskFamily === "Cleaning")
+      return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: REASON_DESCRIBED_CLEANING },
+        { described: "cleaning" });
     return finish({ ...base, state: "cannot_assess", headline: HEADLINE_CANNOT, reason: REASON_UNSIZED });
   }
 

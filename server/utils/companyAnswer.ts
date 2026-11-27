@@ -46,7 +46,7 @@ export const companyAnswerDetailsSchema = z.object({
   });
 
 export const ANSWER_JOB_NOT_SHARED = "This job is no longer shared, so it can't take responses.";
-export const ANSWER_NO_SIMULATION = "This job has no simulation to test yet.";
+export const ANSWER_TESTED_RETIRED = "A company can apply, say the job is not a fit, or ask for more details.";
 
 /** The application's own fields are kept only with an application (Apply or Tested it: can do); the rest as given. */
 export function applicationDetailsFor(state: CompanyResponseState, details: Record<string, unknown>): Record<string, unknown> {
@@ -88,14 +88,9 @@ export async function recordCompanyAnswer(input: CompanyAnswerInput): Promise<Co
   const before = await loadCompanyJobAccess(taskId, undefined, undefined, options);
   if (!before.record || !before.access.listed) return { ok: false, error: ANSWER_JOB_NOT_SHARED };
   const source = before.record;
-  // The two tested answers need the job's simulation package (E9).
-  if (TESTED_RESPONSE_STATES.includes(input.state)) {
-    const { siteWalkthroughIdentity } = await import("./siteWalkthrough");
-    const { captureId } = siteWalkthroughIdentity(taskId, source);
-    const { storedCompanySimulation } = await import("./websiteCompanySimulation");
-    if (!storedCompanySimulation((await store.collection("captureUploadSessions").doc(captureId).get()).data(), captureId))
-      return { ok: false, error: ANSWER_NO_SIMULATION };
-  }
+  // No company can give a tested answer now (owner, 2026-11-25): one stored before still reads and can be accepted, but
+  // none is recorded anew, whichever route asks (stress test, 2026-11-27).
+  if (TESTED_RESPONSE_STATES.includes(input.state)) return { ok: false, error: ANSWER_TESTED_RETIRED };
   const row = { state: input.state, inputs: input.inputs, statementVersion: input.statementVersion,
     ...(input.details && input.state !== "declined" ? { details: applicationDetailsFor(input.state, input.details) } : {}),
     email: input.email.toLowerCase(), company: input.company.company, submittedBy: input.submittedBy,

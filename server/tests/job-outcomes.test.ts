@@ -238,7 +238,9 @@ describe("signed links", () => {
     expect(verifyJobOutcomeToken(`${swapped}.${signature}`)).toBeNull();
     const state = Buffer.from(Buffer.from(payload, "base64url").toString().replace("quote_given", "installed")).toString("base64url");
     expect(verifyJobOutcomeToken(`${state}.${signature}`)).toBeNull();
-    expect(verifyJobOutcomeToken(`${payload}.${signature.slice(0, -2)}AA`)).toBeNull();
+    // Always a different signature: replacing the end with "AA" was no change at all when it already ended so (about one
+    // run in 4,096 failed, stress test 2026-11-27).
+    expect(verifyJobOutcomeToken(`${payload}.${signature.slice(0, -1)}${signature.endsWith("A") ? "B" : "A"}`)).toBeNull();
     expect(verifyJobOutcomeToken(`${payload}.`)).toBeNull();
     expect(verifyJobOutcomeToken("")).toBeNull();
   });

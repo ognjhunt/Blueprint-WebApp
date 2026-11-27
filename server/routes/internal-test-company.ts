@@ -32,7 +32,7 @@ import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
-import { COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, companyResponseNeedsNote }
+import { COMPANY_RESPONSE_STATEMENT_VERSION, COMPANY_RESPONSE_STATES, FIT_RESPONSE_STATES, companyResponseNeedsNote }
   from "../../client/src/lib/companyResponses";
 import { companyAnswerDetailsSchema, recordCompanyAnswer } from "../utils/companyAnswer";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
@@ -128,7 +128,8 @@ router.post("/test-company/send", rateLimiter, requirePipelineSignature, async (
   }
 });
 
-const answerSchema = z.object({ job_id: JOB_ID, state: z.enum(COMPANY_RESPONSE_STATES), inputs: z.string().trim().max(2000).default(""),
+// The answers a company can give, as the company route takes them: never a tested one (owner, 2026-11-25).
+const answerSchema = z.object({ job_id: JOB_ID, state: z.enum(COMPANY_RESPONSE_STATES).refine(state => FIT_RESPONSE_STATES.includes(state)), inputs: z.string().trim().max(2000).default(""),
   details: companyAnswerDetailsSchema.optional() }).strict();
 
 router.post("/test-company/answer", rateLimiter, requirePipelineSignature, async (req: Request, res: Response) => {

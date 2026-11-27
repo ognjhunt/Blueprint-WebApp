@@ -302,6 +302,24 @@ describe("composeSiteAnswer", () => {
     expect(answer).toMatchObject({ state: "cannot_assess", reason: "The video did not show the job clearly enough for us to size it." });
   });
 
+  // Stress test, 2026-11-27: a walkthrough of an empty flat for "Mop the hard floors …" found nothing to size and no kind,
+  // and the site was told its video did not show the job clearly enough, with a button for a new video.
+  it("says a cleaning job is cleaning, not that the video was unclear, when nothing could be sized", () => {
+    const empty = { object: null, object_largest_side_m: null, object_mass_kg_low: null, object_mass_kg_high: null, pick_to_place_m: null };
+    const cleaning = "From your description, the job is cleaning, which we can't check robots against yet: the first look checks only picking up and putting down. If that is not right, edit the job description to say what the robot should do, and we will read the video again.";
+    for (const summary of ["Mop the hard floors in the kitchen, living room and hallway of the empty unit after each move-out.",
+      "Wipe down the tables after each service.", "Floor cleaning in the lobby every night."])
+      expect(compose({ brief: { requestId: "job-1", summary }, estimates: estimates(empty) }), summary)
+        .toMatchObject({ state: "cannot_assess", headline: "We can't check robots against this job yet.", reason: cleaning, pick: null });
+    // A job that moves clean things is still sized from the video, and an unsized one still asks for a new video.
+    expect(compose({ brief: { requestId: "job-1", summary: "Move clean towels to the shelves" }, estimates: estimates(empty) }))
+      .toMatchObject({ state: "cannot_assess", reason: "The video did not show the job clearly enough for us to size it." });
+    // Where the reading named a kind, the video's reading stands.
+    expect(compose({ brief: { requestId: "job-1", summary: "Mop the floor, then put the mop in the bucket" },
+      estimates: estimates({ ...empty, job_kind: "pick_and_place" }) }))
+      .toMatchObject({ state: "cannot_assess", reason: "The video did not show the job clearly enough for us to size it." });
+  });
+
   it("is reading while the video is being read and the site gave no number", () => {
     const answer = compose({ estimates: null, request: { capture_coverage: null }, brief: { requestId: "job-1", summary: "Your site task" } });
     expect(answer).toMatchObject({ state: "reading", headline: "We are reading your video. Your first look will appear here.", pick: null });
