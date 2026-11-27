@@ -23,7 +23,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 });
 
 const { projectWebsiteTaskContext, confirmationParentContextDigests, taskContextSiteIdentity, manifestTaskDescription,
-  TASK_CONTEXT_IDENTITY_FIELD } = await import("../utils/websiteTaskContext");
+  TASK_CONTEXT_AS_WRITTEN_FIELD, TASK_CONTEXT_IDENTITY_FIELD } = await import("../utils/websiteTaskContext");
 const { projectWebsiteCaptureRights } = await import("../utils/websiteCaptureRights");
 
 /** The projection on origin/main (6d7351517), before the rule, on the fixtures: its exact JSON and digest. */
@@ -117,6 +117,23 @@ describe("a job created under the rule", () => {
     expect(confirmationParentContextDigests(confirmed, rights, { siteIdentity, purpose: "scene_preparation" }))
       .toContain(parent.context_digest);
     expect(JSON.stringify([parent, successor])).not.toMatch(/Zorblax/i);
+  });
+
+  // Stress test, 2026-11-27: a sentence that had something removed reached the Pipeline in the folded form the removal
+  // reads, every accent and Japanese voicing mark dropped. A job created from then on carries
+  // `TASK_CONTEXT_AS_WRITTEN_FIELD`, and its kept words go as the site wrote them; an earlier job keeps its folded text.
+  it("sends a new job's kept words as written once something is removed; an earlier job keeps its folded text", async () => {
+    const french = { ...F.PLAIN_BRIEF, summary: "Déplacez la lampe vers l'étagère en verre. Appelez Thaddeus au +1 (628) 555-0199." };
+    const japanese = { ...F.PLAIN_BRIEF, summary: "ランプを壁のガラス棚に移動してください。+1 (628) 555-0199" };
+    const asWrittenJob = await taskContextSiteIdentity({ ...NEW_JOB, [TASK_CONTEXT_AS_WRITTEN_FIELD]: true });
+    const foldedJob = await taskContextSiteIdentity(NEW_JOB);
+    const description = (brief: typeof F.PLAIN_BRIEF, siteIdentity: unknown) =>
+      projectWebsiteTaskContext(brief, rights, { siteIdentity: siteIdentity as never }).description;
+    expect(description(french, asWrittenJob)).toBe("Déplacez la lampe vers l'étagère en verre. Appelez the site au [removed].");
+    expect(description(japanese, asWrittenJob)).toBe("ランプを壁のガラス棚に移動してください。[removed]");
+    expect(description(french, foldedJob)).toBe("Deplacez la lampe vers l'etagere en verre. Appelez the site au [removed].");
+    // A text with nothing to remove goes as typed for both, byte for byte.
+    expect(description(F.FOLDABLE_BRIEF, asWrittenJob)).toBe(F.FOLDABLE_BRIEF.summary);
   });
 
   it("a text that was nothing but the site's identity reads [removed], never empty (the Pipeline needs a description)", async () => {

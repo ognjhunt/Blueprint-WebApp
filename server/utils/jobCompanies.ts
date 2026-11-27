@@ -51,7 +51,7 @@ import { projectWebsiteCaptureRights } from "./websiteCaptureRights";
 import type { AdminJobCompanies } from "../../client/src/types/jobCompanies";
 export type { AdminJobCompanies };
 import { operatorListingHold } from "./operatorListing";
-import { REMOVED, removeIdentifyingDetails, removeNamesNotHeld, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
+import { REMOVED, asWritten, removeIdentifyingDetails, type KnownSiteIdentity } from "../../client/src/lib/contactRedaction";
 import { applicantNameHoldsContactDetails, applicantWebsiteOrigin } from "../../client/src/lib/companyApplicant";
 import { COMPANY_JOB_VIEWS_COLLECTION } from "./companyJobViews";
 import { clarificationOnReply, questionOnReply } from "./jobClarifications";
@@ -384,8 +384,8 @@ export function answerWordsMayReachSite(answer: Data | null | undefined): boolea
 /**
  * The deterministic pass over a company's words for the site, or null: its words about its answer with its known
  * identity taken out (each name, and each word of its person's name written with a capital, becomes "the company";
- * emails, phone numbers, websites and links become "[removed]"), then any other person- or business-shaped name
- * (`removeNamesNotHeld`: "Dana Whitfield", "Mr. Smith"). Null when the words may not reach the site
+ * emails, phone numbers, websites and links become "[removed]"); any other person's or business's name is the model
+ * pass's to judge (owner, 2026-11-27). Null when the words may not reach the site
  * (`answerWordsMayReachSite`), when there are none, when nothing worth reading is left once the details are out, or
  * when the removal fails: the site's page then says so plainly (`NO_REASON_SHOWN`). What the site reads is this, the
  * model pass over it and this again (`companyWordsForSite`).
@@ -396,7 +396,8 @@ export function siteReasonOf(answer: Data | null | undefined, identity: KnownSit
   if (!words) return null;
   try {
     // A web address whose host was taken out leaves no path behind ("[removed]/contact" is "[removed]").
-    const shown = removeNamesNotHeld(removeIdentifyingDetails(words, identity, { nameAs: "company" }))
+    // A name the record does not hold is the model pass's to judge before the site reads it (owner, 2026-11-27).
+    const shown = asWritten(words, removeIdentifyingDetails(words, identity, { nameAs: "company" }))
       .replace(/\[removed\]\/\S*?(?=[.,;:!?)]*(?:\s|$))/g, REMOVED).trim();
     const left = shown.split(REMOVED).join(" ").replace(/\bthe company\b/gi, " ").replace(/[^\p{L}\p{N}]+/gu, "");
     return left.length >= 3 ? shown : null;

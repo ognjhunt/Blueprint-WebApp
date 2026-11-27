@@ -132,11 +132,12 @@ describe("the packet facts as a company reads them", () => {
   it("leaves out a line with a name the record does not hold, and one the model pass takes a piece out of", () => {
     const planted = facts({ object: [line("Object: produce crate."), line("Goes to: Dana Whitfield's returns cart."),
       line("Starts: on the harbor fresh foods pallet."), line("Starts: about 54 cm above the floor.")], measured: [], estimated: [] });
-    const pass = modelPass(["harbor fresh foods"]);
+    // Since 2026-11-27 (owner) a name the record does not hold is the model pass's to judge, in every line alike.
+    const pass = modelPass(["harbor fresh foods", "Dana Whitfield's"]);
     const page = packetFactsForCompany(status.packetFactsSchema.parse(planted), null, nobody, pass);
     expect(page.packetFacts).toEqual({ object: ["Object: produce crate.", "Starts: about 54 cm above the floor."], measured: [], estimated: [] });
-    // One pass for the whole set, without the line the name pass already left out.
-    expect(pass.read).toEqual(["Object: produce crate.\nStarts: on the harbor fresh foods pallet.\nStarts: about 54 cm above the floor."]);
+    // One pass for the whole set.
+    expect(pass.read).toEqual(["Object: produce crate.\nGoes to: Dana Whitfield's returns cart.\nStarts: on the harbor fresh foods pallet.\nStarts: about 54 cm above the floor."]);
   });
 
   it("reads Blueprint's own name to the model pass as a phrase it leaves alone, and shows the line as written", () => {

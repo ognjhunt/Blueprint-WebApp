@@ -7,7 +7,9 @@
  * verified and what a visit must confirm):
  *
  * 1. The deterministic pass (`client/src/lib/contactRedaction.ts`): the writer's own identity the website holds, street
- *    and place forms, emails, phone numbers, links, handles, and name-shaped words.
+ *    and place forms, emails, phone numbers, links and handles. Name-shaped words the record does not hold are left to
+ *    step 2 (owner, 2026-11-27: a capitalised word inside a sentence was taken out as a name, which left a German
+ *    sentence, whose nouns are all capitalised, unreadable); the words kept read as written (`asWritten`).
  * 2. This pass: the `free_text_redaction` lane reads what step 1 left and points at the pieces still naming or locating
  *    a person or a business. Plain code replaces each piece it finds in the text with "[removed]" and ignores the rest,
  *    so the model can only take words out, never add or change any (`applyRemovals`).
@@ -29,7 +31,7 @@
  */
 import { createHash, randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { REMOVED, capitalisedWordsAfterFirst, removeIdentifyingDetails, removeNamesNotHeld, type KnownSiteIdentity }
+import { REMOVED, asWritten, capitalisedWordsAfterFirst, foldedForPatterns, removeIdentifyingDetails, type KnownSiteIdentity }
   from "../../client/src/lib/contactRedaction";
 import { logger } from "../logger";
 
@@ -197,8 +199,11 @@ const INSTRUCTION_TO_A_MODEL: readonly RegExp[] = [
 /** A word in a script other than Latin: the deterministic pass reads no name in it, so only the model pass can. */
 const NON_LATIN_WORD = /(?![\p{Script=Latin}])\p{L}/u;
 
-/** The text as the distrust rules read it: placeholders out of the way. */
-const distrustForm = (text: string) => text.split(REMOVED).join(" ").replace(/\b[Tt]he (?:site|company)\b/g, "the");
+/** The text as the distrust rules read it: folded as every pattern reads it (look-alikes, circled and full-width
+ * letters plain, marks and invisible characters dropped), so a name or an instruction written with them still reads as
+ * one (a review of PR #1467: "D\u034Fana W\u034Fhitfield" and "Ⓓⓐⓝⓐ" had a first empty answer trusted), and
+ * placeholders out of the way. */
+const distrustForm = (text: string) => foldedForPatterns(text).split(REMOVED).join(" ").replace(/\b[Tt]he (?:site|company)\b/g, "the");
 
 /**
  * The words of a text that may still name someone and that only the model pass can judge (stress test round 2,
@@ -221,7 +226,9 @@ export function wordsToConfirm(text: string): string[] {
  */
 export function emptyAnswerDistrust(text: string): "instruction" | "unconfirmed" | null {
   const plain = distrustForm(text);
-  if (INSTRUCTION_TO_A_MODEL.some(pattern => pattern.test(plain)) || /@/.test(plain)
+  // The folded form drops accents, so a pattern written with them ("ningún nombre") reads the text as written too (a
+  // second review of PR #1467).
+  if (INSTRUCTION_TO_A_MODEL.some(pattern => pattern.test(plain) || pattern.test(text.normalize("NFC"))) || /@/.test(plain)
     || /\b(?:at|@)\s+[\p{L}\p{N}-]+(?:\s+[\p{L}\p{N}-]+){0,3}\s+(?:dot|\.)\s+[\p{L}]{2,}\b/iu.test(plain)) return "instruction";
   return capitalisedWordsAfterFirst(plain).length > 0 || NON_LATIN_WORD.test(plain) ? "unconfirmed" : null;
 }
@@ -542,7 +549,11 @@ const NO_IDENTITY: KnownSiteIdentity = { names: [], addresses: [], contacts: [] 
 
 /** The deterministic pass over a site's own words for a company: its known identity, then name-shaped text. */
 export function siteWordsDeterministic(text: string, known: KnownSiteIdentity): string {
-  return removeNamesNotHeld(removeIdentifyingDetails(text, known));
+  // What the record holds of the site and every contact-shaped piece (`removeIdentifyingDetails`), made on the folded
+  // form; the words kept read as the site wrote them (`asWritten`). A name the record does not hold is the model pass's
+  // to judge, in every language (owner, 2026-11-27): the name-shape pass (`removeNamesNotHeld`) took out every
+  // capitalised word inside a sentence, which left a German sentence, whose nouns are all capitalised, as "[removed]".
+  return asWritten(text, removeIdentifyingDetails(text, known));
 }
 
 /** Words as the other side may read them: shown, not ready yet, or held at a limit (`ScreeningLimit`). */

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { COMPANY_RESPONSE_STATEMENT_VERSIONS, COMPANY_QUESTION_LIMIT, SITE_CLARIFICATION_LIMIT,
   isCompanyResponseState } from "../../client/src/lib/companyResponses";
-import { REMOVED, removeIdentifyingDetails, removeNamesNotHeld } from "../../client/src/lib/contactRedaction";
+import { REMOVED, asWritten, removeIdentifyingDetails } from "../../client/src/lib/contactRedaction";
 import { type OutboxEntry } from "./captureOutbox";
 import { companyMayActOnJob, companyMaySeeJobs } from "./companyTerms";
 import { internalTestPairAccessOptions, isInternalTestCompanyRow } from "./internalTestCompany";
@@ -75,7 +75,8 @@ export async function answerCompanyQuestion(input: { jobId: string; alias: strin
     known = await knownSiteIdentity(record);
     const existing = clarificationOnReply(reply, question.id);
     if (existing) return { status: "saved", answer: existing } as const;
-    const sanitized = removeNamesNotHeld(removeIdentifyingDetails(input.answer, known))
+    // A name the record does not hold is the model pass's to judge before the company reads it (owner, 2026-11-27).
+    const sanitized = asWritten(input.answer, removeIdentifyingDetails(input.answer, known))
       .trim().slice(0, SITE_CLARIFICATION_LIMIT);
     if (sanitized.split(REMOVED).join("").replace(/\bthe site\b/gi, "").replace(/[^\p{L}\p{N}]+/gu, "").length < 2)
       // A reply that was only contact details ("612 345 678") is said so: the company would read nothing of it.

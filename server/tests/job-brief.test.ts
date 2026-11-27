@@ -163,6 +163,24 @@ describe("writing the brief", () => {
     expect(record()).not.toHaveProperty("job_brief");
   });
 
+  // Stress test, 2026-11-27: "Mop the hard floors …" was filmed as a walkthrough of the empty flat; the reading named no
+  // kind and no object, so the job never got a brief and At a glance stayed the catalog's rows. A reading that ran and
+  // found nothing still lets the brief be written from the site's own words; before any reading it still waits.
+  it("writes the brief from the site's words when the reading ran and found nothing, and waits for a reading", async () => {
+    const { ensureJobBrief, jobBriefOfRecord } = await import("../utils/jobBrief");
+    const nothing = { object: null, job_kind: null, other_actions: [], other_items_likely: [], basis: "doorways" };
+    const brief = () => state.docs.get(`siteTaskBriefs/${ID}`) as never;
+    state.docs.set(`inboundRequests/${ID}`, job({ walkthrough_job_estimates: null }));
+    expect(jobBriefOfRecord(record(), brief()).wanted).toBe(false);
+    state.docs.set(`inboundRequests/${ID}`, job({ walkthrough_job_estimates: { capture_id: `walkthrough-${ID}`,
+      job_estimates: nothing, reviewed_at_iso: "2026-11-25T09:00:00.000Z" } }));
+    expect(jobBriefOfRecord(record(), brief()).wanted).toBe(true);
+    await scripted([LAMP_ROWS[1], LAMP_ROWS[2], LAMP_ROWS[3]]);
+    expect(await ensureJobBrief(ID)).not.toBeNull();
+    expect(inputs.at(-1)!.reading).toMatchObject({ kind: null, object: null, others: [] });
+    expect(inputs.at(-1)!.sentence).toContain("round bedside table");
+  });
+
   it("starts no run when the job's spending cap leaves no room, and says so on the claim", async () => {
     await scripted();
     patch({ website_preparation_reservations: { a: { admission: { maximum_cost_usd: 40 } } } });
@@ -311,13 +329,15 @@ describe("what a company reads of the brief", () => {
       .toContain("From table to shelf");
   });
 
-  it("leaves out a label whose inner capitals read as a name, as every word a model read from the site is", async () => {
+  // Since 2026-11-27 (owner) a capitalised word is not taken for a name before the model pass: a label the model pass
+  // keeps whole is shown as written, inner capitals and all; one it takes a piece out of is left out (below).
+  it("shows a label with inner capitals once the model pass keeps it, as every word a model read from the site", async () => {
     const { companyFitSummary } = await import("../utils/companyJobPage");
     const { screeningsFrom } = await import("../utils/freeTextScreening");
     const everything = { ...screeningsFrom(new Map()), stateOf: (_writer: string, text: string) => ({ state: "shown" as const, text }) };
     const titled = [{ ...ROWS[0], label: "Lamp Size and Weight" }, ROWS[1], ROWS[2], ROWS[3]];
     expect(companyFitSummary(input(titled), known, everything as never).map(row => row.label))
-      .toEqual(["Object", "From table to shelf", "How often it is moved", "Hours a day"]);
+      .toEqual(["Object", "Lamp Size and Weight", "From table to shelf", "How often it is moved", "Hours a day"]);
   });
 
   it("never shows a label, quote or choice that names the site, and never without the site's identity", async () => {

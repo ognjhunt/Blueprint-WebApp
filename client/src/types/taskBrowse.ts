@@ -231,8 +231,8 @@ export interface CompanyJobPage {
   headlineFacts: string[];
   taskFamily: string;
   publishedAtIso: string;
-  /** The site's own sentence for the job, without its name, address, contact details or any other name-shaped text
-   * (`removeIdentifyingDetails`, `removeNamesNotHeld`, the model pass, then both again). Empty until the model pass has
+  /** The site's own sentence for the job, without its name, address, contact details or any other name
+   * (`removeIdentifyingDetails`, the model pass, which judges a name the record does not hold, then the first again). Empty until the model pass has
    * succeeded for it (`server/utils/freeTextScreening.ts`). */
   sentence: string;
   /** The site's stated success criteria with identifying details removed. */

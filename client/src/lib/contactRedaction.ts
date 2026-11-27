@@ -131,7 +131,15 @@ const SOCIAL_HANDLE = new RegExp(`((?<![\\p{L}\\p{N}])(?:${SOCIAL_NETWORK})(?:\\
  * seven letters or digits, three of them letters at least; without it, the same in capital letters ("800-FLOWERS"). A
  * hyphenated word after it ("300-CARTONS-PER-HOUR") makes it not one.
  */
-const VANITY_PHONE = /(?<![\p{L}\p{N}])(?:\+?1[\s.-]?\(?[2-9]\d{2}\)?[\s.-]?(?=(?:[0-9-]*[A-Za-z]){3})[A-Za-z0-9]{3}-?[A-Za-z0-9]{4}|\(?[2-9]\d{2}\)?[\s.-]?(?=(?:[0-9-]*[A-Z]){3})[A-Z0-9]{3}-?[A-Z0-9]{4})(?![\p{L}\p{N}]|-[\p{L}\p{N}])/gu;
+// Letters in small case count only after a "+1", a "1-" or "1." with a separator after the area code too, an area code
+// in brackets, or a toll-free code just after a word that calls ("+1 800 flowers", "1-800-flowers", "(800) got-junk",
+// "Call 1800 flowers"); in capitals after an optional "1" ("1-800-FLOWERS", "800-FLOWERS"). Reviews of PR #1467: "Move
+// 1500 cartons a day" read as "1", "500" and "cartons", and "1 500 cartons" is how French writes a count.
+const VANITY_LETTERS = "(?=(?:[0-9-]*[A-Za-z]){3})[A-Za-z0-9]{3}-?[A-Za-z0-9]{4}";
+const CALL_WORD = String.raw`(?<=\b(?:[Cc]all|CALL|[Pp]hone|PHONE|[Rr]ing|[Tt]ext|[Dd]ial|[Tt]el|[Ff]ax|[Rr]each|[Cc]ontact)\b[^.!?\n]{0,12})`;
+const VANITY_PHONE = new RegExp(String.raw`(?<![\p{L}\p{N}])(?:(?:\+1[\s.-]?\(?[2-9]\d{2}\)?[\s.-]?|1[.-]\(?[2-9]\d{2}\)?[.-]`
+  + String.raw`|\([2-9]\d{2}\)[\s.-]?|${CALL_WORD}(?:1[\s.-]?)?\(?8(?:00|33|44|55|66|77|88)\)?[\s.-]?)${VANITY_LETTERS}`
+  + String.raw`|(?:1[\s.-]?)?\(?[2-9]\d{2}\)?[\s.-]?(?=(?:[0-9-]*[A-Z]){3})[A-Z0-9]{3}-?[A-Z0-9]{4})(?![\p{L}\p{N}]|-[\p{L}\p{N}])`, "gu");
 
 /** A digit as a word, and a run of digits and digit words: a phone number may be spelled out ("four one five, five five
  * five, zero one nine nine"). */
@@ -224,6 +232,187 @@ const COUNTRY_WORDS = new Set(["us", "usa", "u.s.", "u.s.a.", "united states", "
 function fold(text: string): string {
   return text.normalize("NFKC").replace(ZERO_WIDTH, "").normalize("NFKD").replace(/\p{M}+/gu, "").normalize("NFC");
 }
+
+/* ------------------------------------------------------- the kept words as written (stress test, 2026-11-27) */
+
+/** The form every pattern reads (`removeIdentifyingDetails`): what its output was built from. */
+function matchingForm(text: string, rules: RedactionRules): string {
+  return widened(rules) ? patternForm(fold(text), rules) : fold(text);
+}
+
+const GRAPHEMES = typeof Intl !== "undefined" && typeof (Intl as { Segmenter?: unknown }).Segmenter === "function"
+  ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : null;
+/** A word (letters, digits and their marks), a run of spaces, or one other character. */
+const TOKEN = /[\p{L}\p{N}\p{M}]+|\s+|[^\p{L}\p{N}\p{M}\s]/gu;
+
+/** Each token's text and its span in code points. */
+function tokens(text: string): Array<{ text: string; start: number; end: number }> {
+  const out: Array<{ text: string; start: number; end: number }> = [];
+  let at = 0;
+  for (const match of text.matchAll(TOKEN)) {
+    const length = [...match[0]].length;
+    out.push({ text: match[0], start: at, end: at + length });
+    at += length;
+  }
+  return out;
+}
+
+/**
+ * The shortest edit from `a` to `b` (Myers), as runs: `=` kept (a's indices), `-` dropped from `a`, `+` added from `b`
+ * (b's indices). Equal items are compared as strings.
+ */
+function editRuns(a: readonly string[], b: readonly string[]): Array<{ op: "=" | "-" | "+"; from: number; to: number }> {
+  const n = a.length, m = b.length, max = n + m, offset = max + 1;
+  // Each round keeps only the window of diagonals it reads (2d + 3 values), so memory grows with the edits squared,
+  // not with the edits times the length (a review of PR #1467: a 2,000-character text of emails took about 50 MB).
+  const trace: Int32Array[] = [];
+  const v = new Int32Array(2 * max + 3);
+  let found = false;
+  for (let d = 0; d <= max && !found; d += 1) {
+    trace.push(v.slice(offset - d - 1, offset + d + 2));
+    for (let k = -d; k <= d; k += 2) {
+      let x = k === -d || (k !== d && v[offset + k - 1] < v[offset + k + 1]) ? v[offset + k + 1] : v[offset + k - 1] + 1;
+      let y = x - k;
+      while (x < n && y < m && a[x] === b[y]) { x += 1; y += 1; }
+      v[offset + k] = x;
+      if (x >= n && y >= m) { found = true; break; }
+    }
+  }
+  const steps: Array<{ op: "=" | "-" | "+"; index: number }> = [];
+  let x = n, y = m;
+  for (let d = trace.length - 1; d >= 0 && (x > 0 || y > 0); d -= 1) {
+    const window = trace[d], at = (k: number) => window[k + d + 1], k = x - y;
+    const prevK = k === -d || (k !== d && at(k - 1) < at(k + 1)) ? k + 1 : k - 1;
+    const prevX = at(prevK), prevY = prevX - prevK;
+    while (x > prevX && y > prevY) { x -= 1; y -= 1; steps.push({ op: "=", index: x }); }
+    if (d > 0) {
+      if (x === prevX) { y -= 1; steps.push({ op: "+", index: y }); } else { x -= 1; steps.push({ op: "-", index: x }); }
+    }
+  }
+  steps.reverse();
+  const runs: Array<{ op: "=" | "-" | "+"; from: number; to: number }> = [];
+  for (const step of steps) {
+    const last = runs[runs.length - 1];
+    if (last && last.op === step.op && last.to === step.index) last.to += 1;
+    else runs.push({ op: step.op, from: step.index, to: step.index + 1 });
+  }
+  return runs;
+}
+
+/**
+ * The redacted text with every word it kept written as the writer wrote it (stress test, 2026-11-27: "l'étagère"
+ * reached a company as "l'etagere", and "ガラス棚", a glass shelf, as "カラス棚", a crow shelf). The patterns read a folded
+ * form (`fold`, `patternForm`: accents and other marks dropped, look-alikes and digits plain) and each removal is made
+ * there, as before; this changes no removal. Only a word the redaction kept unchanged, matched word for word against
+ * the folded original, takes the writer's own characters back, still without zero-width characters; everything it
+ * added ("[removed]", "the site") and every word it changed stays as it made them. Any text whose folded form is not
+ * the sum of its characters' (no grapheme segmenter, or a composition across characters) is returned as redacted.
+ */
+export function asWritten(original: string, redacted: string, rules: RedactionRules = CURRENT_REDACTION_RULES): string {
+  if (!GRAPHEMES || !redacted) return redacted;
+  const clusters = [...GRAPHEMES.segment(original)].map(part => part.segment);
+  const forms = clusters.map(cluster => matchingForm(cluster, rules));
+  const matched = matchingForm(original, rules);
+  if (forms.join("") !== matched) return redacted;
+  if (matched === redacted) return clusters.map(restored).join("").normalize("NFC");
+  // Where each cluster's form starts and ends, in code points of `matched`.
+  const starts: number[] = [], ends: number[] = [];
+  let at = 0;
+  for (const form of forms) { starts.push(at); at += [...form].length; ends.push(at); }
+  const points = [...matched];
+  const asOriginal = (from: number, to: number): string => {
+    let out = "";
+    for (let k = 0; k < clusters.length; k += 1) {
+      if (ends[k] <= from || starts[k] >= to) continue;
+      out += starts[k] >= from && ends[k] <= to ? restored(clusters[k])
+        : points.slice(Math.max(from, starts[k]), Math.min(to, ends[k])).join("");
+    }
+    return out;
+  };
+  const before = tokens(matched), after = tokens(redacted);
+  // A kept word is given the writer's characters only when every word that folds to it was written the same way: a
+  // diff may line a kept word up with the same folded word inside a removed span, and would then show that removed
+  // word's own characters (a review of PR #1467: "12 गांधी Street, गधा" showed the removed street name, "12 Müller
+  // Street Muller" showed "Müller"). Where the writer wrote them differently, it stays in the folded form, as before.
+  const written = new Map<string, string | null>();
+  for (const token of before) {
+    const form = asOriginal(token.start, token.end), seen = written.get(token.text);
+    written.set(token.text, seen === undefined || seen === form ? form : null);
+  }
+  // The words both ends share need no diff: most of a text is kept, and the diff's work grows with what is left.
+  let head = 0;
+  while (head < before.length && head < after.length && before[head].text === after[head].text) head += 1;
+  let tail = 0;
+  while (tail < before.length - head && tail < after.length - head
+    && before[before.length - 1 - tail].text === after[after.length - 1 - tail].text) tail += 1;
+  const middleBefore = before.slice(head, before.length - tail), middleAfter = after.slice(head, after.length - tail);
+  const runs = editRuns(middleBefore.map(token => token.text), middleAfter.map(token => token.text));
+  // A removal may start or end inside a word and leave a piece of it ("Streetカラス" leaves "カラス"), or join two pieces
+  // ("カat" and "Streetラス" leave "カラス"); the diff can then line that piece up with the same folded word inside the
+  // removed span ("ガラス"), whose characters it would show (second and third reviews of PR #1467). A kept word that may
+  // be such a piece stays in the folded form: the start of a dropped word, its end, a start and an end joined, or (three
+  // characters or more) any part of one.
+  const dropped = [...new Set(runs.filter(run => run.op === "-")
+    .flatMap(run => middleBefore.slice(run.from, run.to).map(token => token.text)).filter(text => /[\p{L}\p{N}]/u.test(text)))];
+  const startsDropped = (part: string) => dropped.some(word => word.length > part.length && word.startsWith(part));
+  const endsDropped = (part: string) => dropped.some(word => word.length > part.length && word.endsWith(part));
+  const piece = (text: string): boolean => {
+    if (!/[\p{L}\p{N}]/u.test(text)) return false;
+    if (startsDropped(text) || endsDropped(text)) return true;
+    if ([...text].length >= 3 && dropped.some(word => word !== text && word.includes(text))) return true;
+    const points = [...text];
+    for (let k = 1; k < points.length; k += 1)
+      if (startsDropped(points.slice(0, k).join("")) && endsDropped(points.slice(k).join(""))) return true;
+    return false;
+  };
+  const insideDropped = new Map<string, boolean>();
+  const keep = (token: { text: string }) => {
+    // A word the redaction writes may stand where a removed name was ("Thé" folds to "The", as in "The site"): it is
+    // never given a writer's characters (a review of PR #1467).
+    if (WRITTEN_WORDS.has(token.text)) return token.text;
+    let inside = insideDropped.get(token.text);
+    if (inside === undefined) {
+      inside = piece(token.text);
+      insideDropped.set(token.text, inside);
+    }
+    return inside ? token.text : written.get(token.text) ?? token.text;
+  };
+  let out = before.slice(0, head).map(keep).join("");
+  for (const run of runs) {
+    if (run.op === "+") out += middleAfter.slice(run.from, run.to).map(token => token.text).join("");
+    else if (run.op === "=") out += middleBefore.slice(run.from, run.to).map(keep).join("");
+  }
+  out += before.slice(before.length - tail).map(keep).join("");
+  return out.normalize("NFC");
+}
+
+/**
+ * A cluster without the characters that show nothing and can hide a word from a pattern or a model: format characters
+ * (zero-width spaces and joiners, soft hyphens, invisible operators, bidirectional controls), the combining grapheme
+ * joiner and variation selectors (a review of PR #1467: "D\u034Fana" or a variation selector after each letter kept a
+ * name from reading as one). Accents and every other mark that changes a letter stay.
+ */
+function visible(cluster: string): string {
+  return cluster.replace(/[\p{Cf}\u034F\u0334-\u0338\uFE00-\uFE0F\u180B-\u180F]|\uDB40[\uDD00-\uDDEF]/gu, "");
+}
+
+/**
+ * A cluster as a kept word gives it back: its letters with their own accents and marks (canonical forms: "é", "ガ"), but
+ * look-alike forms plain (compatibility forms: circled, full-width, squared, superscript and modifier letters, ligatures:
+ * "Ⓓ" is "D", "ﬁ" is "fi"), and nothing invisible. A look-alike form says nothing a plain letter does not, and can
+ * hide a word from a pattern or a model.
+ */
+function restored(cluster: string): string {
+  return visible(cluster.normalize("NFKC"));
+}
+
+/** The text as every pattern of the current rules reads it: what the model pass's distrust rules read too. */
+export function foldedForPatterns(text: string): string {
+  return matchingForm(text, CURRENT_REDACTION_RULES);
+}
+
+/** The words the redaction itself writes: "[removed]" and "the site" or "the company", in either case. */
+const WRITTEN_WORDS: ReadonlySet<string> = new Set(["removed", "the", "The", "THE", "site", "Site", "company", "Company"]);
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -382,16 +571,137 @@ const ROADS = new RegExp(`(?<![\\p{L}\\p{N}])(?:(?:${anyCase("state")}\\s+|${any
 const PO_BOX = /(?<![\p{L}\p{N}])(?:P\.?\s?O\.?\s?Box|Post\s+Office\s+Box)\s*(?:No\.?\s*)?#?\s*\d{1,8}(?![\p{L}\p{N}])/giu;
 const US_STATES = "AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND"
   + "|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC";
+const US_STATE_NAMES = "Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho"
+  + "|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri"
+  + "|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon"
+  + "|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia"
+  + "|Wisconsin|Wyoming";
+/**
+ * Count and unit words, as the patterns read them (accents folded), in the languages sites write most. After a number
+ * they make it a quantity, not a postcode ("Halle 2, 2000 Teile", "Texas 12000 units", "Station 3, 1200 Totes"), and
+ * one is never a street's name ("4 Boulevard Cartons"). A third review of PR #1467.
+ */
+const COUNT_WORDS: readonly string[] = [
+  // English
+  "unit", "units", "box", "boxes", "tote", "totes", "carton", "cartons", "pallet", "pallets", "bottle", "bottles", "can",
+  "cans", "bag", "bags", "part", "parts", "item", "items", "case", "cases", "cycle", "cycles", "order", "orders", "piece",
+  "pieces", "pcs", "tray", "trays", "bin", "bins", "crate", "crates", "pack", "packs", "parcel", "parcels", "sack", "sacks",
+  "roll", "rolls", "jar", "jars", "truck", "trucks", "sq", "square", "ft", "feet", "foot", "hour", "hours", "minute",
+  "minutes", "second", "seconds", "day", "days", "week", "weeks", "gram", "grams", "kilo", "kilos", "kg", "lb", "lbs",
+  "pound", "pounds", "meter", "meters", "metre", "metres", "liter", "liters", "litre", "litres", "gallon", "gallons",
+  "degree", "degrees", "shift", "shifts", "pick", "picks", "move", "moves", "load", "loads", "people", "workers", "robots",
+  "sku", "skus", "times", "per",
+  // German
+  "teil", "teile", "stuck", "stueck", "kiste", "kisten", "karton", "kartons", "palette", "paletten", "flasche", "flaschen",
+  "dose", "dosen", "sack", "sacke", "beutel", "paket", "pakete", "zyklen", "zyklus", "einheiten", "artikel", "boxen",
+  "behalter", "stunde", "stunden", "minuten", "sekunden", "tag", "tage", "woche", "wochen", "gramm", "kilogramm", "liter",
+  "grad", "schicht", "schichten", "mal", "pro",
+  // Dutch
+  "dozen", "doos", "doosjes", "stuk", "stuks", "krat", "kratten", "pakket", "pakketten", "fles", "flessen", "onderdelen",
+  "uur", "uren", "keer", "ploeg", "ploegen",
+  // Spanish and Portuguese
+  "caja", "cajas", "bolsa", "bolsas", "pieza", "piezas", "unidad", "unidades", "botella", "botellas", "paquete", "paquetes",
+  "ciclo", "ciclos", "pales", "palet", "palets", "hora", "horas", "minutos", "gramos", "litros", "metros", "turno", "turnos",
+  "veces", "caixa", "caixas", "pecas", "garrafa", "garrafas",
+  // French
+  "colis", "caisse", "caisses", "bouteille", "bouteilles", "sac", "sacs", "unite", "unites", "heure", "heures", "gramme",
+  "grammes", "fois", "equipe", "equipes",
+  // Italian
+  "pezzi", "pezzo", "scatola", "scatole", "bottiglie", "colli", "cicli", "unita", "ore", "minuti", "grammi", "litri",
+  "metri", "turni", "volte",
+];
+const anyCaseWords = (words: Iterable<string>) => [...new Set(words)].filter(word => /^\p{L}+$/u.test(word))
+  .sort((a, b) => b.length - a.length).map(anyCase).join("|");
+const COUNT_WORD = String.raw`(?:${anyCaseWords(COUNT_WORDS)})(?![\p{L}\p{N}])`;
+/** A number that a count word follows is a quantity ("12000 units"). */
+const NOT_A_COUNT = String.raw`(?![^\S\n]+${COUNT_WORD})`;
 const POSTCODES = [
   // British: the outward code, one space, a digit and two letters the inward code may hold (never C, I, K, M, O or V).
   // The space is required, so a part number ("M12AB") is not one.
   /(?<![\p{L}\p{N}])(?:[A-PR-UWYZ][A-HK-Y]?\d[A-HJKPSTUW\d]?|GIR) \d[ABD-HJLNP-UW-Z]{2}(?![\p{L}\p{N}])/gu,
   // Canadian.
   /(?<![\p{L}\p{N}])[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\s?\d[ABCEGHJ-NPRSTV-Z]\d(?![\p{L}\p{N}])/gu,
-  // A US ZIP after a state's two capital letters.
-  new RegExp(`(?<![\\p{L}\\p{N}])(?:${US_STATES})\\s+\\d{5}(?:-\\d{4})?(?![\\p{L}\\p{N}])`, "gu"),
+  // A US ZIP after a state's two capital letters, or after the state written out ("California 94501"); not a count
+  // after a state ("Texas 12000 units", a third review of PR #1467).
+  new RegExp(`(?<![\\p{L}\\p{N}])(?:${US_STATES}|${US_STATE_NAMES})\\s+\\d{5}(?:-\\d{4})?(?![\\p{L}\\p{N}])${NOT_A_COUNT}`, "gu"),
+  // Australian: a state and four digits after the town ("Fitzroy VIC 3065"). The two-letter states (ACT, NT, SA, WA)
+  // need a comma before them ("Perth, WA 6000"): after a word they are a machine's model ("the Epson SA 2000", reviews
+  // of PR #1467).
+  new RegExp(String.raw`(?:(?<=\p{Lu}[\p{L}'’-]*,?[^\S\n]+)(?:NSW|VIC|QLD|TAS)|(?<=\p{Lu}[\p{L}'’-]*,[^\S\n]*)(?:ACT|NT|SA|WA))`
+    + String.raw`[^\S\n]+\d{4}(?![\p{L}\p{N}])${NOT_A_COUNT}`, "gu"),
 ];
-const PLACE_FORMS: readonly RegExp[] = [ROADS, PO_BOX, ...POSTCODES];
+/** A continental postcode and its town ("10115 Berlin", "1012 LG Amsterdam", "60311 Frankfurt am Main"): only after a
+ * street (`EU_ADDRESS`), and never a count ("2000 Teile"). Alone it is a quantity as often as a place ("in 2000 Kisten
+ * pro Tag"), and a town and its code alone name no site. */
+const EU_TOWN = String.raw`(?!${COUNT_WORD})\p{Lu}\p{Ll}[\p{L}'’-]*(?:[^\S\n]+(?:(?:am|an|der|im|bei|sur|sous|en|de|la|le|aan|den)[^\S\n]+)?\p{Lu}[\p{L}'’-]*)?`;
+const EU_POSTCODE = String.raw`\d{4,5}(?:[^\S\n]?[A-Z]{2})?[^\S\n]+${EU_TOWN}`;
+/**
+ * A street word that starts its name, as the patterns read it (accents folded: "allée" is "allee"). French writes the
+ * number first, in either case ("12 rue de la Paix"); every one of them may come before its name and a number, with a
+ * capital ("Via Roma 10", "Calle Mayor 5"). Reviews of PR #1467: "Move totes via Dock 4", "Via Gate 2, bring pallets"
+ * and "4 Boulevard Cartons" are routes and counts, so the name is never a workplace, route or count word.
+ */
+const NUMBER_FIRST_STREET = String.raw`(?:${["rue", "avenue", "boulevard", "allee", "chemin", "impasse", "quai"]
+  .map(word => `[${word[0]}${word[0].toUpperCase()}]${word.slice(1)}`).join("|")})`;
+const ROMANCE_STREET = String.raw`(?:${["Rue", "Avenue", "Boulevard", "Allee", "Chemin", "Impasse", "Quai", "Calle", "Avenida",
+  "Plaza", "Paseo", "Carrer", "Avinguda", "Via", "Viale", "Piazza", "Corso", "Largo", "Rua", "Travessa", "Praca"].join("|")})`;
+const NOT_A_STREET_NAME = String.raw`(?!(?:${anyCaseWords([...GENERIC_NAME_WORDS, ...COUNT_WORDS, "gate", "door", "ramp", "exit",
+  "entrance", "chute", "belt", "lift", "elevator", "loading", "packing", "shipping", "receiving", "nord", "sud", "est",
+  "ouest", "norte", "sur", "este", "oeste", "ost"])})(?![\p{L}\p{N}]))`;
+const STREET_NAME = String.raw`(?:(?:de|du|des|la|le|les|del|dels|di|della|delle|dei|do|da|dos|das|d['’])[^\S\n]*){0,2}`
+  + String.raw`${NOT_A_STREET_NAME}\p{Lu}[\p{L}'’-]*(?:[^\S\n]+\p{Lu}[\p{L}'’-]*){0,3}`;
+/**
+ * Continental street addresses (reviews of PR #1467): the number before the street word ("12 rue de la Paix") or after
+ * the name ("Calle Mayor 5", "Via Roma 10"), and a German or Dutch street word joined to its name ("Hauptstraße 12",
+ * "Kerkstraat 4"). "-weg", "-gasse", "-platz", "-kade" and "-plein" are as often a workplace's spot ("Fluchtweg 3",
+ * "Regalgasse 12", "Lagerplatz 12", "Laadkade 2"): they count as a street only with a postcode after them (`EU_STREET`).
+ */
+const NUMBER_FIRST_ROMANCE = String.raw`\d{1,4}[a-z]?,?[^\S\n]+${NUMBER_FIRST_STREET}[^\S\n]+${STREET_NAME}`;
+const NAME_FIRST_ROMANCE = String.raw`${ROMANCE_STREET}[^\S\n]+${STREET_NAME},?[^\S\n]+\d{1,4}[a-z]?`;
+const GERMANIC_STREET = String.raw`\p{Lu}\p{L}*(?:straße|strasse|str\.|allee|laan|straat|gracht)[^\S\n]*\d{1,4}[a-z]?`;
+const GERMANIC_STREET_WITH_CODE = String.raw`\p{Lu}\p{L}*(?:straße|strasse|str\.|allee|laan|straat|gracht|weg|gasse|platz|kade|plein)[^\S\n]*\d{1,4}[a-z]?`;
+const CONTINENTAL_STREETS: readonly RegExp[] = [
+  new RegExp(String.raw`(?<![\p{L}\p{N}])${NUMBER_FIRST_ROMANCE}`, "gu"),
+  new RegExp(String.raw`(?<![\p{L}\p{N}])${NAME_FIRST_ROMANCE}(?![\p{L}\p{N}])`, "gu"),
+  new RegExp(String.raw`(?<![\p{L}\p{N}])${GERMANIC_STREET}(?![\p{L}\p{N}])`, "gu"),
+];
+const PLACE_FORMS: readonly RegExp[] = [ROADS, PO_BOX, ...POSTCODES, ...CONTINENTAL_STREETS];
+/**
+ * The address before a postal code: on its line, up to six comma-separated parts, each a unit ("Unit 7", "Suite 5B"), a
+ * number and capitalised words ("12 Mill Road"), capitalised words and a number ("Damrak 1"), or capitalised words with
+ * their small joining words ("Riverside Industrial Estate", "The Old Mill on the Green"), then the code
+ * ("Unit 7, Riverside Industrial Estate, Leeds LS10 1AB", "Oakland, CA 94607"): all of it becomes one "[removed]". Or up
+ * to four lines of such parts above a code on its own line, where one of them holds a number or a street word: those
+ * lines go, and the code is a place form. A postal code says the words before it are an address (owner, 2026-11-27: the
+ * capitalised-word rule that caught these parts by accident no longer runs, and a street address stays a pattern's to
+ * remove). Never across a line otherwise.
+ */
+const ADDRESS_WORD = String.raw`\p{Lu}[\p{L}'’.&-]*`;
+// No "in", "by" or "and" between them (a second review of PR #1467: "Consegna in Via Roma 10" took "Consegna in").
+const ADDRESS_WORDS = String.raw`${ADDRESS_WORD}(?:[^\S\n]+(?:(?:on|the|upon|under|of|de|la|le|du|des|del|di|da|do|van|von|der)[^\S\n]+)*${ADDRESS_WORD}){0,5}`;
+const ADDRESS_PART = String.raw`(?:(?:Unit|Suite|Ste|Floor|Fl|Building|Bldg|Block|Apt|Flat|Room)\.?[^\S\n]+#?[\p{L}\p{N}-]{1,6}`
+  + String.raw`|${NUMBER_FIRST_ROMANCE}|${NAME_FIRST_ROMANCE}`
+  + String.raw`|\d{1,6}[A-Za-z]?[^\S\n]+${ADDRESS_WORDS}|${ADDRESS_WORDS}[^\S\n]+\d{1,5}[A-Za-z]?|${ADDRESS_WORDS})`;
+const ANY_POSTCODE = String.raw`(?:${POSTCODES.map(code => code.source).join("|")})`;
+// The address and its code together become one "[removed]".
+const ADDRESS_BEFORE_POSTCODE = new RegExp(String.raw`(?<![\p{L}\p{N}])(?:${ADDRESS_PART}[^\S\n]*,[^\S\n]*){0,5}${ADDRESS_PART}`
+  + String.raw`[^\S\n]*,?[^\S\n]*${ANY_POSTCODE}`, "gu");
+const ADDRESS_LINE = String.raw`[^\S\n]*${ADDRESS_PART}(?:[^\S\n]*,[^\S\n]*${ADDRESS_PART}){0,3}[^\S\n]*,?[^\S\n]*\n`;
+const ADDRESS_LINES_BEFORE_POSTCODE = new RegExp(String.raw`^(?:${ADDRESS_LINE}){1,4}(?=[^\S\n]*${ANY_POSTCODE})`, "gmu");
+/** Lines above a code are an address only when one holds a number or a street or premises word (a second review of PR
+ * #1467: "Pick Totes" and "Scan Labels" above "CA 94607" are steps). */
+const ADDRESS_LINE_SIGN = /\p{N}|\b(?:Road|Rd|Street|St|Lane|Ln|Avenue|Ave|Way|Close|Ct|Pl|Square|Sq|Terrace|Crescent|Boulevard|Blvd|Highway|Hwy|Parkway|Pkwy|Estate|Unit|Suite|Building|Bldg|House|Centre|Center|Industrial|Business|Trading|Wharf|Mews|Gardens)\b/u;
+/**
+ * A continental address (reviews of PR #1467): a street ("Hauptstraße 12", "Alexanderplatz 1", "12 rue de la Paix", "Via
+ * Roma 10") or capitalised words and a number after a comma or a line's end ("Damrak 1, "), then a postcode and its
+ * town wherever the sentence goes on ("Damrak 1, 1012 LG Amsterdam voor de middag"), with any parts before it on its
+ * line. On its own lines, the lines above it go too only when one holds a number or a street word.
+ */
+const EU_STREET = String.raw`(?:${GERMANIC_STREET_WITH_CODE}|${NUMBER_FIRST_ROMANCE}|${NAME_FIRST_ROMANCE})`;
+const EU_STREET_AND_CODE = String.raw`(?:${EU_STREET}[^\S\n]*,?|${ADDRESS_WORDS}[^\S\n]+\d{1,4}[a-z]?[^\S\n]*,)[^\S\n]*${EU_POSTCODE}`;
+const EU_STREET_AND_CODE_LINES = String.raw`(?:${EU_STREET}|${ADDRESS_WORDS}[^\S\n]+\d{1,4}[a-z]?)[^\S\n]*,?[^\S\n]*\n[^\S\n]*${EU_POSTCODE}`;
+const EU_ADDRESS = new RegExp(String.raw`(?<![\p{L}\p{N}])(?:${ADDRESS_PART}[^\S\n]*,[^\S\n]*){0,3}${EU_STREET_AND_CODE}`, "gu");
+const EU_ADDRESS_LINES = new RegExp(String.raw`^((?:${ADDRESS_LINE}){0,3})[^\S\n]*${EU_STREET_AND_CODE_LINES}`, "gmu");
 
 /** Tidy what removal leaves: doubled spaces and commas, a space before punctuation, a comma at either end. `noun` is
  * what a held name became ("site" in "the site", or "company"). */
@@ -467,7 +777,19 @@ export function removeIdentifyingDetails(text: string, known: KnownSiteIdentity,
     if (pattern) out = out.replace(pattern, (_match: string, offset: number, whole: string) => nameAs(whole, offset));
   }
   for (const street of wide ? [...STREETS, ...ORDINAL_STREETS] : STREETS) out = out.replace(street, "");
+  if (wide) {
+    out = out.replace(EU_ADDRESS_LINES, (_match: string, above: string) => `${ADDRESS_LINE_SIGN.test(above) ? "" : above}${REMOVED}`)
+      .replace(EU_ADDRESS, REMOVED)
+      .replace(ADDRESS_LINES_BEFORE_POSTCODE, (lines: string) => ADDRESS_LINE_SIGN.test(lines) ? "" : lines)
+      .replace(ADDRESS_BEFORE_POSTCODE, REMOVED);
+  }
   if (wide) for (const form of PLACE_FORMS) out = out.replace(form, REMOVED);
+  // The comma an address left after its place word ("Ship to Oakland, CA 94607" is "Ship to [removed]").
+  if (wide) out = out.replace(/\b(to|at|in|near|on|from|into|onto|au|aux|à|en|nach|zu|op|al|para)[^\S\n]*,[^\S\n]*(?=\[removed\])/giu, "$1 ");
+  // An email's local part in any script ("ダナ@example.com"): the email pattern reads ASCII only, and left the name. It
+  // becomes one ASCII letter, so the email pattern takes the address whole and no word before it (a third review of PR
+  // #1467: "Écrivez à marie.desile@exemple.fr" lost "à").
+  if (wide) out = out.replace(/[\p{L}\p{N}\p{M}._%+-]*[^\x00-\x7F][\p{L}\p{N}\p{M}._%+-]*(?=@[\p{L}\p{N}])/gu, "x");
   out = out.replace(new RegExp(`\\bthe ${noun}(\\s+the ${noun})+\\b`, "gi"), `the ${noun}`);
   return tidy(removeContactDetails(out, rules), noun);
 }
