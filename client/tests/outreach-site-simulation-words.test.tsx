@@ -106,13 +106,16 @@ describe("step 6: the Applicants section's first line, by the server's sharing s
 });
 
 describe("step 6: the tracker while no company is approved (today's production state)", () => {
-  it("says 'Posted' done and 'Waiting for companies to open it' while the lead line says no approved company can see it", async () => {
+  it("says 'Posted' done, and 'No approved company can see it yet.' for the next step, as the lead line does", async () => {
     const { jobTrackerSteps } = await import("@/lib/jobTracker");
     const steps = jobTrackerSteps({ ...VISIBLE, noCompanyCanSee: true }, undefined);
     expect(steps.find(step => step.key === "posted")?.state).toBe("done");
-    expect(steps.find(step => step.key === "looking")).toMatchObject({ state: "current", detail: "Waiting for companies to open it" });
+    expect(steps.find(step => step.key === "looking")).toMatchObject({ state: "current", detail: "No approved company can see it yet." });
+    // Once a company may see jobs, the step waits for one to open it, as before.
+    expect(jobTrackerSteps(VISIBLE, undefined).find(step => step.key === "looking")?.detail).toBe("Waiting for companies to open it");
   });
-  it.fails("GAP: the tracker agrees with the lead line when no company is approved", async () => {
+  // Fixed 2026-11-27 (D5): this was an `it.fails` gap test.
+  it("the tracker agrees with the lead line when no company is approved", async () => {
     const { jobTrackerSteps } = await import("@/lib/jobTracker");
     const looking = jobTrackerSteps({ ...VISIBLE, noCompanyCanSee: true }, undefined).find(step => step.key === "looking");
     expect(looking?.detail).toMatch(/no approved company/i);
