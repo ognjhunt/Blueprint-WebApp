@@ -212,6 +212,16 @@ async function media(url: string, headers: Record<string, string> = {}) {
   const response = await realFetch(`${base}${url}`, { headers: { "sec-fetch-dest": "video", ...headers } });
   return { status: response.status, headers: response.headers, bytes: Buffer.from(await response.arrayBuffer()) };
 }
+/**
+ * A tested answer stored before 2026-11-25, when the form still offered it: no route records one now (owner, 2026-11-25),
+ * so a test gives the company an application through the route and then stores the tested state, as such an answer reads.
+ */
+async function storedTestedAnswer(record: { email: string }, tested: "tested_can_do" | "tested_cannot_yet") {
+  expect((await answer(record, { state: tested })).status).toBe(400);
+  expect((await answer(record)).status).toBe(200);
+  const key = `inboundRequests/${ID}/robotTeamInterest/${sha(record.email)}`;
+  state.docs.set(key, { ...(state.docs.get(key) as object), state: tested });
+}
 const sceneContentUrl = (viewerUrl: string) => new URLSearchParams(viewerUrl.split("?")[1]).get("content")!;
 
 beforeEach(async () => {
@@ -1388,7 +1398,7 @@ describe("introductions (E6) and money (E7)", () => {
 
   it("tells the site, in its Meet email, the answer the company gave", async () => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
-    expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(200);
+    await storedTestedAnswer(NORTH, "tested_can_do");
     await interested(SOUTH);
     const labels: unknown[] = [];
     const capture = (input: { answerLabel?: string | null }) => { labels.push(input.answerLabel); return { subject: "s", body: "b" }; };
@@ -1541,9 +1551,9 @@ function simulationPackage(patch: Record<string, unknown> = {}) {
 }
 
 describe("the simulation download and the tested answers (E9)", () => {
-  it("offers no download and refuses a tested answer until the job has a simulation package", async () => {
+  it("offers no download until the job has a simulation package, and refuses a tested answer", async () => {
     expect((await page()).body.item.simulationDownload).toEqual({ state: "not_finished" });
-    expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(409);
+    expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(400);
     expect(state.docs.has(`inboundRequests/${ID}/robotTeamInterest/${sha(NORTH.email)}`)).toBe(false);
   });
 
@@ -1555,7 +1565,7 @@ describe("the simulation download and the tested answers (E9)", () => {
     expect((await list()).body.items[0]).toMatchObject({ stage: "ready", evaluationAvailable: true, simulationDownloadAvailable: true });
   });
 
-  it("serves the package to the viewer's ticket only, accepts a tested answer, and introduces on tested_can_do", async () => {
+  it("serves the package to the viewer's ticket only, refuses a new tested answer, and introduces on a stored tested_can_do", async () => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
     const offered = (await page()).body.item.simulationDownload;
     const url = offered.url as string;
@@ -1567,8 +1577,9 @@ describe("the simulation download and the tested answers (E9)", () => {
     expect(download.bytes.toString()).toBe("PK-ZIP-BYTES");
     expect(download.headers.get("content-disposition")).toBe(`attachment; filename="simulation-${ZIP_VERSION}.zip"`);
     expect((await media(url.replace(/viewer=[a-f0-9]+/, `viewer=${sha(SOUTH.email)}`))).status).toBe(404);
-    expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(200);
-    expect((await answer(SOUTH, { state: "tested_cannot_yet" })).status).toBe(200);
+    // Owner, 2026-11-25: no company can give a tested answer now, with a package or without (stress test, 2026-11-27).
+    await storedTestedAnswer(NORTH, "tested_can_do");
+    await storedTestedAnswer(SOUTH, "tested_cannot_yet");
     const activity = await loadSiteCompanyActivity(ID);
     expect(activity.entries.map(entry => [entry.alias, entry.kind === "answered" && entry.state, entry.kind === "answered" && entry.canIntroduce]))
       .toEqual([["Company A", "tested_can_do", true], ["Company B", "tested_cannot_yet", false]]);
@@ -1726,7 +1737,7 @@ describe("review findings (must-fix and should-fix)", () => {
       + "give, as an estimate before a site visit, not a quote. If you apply and the site accepts, we give the site your contact "
       + "details, and give you theirs.");
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`), company_simulation: simulationPackage() });
-    expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(200);
+    await storedTestedAnswer(NORTH, "tested_can_do");
     await interested(SOUTH);
     for (const alias of ["A", "B"]) expect(await requestIntroduction({ requestId: ID, alias, actor: "site", statementVersion: INTRODUCTION_REQUEST_STATEMENT_VERSION }, { siteEmail })).toMatchObject({ ok: true });
     const bodyTo = (email: string) => outbox().find(row => row.kind === "introduction_made_company" && row.to === email)!.body as string;
@@ -2196,22 +2207,22 @@ describe("the simulation download against COMPANY_SIMULATION_CONTRACT.md section
     ready();
     const url = (await page()).body.item.simulationDownload.url as string;
     expect((await media(url.replace(/viewer=[a-f0-9]+/, `viewer=${sha(TECH.email)}`))).status).toBe(404);
-    expect((await answer(TECH, { state: "tested_can_do" })).status).toBe(403);
+    expect((await answer(TECH)).status).toBe(403);
     // A job whose recording statement does not share it (an older statement).
     patchJob({ request: { ...jobDoc().request, consent_attestation: { ...sharedRecordingGrant(), statement_version: "2026-11-11.v3" } } });
     expect((await media(url)).status).toBe(404);
     expect((await page()).status).toBe(404);
-    expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(409);
+    expect((await answer(NORTH)).status).toBe(409);
     // Withdrawn.
     patchJob({ request: { ...jobDoc().request, consent_attestation: sharedRecordingGrant() }, consent_revoked: true });
     expect((await media(url)).status).toBe(404);
   });
 
-  it("an invalid stored reference reads as not finished yet: no button and no tested answers", async () => {
+  it("an invalid stored reference reads as not finished yet: no button, and a tested answer stays refused", async () => {
     state.docs.set(`captureUploadSessions/${CAPTURE}`, { ...state.docs.get(`captureUploadSessions/${CAPTURE}`),
       company_simulation: { ...simulationPackage(), size_bytes: 600_000_000 } });
     expect((await page()).body.item.simulationDownload).toEqual({ state: "not_finished" });
-    expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(409);
+    expect((await answer(NORTH, { state: "tested_can_do" })).status).toBe(400);
   });
 });
 

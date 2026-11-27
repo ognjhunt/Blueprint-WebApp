@@ -497,6 +497,18 @@ describe("the internal test company on an internal test job, end to end", () => 
     expect(outwardEmails()).toHaveLength(3);
   });
 
+  // Stress test, 2026-11-27: this route recorded a "Tested it: can do" and the site was shown it with Accept; no company
+  // can give a tested answer now (owner, 2026-11-25), the test company included.
+  it("refuses a tested answer, as the company's own route does", async () => {
+    expect((await ensureTestCompany()).status).toBe(201);
+    const { jobId } = await createTestJob();
+    for (const state of ["tested_can_do", "tested_cannot_yet"]) {
+      const refused = await signedPost("/api/internal/pipeline/test-company/answer", { job_id: jobId, state, inputs: "Ran it in our tools." });
+      expect(refused.status, state).toBe(400);
+    }
+    expect(doc(`inboundRequests/${jobId}/robotTeamInterest/${TEST_COMPANY_ID}`)).toBeUndefined();
+  });
+
   it("a site's reply to the test company's question reaches the inbox", async () => {
     expect((await ensureTestCompany()).status).toBe(201);
     const { jobId } = await createTestJob();

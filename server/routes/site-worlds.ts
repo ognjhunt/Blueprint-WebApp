@@ -18,7 +18,7 @@ import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { csrfProtection } from "../middleware/csrf";
 import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
 import { ESTIMATE_RULE, VISIT_NOTE_LIMIT } from "../../client/src/lib/companyResponses";
-import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_FORM_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATES, INTRODUCIBLE_RESPONSE_STATES, companyResponseNeedsNote, type CompanyResponseState } from "../../client/src/lib/companyResponses";
+import { COMPANY_QUESTION_LIMIT, COMPANY_RESPONSE_FORM_STATEMENT_VERSIONS, COMPANY_RESPONSE_STATES, FIT_RESPONSE_STATES, INTRODUCIBLE_RESPONSE_STATES, companyResponseNeedsNote, type CompanyResponseState } from "../../client/src/lib/companyResponses";
 import { companyAnswerDetailsSchema, recordCompanyAnswer } from "../utils/companyAnswer";
 import { hasInternalTestCompanyMarker, isInternalTestCompanyRow, loadIsInternalTestCompany } from "../utils/internalTestCompany";
 import { recordCompanyJobView } from "../utils/companyJobViews";
@@ -37,7 +37,9 @@ function termsRequired(res: Response, access: { status: string; signedIn: boolea
     access: { status: access.status, signedIn: access.signedIn, emailVerified: access.emailVerified,
       allowed: false, staff: access.staff, termsRequired: true } });
 }
-const interestSchema = z.object({ state: z.enum(COMPANY_RESPONSE_STATES),
+// Only an answer the form offers (owner, 2026-11-25): a tested answer can no longer be given, though a stored one still
+// reads (stress test, 2026-11-27: a "Tested it: can do" sent to this route was accepted and shown to the site).
+const interestSchema = z.object({ state: z.enum(COMPANY_RESPONSE_STATES).refine(state => FIT_RESPONSE_STATES.includes(state)),
   inputs: z.string().trim().max(2000),
   details: companyAnswerDetailsSchema.optional(),
   // The line the company saw under the form (E5); stored on the answer.
