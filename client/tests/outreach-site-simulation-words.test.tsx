@@ -84,11 +84,11 @@ describe("step 7: the simulation section of the site's page, by outcome", () => 
     expect(text).toContain("We stopped building the simulation of your site before it was finished.");
   });
 
-  it("failed: the site is told it could not be built; a company is told only that it is not finished", () => {
+  it("failed: the site is told it could not be built; a company is told there is no simulation", () => {
     const text = simulationSection({ phase: "no_test", reason: "preparation_failed", sentence: OUTLOOK_SENTENCES.preparation_failed });
     expect(text).toContain("We could not build a simulation of your site.");
-    // `libraryJobStage` returns null for every ending, so the company's box reads "unknown" (`companyJobPage.ts:410`).
-    expect(SIMULATION_STATUS.unknown).toBe("The simulation of the site is not finished yet.");
+    // Fixed 2026-11-27 (D7): `libraryJobStage` gives `no_simulation` for an ending after which nothing is built.
+    expect(SIMULATION_STATUS.no_simulation).toBe("There is no simulation for this job.");
     expect(SIMULATION_NOT_FINISHED).toBe(SIMULATION_STATUS.unknown);
   });
 

@@ -97,11 +97,13 @@ export interface TeamEvaluationTerms {
     parameterBounds: Record<string, [number, number]> };
   policyInterfaces: Array<{ policyInterfaceId: string; robot: "droid_franka" | "team_declared"; summary: string }>;
 }
-export type LibraryJobStage = "no_video" | "video_received" | "simulation_building" | "simulation_built";
+export type LibraryJobStage = "no_video" | "video_received" | "simulation_building" | "simulation_built"
+  /** The job ended with no simulation built and none coming (outreach audit D7, 2026-11-27). */
+  | "no_simulation";
 /** The card's label for where the job's simulation stands, true in each state; no label when the state is unknown. */
 export const libraryStageLabels: Readonly<Record<LibraryJobStage, string>> = {
   no_video: "No video yet", video_received: "Simulation not started yet", simulation_building: "Simulation being built",
-  simulation_built: "Simulation built",
+  simulation_built: "Simulation built", no_simulation: "No simulation",
 };
 
 const generatedJobTitles: ReadonlyMap<string, string> = new Map([

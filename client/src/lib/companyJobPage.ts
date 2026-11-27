@@ -256,6 +256,9 @@ export const SIMULATION_STATUS = {
   video_received: "The video has arrived. The simulation has not started yet.",
   simulation_building: "The simulation is being built from the site's video.",
   simulation_built: "The simulation is built. Its download is being prepared.",
+  // The job ended with nothing built and nothing coming (it failed, or stopped at the job's cap or its time): "not
+  // finished yet" would promise more (outreach audit D7, 2026-11-27).
+  no_simulation: "There is no simulation for this job.",
   unknown: "The simulation of the site is not finished yet.",
 } as const;
 
