@@ -109,7 +109,8 @@ describe("the job page's sections, bare bones", () => {
     expect(sureReason(robot(["reach", "payload"]))).toBe("We estimated the sizes and weight from your video.");
     expect(sureReason(robot(["reach"]))).toBe("We estimated the sizes from your video.");
     expect(sureReason(robot(["payload"]))).toBe("We estimated the weight from your video.");
-    expect(sureReason(robot([], true))).toBe("We checked its reach in a simulation of your site.");
+    // Changed on purpose 2026-11-27: "We checked its reach" read like a robot test; it says what was measured.
+    expect(sureReason(robot([], true))).toBe("We measured your spots in the simulation of your site and compared them with the robot's published reach.");
     expect(sureReason(robot([]))).toBeNull();
   });
 

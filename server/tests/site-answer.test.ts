@@ -482,7 +482,8 @@ describe("each check takes its outcome from the best source for its own quantity
       need: null, has: "1.3 m" });
     // The payload is still this check's own, on the video's weight.
     expect(checkOf(answer, "payload")).toMatchObject({ outcome: "pass", basis: "video_estimate", estimated: true });
-    expect(answer.confidence.reasons).toContain("Its reach was checked in the scene rebuilt from your video.");
+    // Changed on purpose 2026-11-27: says what was measured, not that the reach was "checked" like a robot test.
+    expect(answer.confidence.reasons).toContain("Your spots were measured in the simulation of your site and compared with the robot's published reach.");
     // An unsettled payload keeps a scene 'fits' at "may fit".
     const unweighed = composeSiteAnswer({ ...inputs({ estimates: estimates({ object_mass_kg_low: null, object_mass_kg_high: null }),
       robotFit: scene({ ...UR10E, verdict: "fits" }) }), catalog: only("universal_robots_ur10e") })!;

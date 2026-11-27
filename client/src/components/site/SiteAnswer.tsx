@@ -145,9 +145,14 @@ export function sureReason(robot: AnswerRobot): string | null {
   if (what && weight) return `We estimated the ${what} and weight from your video.`;
   if (what) return `We estimated the ${what} from your video.`;
   if (weight) return "We estimated the weight from your video.";
-  if (robot.sceneChecked) return "We checked its reach in a simulation of your site.";
+  // What was done: the spots were measured in the simulation of the site and set against the robot's published reach.
+  // No robot software runs in the simulation (dropped 2026-11-14), so the words never sound like a test of a robot.
+  if (robot.sceneChecked) return SCENE_REACH_REASON;
   return null;
 }
+
+/** Under "How sure are we?" when the reach came from the simulation of the site (outreach audit, 2026-11-27). */
+export const SCENE_REACH_REASON = "We measured your spots in the simulation of your site and compared them with the robot's published reach.";
 
 /** Lines that change what the answer covers: never moved to the details. */
 export function scopeLines(answer: SiteAnswerView): string[] {
