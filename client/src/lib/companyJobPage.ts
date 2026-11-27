@@ -252,7 +252,15 @@ const KIND_OF_JOB_TYPE: Readonly<Record<string, ReaderJobKind>> = {
   Cleaning: "other", Unloading: "pick_and_place",
 };
 
+/**
+ * Keyword job types whose own visit list wins over the reading's kind: goods taken out of a vehicle are picked and
+ * placed whatever the reading calls them (stress test, 2026-11-27: "Unload the cartons from the back of the truck." was
+ * asked how pallets arrive at a palletizing cell, from a palletizing reading).
+ */
+const VISIT_LIST_OF_ITS_OWN: ReadonlySet<string> = new Set(["Unloading"]);
+
 export function visitMustConfirm(kind: ReaderJobKind | null, taskFamily: string): readonly string[] {
+  if (VISIT_LIST_OF_ITS_OWN.has(taskFamily)) return VISIT_MUST_CONFIRM[KIND_OF_JOB_TYPE[taskFamily]];
   return VISIT_MUST_CONFIRM[kind ?? KIND_OF_JOB_TYPE[taskFamily] ?? "other"];
 }
 

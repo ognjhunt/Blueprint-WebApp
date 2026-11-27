@@ -121,6 +121,8 @@ describe("what a visit must confirm", () => {
     // A cleaning job is asked about its work area and environment, never where items are picked from (2026-11-27).
     expect(visitMustConfirm(null, "Cleaning")).toBe(VISIT_MUST_CONFIRM.other);
     expect(visitMustConfirm(null, "Unloading")).toBe(VISIT_MUST_CONFIRM.pick_and_place);
+    // An unloading job's own list, whatever the reading calls it (2026-11-27: a palletizing reading of a truck unload).
+    expect(visitMustConfirm("palletizing", "Unloading")).toBe(VISIT_MUST_CONFIRM.pick_and_place);
     // The reading's kind wins over the keyword match.
     expect(visitMustConfirm("transport", "Palletizing")).toBe(VISIT_MUST_CONFIRM.transport);
   });
