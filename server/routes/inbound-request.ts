@@ -5,7 +5,7 @@ import { isSharingRecordingStatementVersion } from "../../client/src/lib/recordi
 import { hasCurrentRecordingConsent } from "../utils/recordingConsent";
 import { hasCurrentDescriptionAuthority } from "../utils/descriptionAuthority";
 import { createInboundRequestWithReceipt } from "../utils/inboundRequestCommit";
-import { buildTaskLifecycleNotification, enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { buildTaskLifecycleNotification, companiesCanSeeJobs, enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { Request, Response, Router } from "express";
 import crypto from "crypto";
 import fs from "node:fs";
@@ -1921,7 +1921,9 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // A test job gets no first email: it has no address, and nothing about it is sent to anyone.
     const firstReceipt = !internalTest && receiptUrl && messageAdmission.send ? buildTaskLifecycleNotification({ requestId: payload.requestId,
       // The region, so a site outside the US is not asked for a video its saved screen told it not to send (v-B-005).
-      milestone: "task_received", to: emailLower, captureUrl: receiptUrl, captureRegion }) : null;
+      milestone: "task_received", to: emailLower, captureUrl: receiptUrl, captureRegion,
+      // Whether any approved company can see jobs, so the email says truly where the job goes (outreach audit D6).
+      companiesCanSee: await companiesCanSeeJobs() }) : null;
     // Non-PII routing facts for the ops notice; committed with the request so
     // "ops has not been told yet" is durable from the first instant.
     const opsNoticeMeta = {

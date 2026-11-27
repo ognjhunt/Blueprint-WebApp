@@ -120,11 +120,20 @@ describe("steps 4 and 8: the site's emails, word for word", () => {
   const body = (params: Partial<Parameters<typeof buildTaskLifecycleNotification>[0]>) =>
     buildTaskLifecycleNotification({ requestId: ID, to: "site@example.test", milestone: "task_received", captureUrl: url, ...params }).body;
 
-  it("the job link email, video in: says the job goes to approved companies, whether or not any is approved", () => {
-    const text = body({ videoIn: true });
-    expect(text).toContain("Your job goes to approved deployment companies.");
-    expect(text).toContain("This link opens your job without a password, so please don't forward it.");
-    expect(text).not.toMatch(/simulation|first look|no approved|not approved/i);
+  // Fixed 2026-11-27 (D6): the email said "Your job goes to approved deployment companies." while none was approved.
+  it("the job link email, video in: says where the job goes truly, whether or not a company is approved", () => {
+    const some = body({ videoIn: true, companiesCanSee: true });
+    expect(some).toContain("Your job goes to approved deployment companies.");
+    expect(some).toContain("This link opens your job without a password, so please don't forward it.");
+    const none = body({ videoIn: true, companiesCanSee: false });
+    expect(none).toContain("Your job goes to the deployment companies we approve. None is approved yet, so no company can see your job yet; your job page shows when one can.");
+    expect(none).not.toContain("Your job goes to approved deployment companies.");
+    const unknown = body({ videoIn: true });
+    expect(unknown).toContain("Your job goes to the deployment companies we have approved. Your job page shows when one can see it.");
+    for (const text of [some, none, unknown]) expect(text).not.toMatch(/simulation|first look/i);
+  });
+  it("the job link email, no video yet, no company approved", () => {
+    expect(body({ videoIn: false, companiesCanSee: false })).toContain("Once your video is in, your job goes to the deployment companies we approve. None is approved yet");
   });
   it("the job link email, no video yet", () => {
     expect(body({ videoIn: false })).toContain("A video is required to post your job.");

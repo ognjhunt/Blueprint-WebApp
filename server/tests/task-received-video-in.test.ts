@@ -33,6 +33,8 @@ const PRIVATE_LINK = "This link opens your job without a password, so please don
 const HOW_TO_STOP = "We don't share your name, address or contact details with a deployment company unless you ask for "
   + "an introduction to it. To stop, open your job page and withdraw your job there. It then leaves every company's view "
   + "at once, and each company it was sent to is asked to delete any copy it saved.";
+// No approved company may see jobs in this store (as in production on 2026-11-27): the email says so (outreach audit D6).
+const NONE_YET = "None is approved yet, so no company can see your job yet; your job page shows when one can.";
 const sentText = () => String(send.mock.calls[0]?.[0]?.text ?? "");
 
 beforeEach(() => {
@@ -58,7 +60,8 @@ describe("the job link email of a job whose video is in", () => {
     expect(text).not.toContain("A video is required");
     expect(text).not.toContain("Once your video is in");
     // Where the job goes, what is never shared and how to stop stay in it.
-    expect(text).toContain(`Your job goes to approved deployment companies. ${HOW_TO_STOP}`);
+    expect(text).toContain(`Your job goes to the deployment companies we approve. ${NONE_YET} ${HOW_TO_STOP}`);
+    expect(text).not.toContain("Your job goes to approved deployment companies.");
     expect(text).toMatch(/Open your job:\nhttps:\/\/\S+\/capture-upload\//);
     expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received")).toMatchObject({ status: "sent" });
   });
@@ -80,7 +83,8 @@ describe("the job link email of a job whose video is in", () => {
       saved.value = value;
       await deliverOutbox();
       expect(send).toHaveBeenCalledTimes(1);
-      expect(sentText()).toContain(`${ASK} ${PRIVATE_LINK}\n\n${SHARING_AND_HOW_TO_STOP}`);
+      expect(sentText()).toContain(`${ASK} ${PRIVATE_LINK}\n\nOnce your video is in, your job goes to the deployment companies we approve. ${NONE_YET} ${HOW_TO_STOP}`);
+      expect(SHARING_AND_HOW_TO_STOP).toContain(HOW_TO_STOP);
       expect(sentText()).not.toContain("We have your video");
     }
   });
