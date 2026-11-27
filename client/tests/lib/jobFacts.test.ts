@@ -144,7 +144,9 @@ describe("job facts code lists (PACKAGE_E E1)", () => {
     for (const sentence of ["Mop the hard floors in the kitchen, living room and hallway of the empty unit after each move-out.",
       "Wipe down the tables after each meal.", "Sweep the warehouse aisles every night.", "Vacuum the hallway carpet.",
       "Scrub the bathroom floor.", "Clean the shelves and dust the displays.", "Disinfect the door handles every hour.",
-      "Polish the brass rails in the lobby.", "Wash the windows on the ground floor."])
+      "Polish the brass rails in the lobby.", "Wash the windows on the ground floor.",
+      "Pick up the trash, then sweep the floor.", "The robot should vacuum the lobby every night.",
+      "Floor cleaning in the lobby.", "We need someone to clean the kitchen after service."])
       expect(family(sentence), sentence).toBe("Cleaning");
     for (const sentence of ["Unload the cartons from the back of the truck.", "Offload boxes from the delivery van.",
       "Unload the shipping container onto the dock.", "Truck unloading at the loading bay."])
@@ -155,7 +157,11 @@ describe("job facts code lists (PACKAGE_E E1)", () => {
       ["Unload the pallets of bottles onto the line.", "Depalletizing"],
       ["Unload parts from the CNC lathe.", "Machine tending"],
       ["Check every room before the move-in.", "Other"],
-      ["Move the boxes to the shelf.", "Material handling"]] as const)
+      ["Move the boxes to the shelf.", "Material handling"],
+      // A review of PR #1466: "clean" describing the things moved is not the job's action.
+      ["Move clean towels from the laundry to the shelves.", "Material handling"],
+      ["Pick clean parts from the conveyor and place them in trays.", "Material handling"],
+      ["Move the cleaned trays to the drying rack.", "Material handling"]] as const)
       expect(family(sentence), sentence).toBe(kind);
     expect(anonymizedOpportunityDraft("Mop the floors after each move-out.").title).toBe("Cleaning opportunity");
     expect(jobTitleForDisplay(anonymizedOpportunityDraft("Mop the floors.").title)).toBe("Clean surfaces");

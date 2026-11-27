@@ -173,8 +173,15 @@ const UNLOADING_WORDS = new RegExp(String.raw`\b(?:un-?load|off-?load)\w*\b.{0,6
  * Work done to a surface: mopping, sweeping, vacuuming, scrubbing, wiping, cleaning, dusting, polishing, disinfecting
  * and washing (stress test, 2026-11-27: "Mop the hard floors … after each move-out." was filed as moving materials). A
  * cleanroom or a washing machine is a place or a machine, not this work, so neither counts.
+ *
+ * Such a word is the job's action where a clause leads with it ("Mop the floors", "…, then wipe the tables", "the robot
+ * should sweep"), and then wins over any moving word; anywhere else ("Move clean towels to the shelves", "Pick clean
+ * parts from the conveyor", a review of PR #1466) it describes the things moved, and counts only when nothing in the
+ * sentence moves things ("Floor cleaning in the lobby").
  */
 const CLEANING_WORDS = /\b(?:mop(?:s|ped|ping)?|sweep(?:s|ing)?|swept|vacuum(?:s|ed|ing)?|hoover(?:s|ed|ing)?|scrub(?:s|bed|bing)?|wip(?:e|es|ed|ing)|clean(?:s|ed|ing)?|dust(?:s|ed|ing)?|polish(?:es|ed|ing)?|disinfect\w*|saniti[sz]\w*|wash(?:es|ed|ing)?)\b/;
+const CLEANING_VERB = String.raw`(?:mop(?:ping)?|sweep(?:ing)?|vacuum(?:ing)?|hoover(?:ing)?|scrub(?:bing)?|wip(?:e|ing)|clean(?:ing)?|dust(?:ing)?|polish(?:ing)?|disinfect(?:ing)?|saniti[sz](?:e|ing)|wash(?:ing)?)`;
+const CLEANING_ACTION = new RegExp(String.raw`(?:^\s*|[.;:!?,]\s*|\b(?:and|then|or|to|please|should|must|will|would|can|could)\s+)${CLEANING_VERB}\b`);
 const NOT_CLEANING = /\bclean ?rooms?\b|\bwashing machines?\b/g;
 
 /** A move-out or a move-in (a tenant leaving or arriving) is a noun, not moving things. */
@@ -199,8 +206,10 @@ export function anonymizedOpportunityDraft(description: string): TaskListingDeta
   if (/\b(?:dish(?:es)?|dishwashers?)\b/.test(text)) return categoryDraft(categories.dishes);
   if (/\bpallets?\b/.test(text)) return categoryDraft(categories.palletHandling);
   if (/\bpack(?:s|ing|ed|ag\w*)?\b/.test(text)) return categoryDraft(categories.packaging);
-  if (CLEANING_WORDS.test(text.replace(NOT_CLEANING, " "))) return categoryDraft(categories.cleaning);
-  if (MOVING_WORDS.test(text)) return categoryDraft(categories.materialHandling);
+  const cleaningText = text.replace(NOT_CLEANING, " ");
+  const moving = MOVING_WORDS.test(text);
+  if (CLEANING_ACTION.test(cleaningText) || (!moving && CLEANING_WORDS.test(cleaningText))) return categoryDraft(categories.cleaning);
+  if (moving) return categoryDraft(categories.materialHandling);
   return categoryDraft(categories.other);
 }
 
