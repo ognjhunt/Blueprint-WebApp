@@ -36,9 +36,12 @@ export function jobTrackerSteps(sharing: JobSharing, activity: SiteCompanyActivi
   const posted = sharing.state === "visible";
   const sentCount = activity?.sent?.count ?? 0;
 
+  // The step is "Applications" (owner, 2026-11-23): only an answer the site can accept is one. A "Not a fit" or a
+  // question back is a response the section below lists, never an application (stress test, 2026-11-27: one "Not a
+  // fit" showed "Applications" done above "Waiting for a company to apply").
   const done: Record<TrackerStepKey, boolean> = {
-    posted, looking: views > 0 || answered.length > 0, responses: answered.length > 0, introduced: introduced.length > 0,
-    visit: visited.length > 0, pilot: piloted.length > 0,
+    posted, looking: views > 0 || answered.length > 0, responses: interested.length > 0 || introduced.length > 0,
+    introduced: introduced.length > 0, visit: visited.length > 0, pilot: piloted.length > 0,
   };
   // A done step says how many companies only where the section's own counts do not (introductions, visits, pilots);
   // the current step says what happens next. Steps still to come say nothing.
@@ -59,7 +62,12 @@ export function jobTrackerSteps(sharing: JobSharing, activity: SiteCompanyActivi
   };
   const atIso: Partial<Record<TrackerStepKey, string>> = {
     posted: posted ? sharing.sharedAtIso ?? undefined : undefined,
-    responses: activity?.firstAnswerAtIso,
+    // An answer's time is when it last changed, so an application's own date is certain only when the earliest one is
+    // also the job's first answer; otherwise the step is done with no date.
+    responses: (() => {
+      const first = earliest([...interested, ...introduced].map(entry => entry.atIso));
+      return first && first === activity?.firstAnswerAtIso ? first : undefined;
+    })(),
     introduced: earliest(introduced.map(entry => entry.introducedAtIso)),
     visit: earliest(visited.map(entry => entry.progress?.visitAtIso)),
     pilot: earliest(piloted.map(entry => entry.progress?.pilotAtIso)),

@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CompaniesReadYourWords, NOTHING_IS_SHARED, NOT_SHARED_YET, NO_COMPANY_CAN_SEE_LINE, NOT_VISIBLE_LINE, OLDER_JOB_AGREE, OLDER_JOB_LINES, PREPARING_TO_SHARE_LINE, SHARED_LINE, SiteAnswer as SiteAnswerScreen, SiteAnswerDetail, SiteAnswerDetails, detailScreens, evidenceTick, sureReason, ticksOf, type DetailScreen } from "@/components/site/SiteAnswer";
 import { projectSimulationProof, type SimulationProof } from "@/lib/simulationProof";
-import { REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, type AnswerRobot } from "@/lib/siteAnswer";
+import { REASON_DESCRIBED_CLEANING, REASON_UNSIZED, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP, type AnswerRobot } from "@/lib/siteAnswer";
 import { allZeroEvaluation, cannotAssessAnswer, noPickAnswer, preparingEvaluation, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
 import type { ComponentProps } from "react";
 
@@ -306,6 +306,19 @@ describe("the job page's sections, bare bones", () => {
     fireEvent.click(screen.getByRole("button", { name: "Change my job description" }));
     expect(onEditJob).toHaveBeenCalledTimes(1);
     expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
+
+  // Stress test, 2026-11-27: a cleaning job was told its video was unclear and offered a new video; it is cleaning, which
+  // the first look does not check, and its description is what the site can change.
+  it("says a cleaning job is cleaning and offers to change the description, not a new video", () => {
+    const onEditJob = vi.fn(), onUpdateVideo = vi.fn();
+    render(<SiteAnswer token="owner-token" answer={{ ...cannotAssessAnswer, reason: REASON_DESCRIBED_CLEANING }}
+      onEditJob={onEditJob} onUpdateVideo={onUpdateVideo} />);
+    expect(screen.getByText("From your description, the job is cleaning, which we can't check robots against yet.")).toBeVisible();
+    expect(screen.queryByText(/didn't show the job clearly enough/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Send a new video" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Change my job description" }));
+    expect(onEditJob).toHaveBeenCalledTimes(1);
   });
 
   it("says plainly that a video it could not read has no first look, stops saying it is watching, and offers no button", () => {

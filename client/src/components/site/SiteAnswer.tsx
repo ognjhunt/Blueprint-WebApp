@@ -15,7 +15,7 @@ import {
   type BareTickState,
 } from "@/components/bare/Bare";
 import {
-  ALSO_INVOLVES_PREFIX, FIRST_LOOK_SOURCE, REASON_NOT_READ, REASON_UNSIZED, LIMITS_JOB_PAGE, SURENESS_STEPS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP,
+  ALSO_INVOLVES_PREFIX, FIRST_LOOK_SOURCE, REASON_DESCRIBED_CLEANING, REASON_NOT_READ, REASON_UNSIZED, LIMITS_JOB_PAGE, SURENESS_STEPS, TIGHT_FIT_SENTENCE, UNKNOWN_JOB_KIND, UNKNOWN_MULTI_STEP,
   firstLookSentence, isScopeNote,
   type AnswerBasis, type AnswerCheck, type AnswerConfidenceLevel, type AnswerEvidence, type AnswerRobot, type JobSharing, type SiteAnswer as SiteAnswerView,
 } from "@/lib/siteAnswer";
@@ -165,6 +165,7 @@ export function scopeLines(answer: SiteAnswerView): string[] {
 function cannotLine(reason: string | null): string | null {
   if (!reason) return null;
   if (reason === REASON_UNSIZED) return "Your video didn't show the job clearly enough for us to measure it.";
+  if (reason === REASON_DESCRIBED_CLEANING) return "From your description, the job is cleaning, which we can't check robots against yet.";
   if (reason.startsWith("From your video, the job looks like more than picking an object up and putting it down"))
     return "From your video, the job looks like more than picking something up and putting it down.";
   return reason;

@@ -25,9 +25,27 @@ describe("the site's job tracker", () => {
     expect(states(steps).slice(0, 4)).toEqual(["posted:done", "looking:done", "responses:done", "introduced:current"]);
     expect(steps[2].atIso).toBe("2026-11-12T09:00:00.000Z");
     expect(steps[3].detail).toBe("Press Accept below to meet a company");
-    // With only a "Not a fit", it waits for a company to say Interested.
-    expect(jobTrackerSteps(visible, { ...activity, interested: false, entries: [answered("Company B", "declined")] })[3].detail)
-      .toBe("Waiting for a company to apply");
+    // With only a "Not a fit" or a question back, no company has applied: Applications is the current step, and waits
+    // for one (stress test, 2026-11-27: one "Not a fit" showed "Applications" done above "Waiting for a company to apply").
+    for (const state of ["declined", "needs_something"] as const) {
+      const notApplied = jobTrackerSteps(visible, { ...activity, interested: false, entries: [answered("Company B", state)] });
+      expect(states(notApplied).slice(0, 4), state).toEqual(["posted:done", "looking:done", "responses:current", "introduced:upcoming"]);
+      expect(notApplied[2].detail, state).toBe("Waiting for a company to apply");
+      expect(notApplied[2].atIso, state).toBeUndefined();
+    }
+  });
+
+  it("dates Applications only when the first answer was the application", () => {
+    const applied = { ...answered("Company A", "interested"), atIso: "2026-11-15T09:00:00.000Z" };
+    // A company declined first; the application came later and its own date is not on record: no date.
+    expect(jobTrackerSteps(visible, { interested: true, views: 2, firstAnswerAtIso: "2026-11-12T09:00:00.000Z",
+      entries: [answered("Company B", "declined"), applied] })[2]).toMatchObject({ state: "done" });
+    expect(jobTrackerSteps(visible, { interested: true, views: 2, firstAnswerAtIso: "2026-11-12T09:00:00.000Z",
+      entries: [answered("Company B", "declined"), applied] })[2].atIso).toBeUndefined();
+    // The application was the job's first answer: its date.
+    expect(jobTrackerSteps(visible, { interested: true, views: 2, firstAnswerAtIso: "2026-11-15T09:00:00.000Z",
+      entries: [applied, { ...answered("Company B", "declined"), atIso: "2026-11-16T09:00:00.000Z" }] })[2])
+      .toMatchObject({ state: "done", atIso: "2026-11-15T09:00:00.000Z" });
   });
 
   it("counts a visit and a pilot only from the site's own marks, and a later mark completes the steps before it", () => {

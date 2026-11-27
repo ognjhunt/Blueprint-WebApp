@@ -190,6 +190,13 @@ export const UNKNOWN_SCENE_NOT_COVERED = "Your video does not show the whole wor
 /** Why a finished reading gave nothing to size; the answer email keys on it, and the page offers a new video. */
 export const REASON_UNSIZED = "The video did not show the job clearly enough for us to size it.";
 /**
+ * Why a cleaning job has no first look: the reading named no kind of job and found nothing to size, and the site's own
+ * sentence says the work is cleaning, which the first look does not check (stress test, 2026-11-27: "Mop the hard floors
+ * … after each move-out." was told its video did not show the job clearly enough, and offered a new video). An edit of
+ * the description is what changes it.
+ */
+export const REASON_DESCRIBED_CLEANING = "From your description, the job is cleaning, which we can't check robots against yet: the first look checks only picking up and putting down. If that is not right, edit the job description to say what the robot should do, and we will read the video again.";
+/**
  * Why there is no first look: the video reading ended without one, because the video could not be read or every
  * automatic read of it failed (`server/utils/captureCoverageQueue.ts`). The job goes on without it.
  */
