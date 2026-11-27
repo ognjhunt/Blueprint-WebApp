@@ -12,7 +12,10 @@
  *   npx tsx scripts/ops/outreach-counts.ts
  *
  * The lines up to `intake_today` are C1 as the playbook wrote it on
- * 2026-11-26. The lines after it are readings added since:
+ * 2026-11-26, except that `jobClarifications` (a collection no code writes, so
+ * always 0) is replaced by `need_more_details`: the answers in state
+ * `needs_something`, and of those how many have the site's reply
+ * (`siteClarification`). The lines after it are readings added since:
  * - `owner_application_emails`: the owner's email about a waiting deployment
  *   company application (outbox kind `ops_access_application`,
  *   `server/utils/ownerApplicationNotice.ts`), by status;
@@ -77,8 +80,13 @@ console.log("withdrawals", withdrawals.length, tally(withdrawals));
 console.log("website_deletion_receipts", tally((await db.collection("websiteCaptureDeletionReceipts").get()).docs.map((d: any) => String(d.data().outcome))));
 const beat: any = (await db.collection("opsHeartbeats").doc("blueprint-webapp-worker").get()).data();
 console.log("withdrawal_notice", JSON.stringify(beat?.withdrawal_notice ?? null), "worker_revision", String(beat?.revision ?? "").slice(0, 7));
-for (const g of ["companySends", "companyJobViews", "robotTeamInterest", "jobClarifications", "introductions"]) console.log(g, await count(db.collectionGroup(g)));
-console.log("answers_by_state", tally((await db.collectionGroup("robotTeamInterest").get()).docs.map((d: any) => String(d.data().state ?? d.data().status ?? "?"))));
+for (const g of ["companySends", "companyJobViews", "robotTeamInterest", "introductions"]) console.log(g, await count(db.collectionGroup(g)));
+const answers = (await db.collectionGroup("robotTeamInterest").get()).docs.map((d: any) => d.data());
+console.log("answers_by_state", tally(answers.map((a: any) => String(a.state ?? a.status ?? "?"))));
+// "Need more details": the company's answer in state needs_something, and the site's reply on that same answer
+// (`siteClarification`, `server/utils/jobClarifications.ts`). No separate collection holds either.
+const askedForDetails = answers.filter((a: any) => a.state === "needs_something");
+console.log("need_more_details", askedForDetails.length, "with_a_site_reply", askedForDetails.filter((a: any) => a.siteClarification).length);
 console.log("introductions_with_an_outcome_answer", (await db.collectionGroup("introductions").get()).docs.filter((d: any) => (d.data().outcomes ?? []).length > 0).length);
 console.log("billable_events", tally((await db.collection("billableEvents").get()).docs.map((d: any) => `status=${d.data().status}|made=${Boolean(d.data().madeAtIso)}|priceUsd=${d.data().priceUsd ?? null}`)));
 console.log("outbox", tally((await db.collection("captureOutbox").select("status").get()).docs.map((d: any) => String(d.get("status")))));

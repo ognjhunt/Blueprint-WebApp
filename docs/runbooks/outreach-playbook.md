@@ -445,13 +445,14 @@ application (first-run log, 13:17Z and 13:21Z rows).
 
 Never run in production on 2026-11-26: the automatic rule, the emailed sign-in
 link, "Need more details" and an outcome answer (C1: `rule_check_days 0`,
-`sign_in_links_used 0`, `jobClarifications 0`,
+`sign_in_links_used 0`, no `needs_something` in `answers_by_state`,
 `introductions_with_an_outcome_answer 0`). At 03:53Z on 11-27: the rule had
 run once and its model answered "no" (`rule_check_days 1`, `rule_model_runs
 1`, gate check S4); the emailed sign-in link had been redeemed twice; one
 introduction had an outcome answer; and "Need more details" had been answered
-once (`answers_by_state` `needs_something` 1, made at 02:21Z; `jobClarifications`
-counts a collection the code never writes, so it reads 0 whatever happened).
+once (`answers_by_state` `needs_something` 1, made at 02:21Z; the old
+`jobClarifications` line counted a collection the code never writes, so it read
+0 whatever happened; C1 now prints `need_more_details` instead).
 Read at 04:17Z, these were test records, not outside companies: both
 redemptions are on the internal test company's record, that answer is the
 internal test company's on an internal test job, the outcome answer is on an
@@ -907,7 +908,7 @@ Read these after each wave and weekly while a wave is open. The owner's page
 | Approvals | C1 `companies_that_may_see_jobs`, `approved_by_rule`, `rule_checked` | 0 companies can see jobs; 0 approved by the rule; 0 checked by it |
 | Why the rule passed a company to the owner | C1 `applications_waiting` (`companyCheck.reasons`) | none yet |
 | Jobs sent | C1 `listed_for_companies`, `companySends`, `companyJobViews`; `curl -s https://tryblueprint.io/api/public/live-jobs` | 0 of 62 non-test site jobs listed; 2 send rows, both from test runs; 0 views; `{"jobs":[]}` |
-| Responses | C1 `robotTeamInterest`, `answers_by_state`, `jobClarifications` | 2, both `interested`, both from test runs; 0 "Need more details" |
+| Responses | C1 `robotTeamInterest`, `answers_by_state`, `need_more_details` (answers in state `needs_something`) and `with_a_site_reply` (of those, how many the site answered: `siteClarification` on the same answer) | 2, both `interested`, both from test runs; 0 "Need more details" |
 | Introductions | C1 `introductions`, `billable_events` | 2, both from test runs. Billable events: 1 `void`, 1 `test_no_charge`, both `priceUsd=null`; 0 that count |
 | Outcome answers | C1 `introductions_with_an_outcome_answer`; outbox kind `job_outcome_question` | 0 answers; 2 questions sent, to the internal test pair |
 | Cost per job | C2 `highest_job_usd` and the host's per-job meter (`spend_guard.account_monthly_spend.jobs[]`); the website's ledger `inboundRequests/<job>.website_preparation_reservations` | Website ledger, ten jobs since 2026-11-15: $2.02 to $16.20. The first-run job: $9.81 on the host, $9.79 on the website; the 2 cents are unexplained. Highest on the host's meter this month: $26.63, an older job |
@@ -921,7 +922,7 @@ not read): applications 4 (1 approved, 2 declined, 1 waiting for 0 days with
 `not_a_robot_company`); `rule_check_days 1`, `rule_model_runs 1`;
 `companies_that_may_see_jobs 0`; `sign_in_links_used 2`; 0 of 62 site jobs
 listed; `companySends 4`, `companyJobViews 0`, `robotTeamInterest 3`
-(`interested` 2, `needs_something` 1), `jobClarifications 0`, `introductions
+(`interested` 2, `needs_something` 1), `introductions
 2`, 1 with an outcome answer; billable events unchanged (1 `void`, 1
 `test_no_charge`, both `priceUsd=null`); outbox 153 sent, 10 failed, 1
 cancelled; 1 account deletion request, `requested`, 38 whole days; 4 open
