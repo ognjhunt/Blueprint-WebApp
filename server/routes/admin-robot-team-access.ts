@@ -115,6 +115,34 @@ router.post("/invites", async (req: Request, res: Response) => {
   }
 });
 
+const ruleTrialSchema = z
+  .object({
+    emailDomain: z.string().trim().min(3).max(320).regex(/^(?:[^\s@]+@)?[a-z0-9.-]+\.[a-z]{2,}$/i),
+    website: z.string().trim().min(4).max(2048),
+  })
+  .strict();
+
+/**
+ * Try the automatic rule once (outreach gap 1, 2026-11-27): on a work email domain and a website the owner types, each
+ * step's result and reason, before the first real applicant meets it. Records no application, no approval and no email;
+ * its one model call shows in `agentRuns` (kind company_website_check), so a run here proves the rule reaches the model in
+ * production. It counts against its own cap of ten a day, never the applicants' (`tryCompanyRule`).
+ */
+router.post("/rule-trial", async (req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store");
+  const parsed = ruleTrialSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Type a work email domain and a website." });
+  try {
+    const { tryCompanyRule } = await import("../utils/companyCheck");
+    const result = await tryCompanyRule(parsed.data);
+    logger.info({ outcome: result.check.outcome, reasons: result.check.reasons }, "Owner tried the company rule");
+    return res.json(result);
+  } catch (error) {
+    logger.error({ error }, "The company rule trial could not run");
+    return res.status(503).json({ error: "The rule could not run just now. Try again shortly." });
+  }
+});
+
 /** Refresh an expired link without changing the person's admission decision. */
 router.post("/:id/invitation", async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
