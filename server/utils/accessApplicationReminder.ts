@@ -1,13 +1,17 @@
 /**
  * The application receipt says the answer comes within three working days (owner, 2026-11-23). When an application
  * has waited that long without a decision, the owner gets one reminder through the existing ops alert route
- * (`sendRateLimitedOpsAlert`, the ops Slack). Once per application: the marker is a create-only doc in its own
- * collection, as `alertOutboxRowsOnce` does it. The reminder names the approvals page only, never the applicant.
+ * (`sendRateLimitedOpsAlert`, the ops Slack) and, as a second channel, one email to the ops address through the outbox
+ * (`ownerApplicationNotice.ts`; outreach gap 1, 2026-11-27: with no Slack webhook the reminder reached nobody). Once per
+ * application: the marker is a create-only doc in its own collection, as `alertOutboxRowsOnce` does it, and the email's
+ * outbox row is created only if absent. A marker is released for the next pass only when neither channel took it. The
+ * reminder names the approvals page only, never the applicant.
  */
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { appBaseUrl } from "./intakeOpsNotice";
 import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
+import { queueOwnerApplicationEmail } from "./ownerApplicationNotice";
 import { ROBOT_TEAM_ACCESS_COLLECTION } from "./robotTeamEarlyAccess";
 
 export const ACCESS_ANSWER_WORKING_DAYS = 3;
@@ -63,9 +67,11 @@ export async function remindWaitingAccessApplications(options: {
   store?: Store | null;
   now?: () => number;
   alert?: (key: string, message: string) => Promise<unknown>;
-} = {}): Promise<{ waiting: number; reminded: number }> {
+  /** Queues the owner's email for one application; "queued" or "already_queued" means the email channel took it. */
+  email?: (recordId: string) => Promise<"queued" | "already_queued" | "not_queued">;
+} = {}): Promise<{ waiting: number; reminded: number; emailed: number }> {
   const store = options.store === undefined ? (dbAdmin as unknown as Store | null) : options.store;
-  if (!store) return { waiting: 0, reminded: 0 };
+  if (!store) return { waiting: 0, reminded: 0, emailed: 0 };
   const nowMs = (options.now || Date.now)();
   const docs = await pendingApplications(store);
   const waiting = docs.filter((doc) => {
@@ -84,19 +90,25 @@ export async function remindWaitingAccessApplications(options: {
       logger.warn({ err: error, id: doc.id }, "Could not record an application reminder marker");
     }
   }
-  if (!fresh.length) return { waiting: waiting.length, reminded: 0 };
+  if (!fresh.length) return { waiting: waiting.length, reminded: 0, emailed: 0 };
   const lines = fresh.slice(0, 10).map((id) => `- ${appBaseUrl()}/admin/robot-team-access?application=${id}`);
   const more = fresh.length > 10 ? [`- …and ${fresh.length - 10} more`] : [];
   const text = [`:hourglass: Blueprint: ${fresh.length} deployment company application(s) waited ${ACCESS_ANSWER_WORKING_DAYS} working days `
     + "without an answer. The applicant was told to expect one by now. Approve or not yet:", ...lines, ...more].join("\n");
-  const result = await Promise.resolve((options.alert || sendRateLimitedOpsAlert)(`robot_team_access_waiting:${fresh[0]}`, text))
-    .catch(() => ({ sent: false }));
-  if (!(result as { sent?: unknown } | undefined)?.sent) {
-    // Not delivered: release the markers so the next monitor pass tries again.
-    await Promise.all(fresh.map((id) => store.collection(REMINDER_COLLECTION).doc(id).delete().catch((error: unknown) => {
-      logger.warn({ err: error, id }, "Could not release an undelivered application reminder marker");
-    })));
-    return { waiting: waiting.length, reminded: 0 };
-  }
-  return { waiting: waiting.length, reminded: fresh.length };
+  const email = options.email || ((recordId: string) => queueOwnerApplicationEmail({ recordId, notice: "waiting_reminder",
+    subject: `Blueprint: a deployment company application waited ${ACCESS_ANSWER_WORKING_DAYS} working days`,
+    lines: [`A deployment company application waited ${ACCESS_ANSWER_WORKING_DAYS} working days without an answer. `
+      + "The applicant was told to expect one by now.", "", "Approve or not yet:"] }));
+  const [result, emails] = await Promise.all([
+    Promise.resolve((options.alert || sendRateLimitedOpsAlert)(`robot_team_access_waiting:${fresh[0]}`, text)).catch(() => ({ sent: false })),
+    Promise.all(fresh.map((id) => Promise.resolve(email(id)).catch(() => "not_queued" as const))),
+  ]);
+  const slackSent = Boolean((result as { sent?: unknown } | undefined)?.sent);
+  const emailed = fresh.filter((_, index) => emails[index] !== "not_queued");
+  const untold = slackSent ? [] : fresh.filter((_, index) => emails[index] === "not_queued");
+  // Neither channel took these: release their markers so the next monitor pass tries again.
+  await Promise.all(untold.map((id) => store.collection(REMINDER_COLLECTION).doc(id).delete().catch((error: unknown) => {
+    logger.warn({ err: error, id }, "Could not release an undelivered application reminder marker");
+  })));
+  return { waiting: waiting.length, reminded: fresh.length - untold.length, emailed: emailed.length };
 }

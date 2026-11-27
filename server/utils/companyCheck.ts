@@ -256,7 +256,7 @@ export async function checkCompanyApplication(recordId: string, deps: CompanyChe
  */
 export async function checkNewCompanyApplication(record: Pick<RobotTeamAccessRecord, "email"> & { companyCheck?: CompanyCheck | null },
   deps: CompanyCheckDeps = defaultDeps): Promise<void> {
-  const { notifySlackRobotTeamAccessApplication } = await import("./slack");
+  const { notifyOwnerOfApplication } = await import("./ownerApplicationNotice");
   // A check tried again after a momentary failure rings only when it settles something: once a day per waiting company
   // would be noise, and the owner already has it with its reasons.
   const retry = Boolean(record.companyCheck);
@@ -272,7 +272,8 @@ export async function checkNewCompanyApplication(record: Pick<RobotTeamAccessRec
   // Nothing recorded and nothing failed: the application was decided or changed meanwhile; the plain bell.
   const rung = check ? { outcome: check.outcome, reasons: check.reasons as string[] }
     : failed ? { outcome: "needs_owner" as const, reasons: ["check_failed"] } : undefined;
-  await notifySlackRobotTeamAccessApplication({ email: record.email, autoApproved: rung?.outcome === "approved",
+  // The Slack bell and the owner's email, once per application (`ownerApplicationNotice.ts`).
+  await notifyOwnerOfApplication({ email: record.email, autoApproved: rung?.outcome === "approved",
     ...(rung ? { check: rung } : {}) }).catch(() => undefined);
 }
 

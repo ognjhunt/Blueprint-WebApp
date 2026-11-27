@@ -408,9 +408,9 @@ export async function runBetaOpsMonitorPass() {
     // 6. website captures whose preparation went quiet or ended (beta L3/L6).
     scanWebsitePreparations(),
     scanUnknownOutboxOutcomes(),
-    // 7. a deployment company application that waited three working days: one reminder to the owner.
+    // 7. a deployment company application that waited three working days: one reminder to the owner, by Slack and email.
     import("./accessApplicationReminder").then(({ remindWaitingAccessApplications }) => remindWaitingAccessApplications()),
-    // 8. a deployment company application the automatic check missed: checked now, and Slack rings.
+    // 8. a deployment company application the automatic check missed: checked now, and the owner is told by Slack and email.
     import("./companyCheck").then(({ sweepUncheckedCompanyApplications }) => sweepUncheckedCompanyApplications()),
     // 9. a listed job with no thumbnail yet: a frame of its company clip.
     import("./jobThumbnail").then(({ sweepJobThumbnails }) => sweepJobThumbnails()),

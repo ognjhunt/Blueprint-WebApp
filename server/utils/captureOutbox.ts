@@ -98,7 +98,10 @@ export type OutboxKind =
   /** Company: a job it was sent was withdrawn; delete any copy (the site's recording statement asks it; `withdrawalCompanyNotice.ts`). */
   | "job_withdrawn_company"
   /** Company: the simulation of a job it answered or opened is ready; once per job (owner, 2026-11-25; `simulationReadyNotice.ts`). */
-  | "company_simulation_ready";
+  | "company_simulation_ready"
+  /** Blueprint's ops address only: a deployment company applied, or its application waited three working days; once per
+   * application and notice, link-only (`ownerApplicationNotice.ts`). */
+  | "ops_access_application";
 
 /** `held`: the site's "Meet {company}" email, waiting for the company's introduction email to be sent (H2). */
 export type OutboxStatus = "pending" | "claimed" | "dispatching" | "unknown" | "sent" | "failed" | "cancelled" | "review_required" | "held";
