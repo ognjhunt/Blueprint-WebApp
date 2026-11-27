@@ -21,7 +21,7 @@ import { JOB_PAGE_HEADINGS, JOB_SUMMARY_DOWNLOAD_LABEL, JOB_SUMMARY_UNAVAILABLE,
   sharedOnInWords, simulationDownloadLabel, type FitSummaryRow } from "@/lib/companyJobPage";
 import { SITE_REPLY_BEING_PREPARED, SITE_REPLY_LIMIT, SUCCESS_RULE_CANT_BE_SHOWN } from "@/lib/companiesRead";
 import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
-import { SIGN_IN_LINK_ENDED, signInWithCompanyLink, takeSignInLinkFromAddress } from "@/lib/companySignInLink";
+import { readSignInLinkFromAddress, SIGN_IN_LINK_ENDED, signInWithCompanyLink, stripSignInLinkFromAddress } from "@/lib/companySignInLink";
 import { PartnerApplication } from "@/components/site/PartnerApplication";
 import { COMPANY } from "@/data/company";
 
@@ -36,6 +36,9 @@ export const GATE_UNLOCKS = [
   "Its answers about weight, size, rate and hours",
   "A simulation of the site to open in your own tools, when it is ready",
 ] as const;
+/** A signed-out company that opened a new-job email's link: one press spends the link and opens the job. */
+export const LINK_SIGN_IN_HEADING = "Sign in to see this job";
+export const LINK_SIGN_IN_LINE = "The link in your email signs you in once.";
 export const GATE_RETURN = "Apply below. Once you're approved, the link we email you brings you back to this job.";
 /** A declined company opening a job: why it cannot see it, and where to write (stress test, 2026-11-24). */
 export const DECLINED_COMPANY_LINE = "Only approved deployment companies can see jobs, and we cannot offer your company access yet. "
@@ -160,8 +163,12 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
     }
   }
   // A new-job email's link (owner, 2026-11-23): it signs a signed-out company in on the way to this job. A company
-  // already signed in goes straight to the job and the link stays unspent.
-  const [link] = useState(takeSignInLinkFromAddress);
+  // already signed in goes straight to the job and the link stays unspent. It is spent only on the company's press of
+  // Sign in (outreach gap 1, 2026-11-27): a mail scanner that loads the page and runs its scripts spends nothing. The
+  // link is read without changing the address and taken out of the address bar in an effect, so React's second mount
+  // pass in development still holds it.
+  const [link] = useState(readSignInLinkFromAddress);
+  useEffect(() => { stripSignInLinkFromAddress(); }, []);
   const [linkState, setLinkState] = useState<"unused" | "signing_in" | "ended">("unused");
   const from = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("from");
   const browseQuery = new URLSearchParams();
@@ -173,14 +180,14 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
     }
   }
   const backHref = browseQuery.size ? `${JOB_LIBRARY_URL}?${browseQuery}#job-${encodeURIComponent(jobId)}` : JOB_LIBRARY_URL;
-  useEffect(() => {
-    if (!link || user || !auth || auth.loading || linkState !== "unused") return;
+  const spendLink = () => {
+    if (!link || user || linkState !== "unused") return;
     setLinkState("signing_in");
     // Signing in changes the account, and the job loads for it below.
     signInWithCompanyLink(link).catch(() => setLinkState("ended"));
-  }, [link, user, auth?.loading, linkState]);
+  };
   useEffect(() => {
-    const signingIn = Boolean(link) && (linkState === "signing_in" || linkState === "unused");
+    const signingIn = Boolean(link) && linkState === "signing_in";
     // Every change of account or job starts a new generation, signing out too: a ticket refresh still on its way
     // for the account before can never put the job back on the page.
     const generation = ++loadGeneration.current;
@@ -222,6 +229,9 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
   }, [state, videoUrl, downloadUrl, viewerContentUrl, refreshTickets, refreshFailures]);
 
   if (state === "loading") return <div className="bare-screen company-job"><p role="status">Loading…</p></div>;
+  if (state === "signed_out" && link && linkState === "unused") return <div className="bare-screen company-job">
+    <h1>{LINK_SIGN_IN_HEADING}</h1><p>{LINK_SIGN_IN_LINE}</p>
+    <button type="button" className="ms-button" onClick={spendLink}>Sign in</button></div>;
   if (state === "terms" && user) return <div className="bare-screen company-job"><CompanyTermsPrompt user={user} onAccepted={() => setRetry(retry + 1)} /></div>;
   // Signed out (owner, 2026-11-23: a tap on a public live job): what the job holds, the one step to see it, and the way
   // back here. Nothing of the job itself is shown: the site agreed to share it with approved companies only.

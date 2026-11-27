@@ -192,6 +192,7 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
     import('../../server/routes/workspace'), import('../../server/routes/job-facts'), import('../../server/utils/captureCoverageQueue'), import('firebase-admin'),
     import('../../server/routes/public-live-jobs'),
   ]);
+  const { default: accountInvitations } = await import('../../server/routes/account-invitations');
   // The app the product's firebaseAdmin module initialized against the emulators.
   const firebaseApp = admin.apps[0];
   if (!firebaseApp) throw new Error('Emulator-backed Firestore and Storage are required');
@@ -217,6 +218,8 @@ function loopbackOnly(req: Request, res: Response, next: NextFunction) {
   app.use('/api/company-media', companyMedia);
   app.use('/api/job-outcomes', jobOutcomes);
   app.use('/api/robot-team-access', csrfProtection, robotTeamAccess);
+  // The approval email's invitation: the account is made on the company's press (e2e/outreach-company-links.spec.ts).
+  app.use('/api/account-invitations', csrfProtection, accountInvitations);
   app.use('/api/admin/robot-team-access', csrfProtection, verifyFirebaseToken, requireAdminRole, adminRobotTeamAccess);
   app.use('/api/site-worlds', siteWorlds);
   // The live jobs anyone may see on /jobs, read by the companies' page (owner, 2026-11-23).

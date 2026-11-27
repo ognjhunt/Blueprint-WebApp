@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NO_TESTED_ANSWER_VERSION } from "@/lib/legalAcceptance";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -609,11 +610,24 @@ describe("the job summary download (owner, 2026-11-25)", () => {
 describe("opening a job from its email", () => {
   beforeEach(() => { linkSignIn.mockReset(); window.history.replaceState(null, "", "/jobs/job-1?link=emailed-token&from=q%3Dx"); });
 
-  it("signs a signed-out company in with the link, and takes the link out of the address bar", async () => {
+  // Outreach gap 1 (2026-11-27): a mail scanner loads the page and runs its scripts but presses nothing.
+  it("takes the link out of the address bar and spends nothing on load, even under StrictMode's second pass", async () => {
+    auth.currentUser = null;
+    render(<StrictMode><CompanyJob /></StrictMode>);
+    expect(await screen.findByRole("heading", { name: "Sign in to see this job" })).toBeInTheDocument();
+    expect(window.location.search).toBe("?from=q%3Dx");
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
+    expect(linkSignIn).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("signs a signed-out company in with the link on the press of Sign in", async () => {
     auth.currentUser = null;
     linkSignIn.mockReturnValue(new Promise(() => undefined));
     render(<CompanyJob />);
+    fireEvent.click(await screen.findByRole("button", { name: "Sign in" }));
     await waitFor(() => expect(linkSignIn).toHaveBeenCalledWith("emailed-token"));
+    expect(linkSignIn).toHaveBeenCalledTimes(1);
     expect(window.location.search).toBe("?from=q%3Dx");
     expect(screen.queryByText("Sign in to see this job")).toBeNull();
     expect(screen.getByRole("status").textContent).toBe("Loading…");
@@ -631,6 +645,7 @@ describe("opening a job from its email", () => {
     auth.currentUser = null;
     linkSignIn.mockRejectedValue(new Error("This sign-in link no longer works."));
     render(<CompanyJob />);
+    fireEvent.click(await screen.findByRole("button", { name: "Sign in" }));
     expect(await screen.findByText("Apply to see this job", { selector: "h1" })).toBeTruthy();
     expect(screen.getByRole("status").textContent).toBe("This sign-in link no longer works. Ask for a new one on the sign-in page.");
     expect(screen.getAllByRole("link", { name: "Sign in" }).some(link => link.getAttribute("href")?.startsWith("/sign-in"))).toBe(true);

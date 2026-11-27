@@ -5,6 +5,8 @@ export const SIGN_IN_LINK_ENDED = "This sign-in link no longer works. Ask for a 
 
 /**
  * Spend a deployment company's emailed sign-in link (`server/utils/companySignInLink.ts`) and sign its account in.
+ * Called only from a person's press (outreach gap 1, 2026-11-27): a mail scanner that opens the page and runs its scripts
+ * must not spend the one use.
  * Returns where the link leads (a job, or the job list). Throws with the server's words when the link no longer works.
  */
 export async function signInWithCompanyLink(link: string): Promise<string | null> {
@@ -17,14 +19,21 @@ export async function signInWithCompanyLink(link: string): Promise<string | null
   return data.returnTo ?? null;
 }
 
-/** Read `?link=` from the address and take it out of the address bar at once, keeping every other parameter. */
-export function takeSignInLinkFromAddress(): string | null {
+/**
+ * Read `?link=` from the address without changing it. Pure, so React may call it twice (StrictMode in development) and
+ * both calls see the link; take it out of the address bar with `stripSignInLinkFromAddress` in an effect.
+ */
+export function readSignInLinkFromAddress(): string | null {
   if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get("link") || null;
+}
+
+/** Take `?link=` out of the address bar, keeping every other parameter. Safe to call more than once. */
+export function stripSignInLinkFromAddress(): void {
+  if (typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
-  const link = params.get("link");
-  if (!link) return null;
+  if (!params.has("link")) return;
   params.delete("link");
   const rest = params.toString();
   window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`);
-  return link;
 }
