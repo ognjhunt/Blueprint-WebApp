@@ -34,7 +34,8 @@ const HOW_TO_STOP = "We don't share your name, address or contact details with a
   + "an introduction to it. To stop, open your job page and withdraw your job there. It then leaves every company's view "
   + "at once, and each company it was sent to is asked to delete any copy it saved.";
 // No approved company may see jobs in this store (as in production on 2026-11-27): the email says so (outreach audit D6).
-const NONE_YET = "None is approved yet, so no company can see your job yet; your job page shows when one can.";
+// It never says "none is approved": a company may be approved and not yet have accepted the Terms.
+const NONE_YET = "No approved company can see your job yet; your job page shows when one can.";
 const sentText = () => String(send.mock.calls[0]?.[0]?.text ?? "");
 
 beforeEach(() => {

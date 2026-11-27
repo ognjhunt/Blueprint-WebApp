@@ -37,12 +37,14 @@ const NEVER_SHARED_AND_HOW_TO_STOP = "We don't share "
  * Where the job goes, true whether or not a deployment company is approved yet (outreach audit D6, 2026-11-27: the
  * email said "Your job goes to approved deployment companies." while none was approved and no company could see any
  * job). `companiesCanSee` is `anyCompanyMaySeeJobs` as read when the email is built: true, false, or unknown when the
- * read failed or the caller did not make it, which takes words true in both cases.
+ * read failed or the caller did not make it, which takes words true in both cases. False covers two states: no company
+ * is approved, or one is approved and has not yet accepted the Terms (`companyMaySeeJobs`). So the "no" words say only
+ * that no approved company can see the job yet, as the job page does (`NO_COMPANY_CAN_SEE_LINE`), never "none is approved".
  */
 export type CompaniesCanSee = boolean | undefined;
 const GOES_TO = {
   yes: "your job goes to approved deployment companies.",
-  no: "your job goes to the deployment companies we approve. None is approved yet, so no company can see your job yet; your job page shows when one can.",
+  no: "your job goes to the deployment companies we approve. No approved company can see your job yet; your job page shows when one can.",
   unknown: "your job goes to the deployment companies we have approved. Your job page shows when one can see it.",
 } as const;
 const goesTo = (companiesCanSee: CompaniesCanSee) => GOES_TO[companiesCanSee === true ? "yes" : companiesCanSee === false ? "no" : "unknown"];

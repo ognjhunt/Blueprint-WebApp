@@ -126,14 +126,16 @@ describe("steps 4 and 8: the site's emails, word for word", () => {
     expect(some).toContain("Your job goes to approved deployment companies.");
     expect(some).toContain("This link opens your job without a password, so please don't forward it.");
     const none = body({ videoIn: true, companiesCanSee: false });
-    expect(none).toContain("Your job goes to the deployment companies we approve. None is approved yet, so no company can see your job yet; your job page shows when one can.");
+    expect(none).toContain("Your job goes to the deployment companies we approve. No approved company can see your job yet; your job page shows when one can.");
     expect(none).not.toContain("Your job goes to approved deployment companies.");
+    // `companiesCanSee: false` is also the state of a company approved but not yet under the Terms: never "none is approved".
+    expect(none).not.toMatch(/none is approved/i);
     const unknown = body({ videoIn: true });
     expect(unknown).toContain("Your job goes to the deployment companies we have approved. Your job page shows when one can see it.");
     for (const text of [some, none, unknown]) expect(text).not.toMatch(/simulation|first look/i);
   });
   it("the job link email, no video yet, no company approved", () => {
-    expect(body({ videoIn: false, companiesCanSee: false })).toContain("Once your video is in, your job goes to the deployment companies we approve. None is approved yet");
+    expect(body({ videoIn: false, companiesCanSee: false })).toContain("Once your video is in, your job goes to the deployment companies we approve. No approved company can see your job yet");
   });
   it("the job link email, no video yet", () => {
     expect(body({ videoIn: false })).toContain("A video is required to post your job.");
