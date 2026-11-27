@@ -100,12 +100,15 @@ describe("step 7: the outlook once a simulation package is delivered", () => {
   it("a delivered package, room only or full, is 'ready'", () => {
     expect(jobOutlook(base)).toEqual({ phase: "simulation_ready", reason: null, sentence: null });
   });
-  it("the window ending outranks the delivered package: the site reads that time ran out", () => {
-    expect(jobOutlook({ ...base, windowEnded: true })).toMatchObject({ phase: "no_test", reason: "window_expired",
-      sentence: "The time for this job ran out." });
+  it("with nothing delivered, the window ending still says time ran out", () => {
+    expect(jobOutlook({ ...base, windowEnded: true, simulationDelivered: false })).toMatchObject({ phase: "no_test",
+      reason: "window_expired", sentence: "The time for this job ran out." });
   });
-  it.fails("GAP: a delivered package stays 'ready' after the job's window ends (a company still downloads it)", () => {
-    expect(jobOutlook({ ...base, windowEnded: true }).phase).toBe("simulation_ready");
+  // Fixed 2026-11-27 (D4): this was an `it.fails` gap test.
+  it("a delivered package stays 'ready' after the job's window ends (a company still downloads it)", () => {
+    expect(jobOutlook({ ...base, windowEnded: true })).toEqual({ phase: "simulation_ready", reason: null, sentence: null });
+    expect(jobOutlook({ ...base, preparation: { state: "authority_ended", geometryOnlyEnd: false }, windowEnded: true }).phase)
+      .toBe("simulation_ready");
   });
   it("the job's spending cap outranks the delivered package too", () => {
     expect(jobOutlook({ ...base, scene: { state: "ended", endingKind: "spending_cap_reached" } }).reason).toBe("spending_cap_reached");

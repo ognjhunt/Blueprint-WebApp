@@ -15,8 +15,9 @@
  * - `no_test`: an ending is recorded and no result exists; the paper check is the answer, with `sentence`.
  * - `ended_by_site`: the site withdrew recording permission or closed the run; never building, never an answer email.
  *
- * Holds that retry by themselves are not endings (a scene outcome that is a wait). The job window bounds `building` and `simulation_ready`: once its ending is recorded the
- * job is `no_test`.
+ * Holds that retry by themselves are not endings (a scene outcome that is a wait). The job window bounds `building`: once
+ * its ending is recorded the job is `no_test`, unless its simulation package was already delivered, which stays
+ * `simulation_ready` (companies can still download it).
  */
 import { RUN_ENDED_WITHOUT_RESULT, testNotRunLine, type SimulationProof } from "../../client/src/lib/simulationProof";
 import { REASON_UNSIZED, type SiteAnswer } from "../../client/src/lib/siteAnswer";
@@ -101,6 +102,9 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
   // them; it only keeps a job with none of them working.
   const ending = recordedEndingOf(input);
   if (ending?.reason === "spending_cap_reached") return ending;
+  // A package already delivered outlives the job's time running out: it stays stored and approved companies can still
+  // download it, so the site reads that its simulation is ready, not that time ran out (outreach audit D4, 2026-11-27).
+  if (input.simulationDelivered === true && ending?.reason && TIME_ENDINGS.has(ending.reason)) return outlook("simulation_ready");
   // Once the job's time has run out nothing reads its video any more (`captureCoverageQueue.ts` ends the reading), so
   // "We're watching your video." would not be true: the ending is said instead.
   if (ending?.reason === "window_expired" || ending?.reason === "no_grant") return ending;
@@ -108,6 +112,10 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
   // Waiting for the site to name its job: neither building nor an ending.
   return ending ?? (input.awaitsSiteSentence === true ? outlook("waiting_on_site", "task_not_named") : working());
 }
+
+/** Endings that say only that the job's time or authority ran out: none of them takes back a delivered package. */
+const TIME_ENDINGS: ReadonlySet<JobOutlookReason> = new Set(["window_expired", "authority_ended", "job_ended", "no_grant",
+  "window_ended_during_test"]);
 
 /**
  * A run is live only on positive evidence: a run record in a running state (or queued with its plan), and never past
