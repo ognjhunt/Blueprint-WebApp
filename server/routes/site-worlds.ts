@@ -26,6 +26,8 @@ import { companyJobSummaryPdf } from "../utils/companyJobSummary";
 import { companyJobUrl } from "../utils/jobCompanies";
 import { jobSummaryFileName } from "../../client/src/lib/companyJobPage";
 import type { CompanyJobPage } from "../../client/src/types/taskBrowse";
+import { PILOT_CONFIRM_FAILED, PILOT_OFFER_STATEMENT, PILOT_OFFER_STATEMENT_VERSION } from "../../client/src/lib/pilotOffers";
+import { confirmPilotRequest, pilotOfferInputSchema, pilotOfferRefusal, readPilotOffer, savePilotOffer } from "../utils/pilotOffers";
 const router = Router();
 
 /**
@@ -111,6 +113,81 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
     if (!result.ok) return res.status(409).json({ error: result.error });
     return res.json({ ok: true, state: input.data.state, nextAction: answerNextStep(input.data.state) });
   } catch { return res.status(409).json({ error: "The job changed or the answer could not be saved. Reopen the job before trying again." }); }
+});
+
+/**
+ * The signed-in account as an approved deployment company under the current Terms, refused exactly as the answer route
+ * refuses (`/tasks/:taskId/interest`). Blueprint's internal test company has no pilot offer. Null once the refusal is sent.
+ */
+async function pilotOfferCompany(res: Response): Promise<{ companyId: string; access: Record<string, any>; email: string; uid: string } | null> {
+  const user = res.locals.firebaseUser;
+  if (!user?.email || user.email_verified !== true) { res.status(403).json({ error: "Use your approved company's verified account." }); return null; }
+  if (!db) { res.status(503).json({ error: "Your pilot offer could not be read just now. Try again." }); return null; }
+  const access = await getAccessRecordForEmail(user.email);
+  const companyId = accessRecordId(user.email);
+  if (access?.status !== "approved" || access.partnerRole === "technology" || hasInternalTestCompanyMarker(access)
+    || isInternalTestCompanyRow(companyId, access)) {
+    res.status(403).json({ error: "Only an approved deployment company can publish a pilot offer." }); return null;
+  }
+  if (!companyMaySeeJobs(access as never)) { res.status(403).json({ error: TERMS_PROMPT, code: TERMS_ACCEPTANCE_REQUIRED }); return null; }
+  return { companyId, access: access as unknown as Record<string, any>, email: user.email, uid: user.uid };
+}
+
+/** The company's own pilot offer (owner, 2026-11-28), with the statement its form shows. */
+router.get("/pilot-offer", csrfProtection, verifyFirebaseToken, async (_req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  res.set("Vary", "Authorization");
+  try {
+    const company = await pilotOfferCompany(res);
+    if (!company) return;
+    return res.json({ offer: await readPilotOffer(company.companyId),
+      statement: { version: PILOT_OFFER_STATEMENT_VERSION, text: PILOT_OFFER_STATEMENT } });
+  } catch { return res.status(503).json({ error: "Your pilot offer could not be read just now. Try again." }); }
+});
+
+/** Publish, edit or pause the company's one pilot offer. */
+router.put("/pilot-offer", csrfProtection, verifyFirebaseToken, async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  const input = pilotOfferInputSchema.safeParse(req.body);
+  if (!input.success) return res.status(400).json({ error: pilotOfferRefusal(input.error.issues) });
+  try {
+    const company = await pilotOfferCompany(res);
+    if (!company) return;
+    const result = await savePilotOffer({ companyId: company.companyId, uid: company.uid, offer: input.data });
+    if (!result.ok) return res.status(403).json({ error: "Only an approved deployment company can publish a pilot offer." });
+    return res.json({ ok: true, offer: result.offer });
+  } catch { return res.status(503).json({ error: "Your pilot offer could not be saved just now. Try again." }); }
+});
+
+/**
+ * "Confirm" on a job whose site asked for the company's pilot: an Apply under the company's response line (the page shows
+ * it beside the button and sends its version), then the introduction for the site's press (`confirmPilotRequest`).
+ * Need more details and Not a fit go through `/tasks/:taskId/interest`, unchanged.
+ */
+const pilotConfirmSchema = z.object({ decision: z.literal("confirm"),
+  statementVersion: z.enum(COMPANY_RESPONSE_FORM_STATEMENT_VERSIONS) }).strict();
+router.post("/jobs/:taskId/pilot-request", csrfProtection, verifyFirebaseToken, async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  const input = pilotConfirmSchema.safeParse(req.body);
+  if (!input.success) return res.status(400).json({ error: input.error.issues[0]?.path[0] === "statementVersion"
+    ? "The wording on this page has changed. Reload the page, read it, then confirm again." : RESPONSE_UNREADABLE });
+  const user = res.locals.firebaseUser;
+  if (!user?.email || user.email_verified !== true) return res.status(403).json({ error: "Use your approved company's verified account." });
+  if (!db) return res.status(503).json({ error: PILOT_CONFIRM_FAILED });
+  try {
+    const access = await getAccessRecordForEmail(user.email);
+    const companyId = accessRecordId(user.email);
+    if (access?.status !== "approved" || access.partnerRole === "technology" || hasInternalTestCompanyMarker(access)
+      || isInternalTestCompanyRow(companyId, access))
+      return res.status(403).json({ error: "Only an approved deployment company can answer." });
+    if (!companyMaySeeJobs(access as never)) return res.status(403).json({ error: TERMS_PROMPT, code: TERMS_ACCEPTANCE_REQUIRED });
+    const result = await confirmPilotRequest({ taskId: String(req.params.taskId), companyId, company: access as unknown as Record<string, any>,
+      email: user.email, uid: user.uid, statementVersion: input.data.statementVersion });
+    if (!result.ok && result.reason === "no_request")
+      return res.status(409).json({ error: "The site has not asked for your pilot on this job. Use the form to apply." });
+    if (!result.ok) return res.status(409).json({ error: result.error ?? PILOT_CONFIRM_FAILED });
+    return res.json({ ok: true, introduced: result.introduced, ...(result.refusal ? { refusal: result.refusal } : {}) });
+  } catch { return res.status(409).json({ error: "The job changed or your confirmation could not be saved. Reopen the job before trying again." }); }
 });
 
 /** After an answer, one sentence saying what happens next. */

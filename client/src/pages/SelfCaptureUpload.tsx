@@ -4,6 +4,8 @@ import { TaskOutcomeNotice } from "@/components/site/TaskOutcomeNotice";
 import type { TaskOutcome } from "@/types/taskOutcome";
 import { isLikelyPhone } from "@/lib/device";
 import { JobFacts } from "@/components/site/JobFacts";
+import { PilotOffers } from "@/components/site/PilotOffers";
+import { sanitizeSitePilotOffers, type SitePilotOffers } from "@/lib/pilotOffers";
 import { sanitizeJobReading, type JobReading } from "@/lib/jobFacts";
 import { sanitizeSiteJobBrief, type SiteJobBrief } from "@/lib/jobBrief";
 import type { FirstLookWords } from "@/lib/firstLookWords";
@@ -95,7 +97,9 @@ type TaskStatus = {
   answer?: SiteAnswerView | null;
   companyStatus?: { sharing: JobSharing; companies?: SiteCompanyActivity; descriptionOnly: boolean; taskFamily?: string;
     /** What companies read of the site's own words (2026-11-24). */
-    companiesRead?: CompaniesReadSiteWords } | null;
+    companiesRead?: CompaniesReadSiteWords;
+    /** The pilot offers that fit the job on paper (owner, 2026-11-28), only while companies can see the job. */
+    pilotOffers?: SitePilotOffers } | null;
 };
 
 /** Decisions that ask something of the site, or end the job: the status card stays for them under any answer. */
@@ -624,6 +628,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               descriptionOnly: data.companyStatus.descriptionOnly === true,
               taskFamily: typeof data.companyStatus.taskFamily === "string" ? data.companyStatus.taskFamily : undefined,
               companiesRead: isCompaniesReadSiteWords(data.companyStatus.companiesRead) ? data.companyStatus.companiesRead : undefined,
+              pilotOffers: sanitizeSitePilotOffers(data.companyStatus.pilotOffers) ?? undefined,
             } : null,
           });
         } else if (alive) readFailed(false);
@@ -924,6 +929,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     ? <JobFacts key={`${taskFamily}|${status?.jobReading?.kind ?? ""}|${status?.jobReading?.object ? "named" : ""}|${status?.jobBrief?.version ?? ""}`}
       token={token} facts={status?.jobFacts as never} taskFamily={taskFamily} reading={status?.jobReading ?? null}
       brief={status?.jobBrief ?? null} /> : null;
+  // The pilot offers block, above Applicants, while the job is in front of companies (the server sends it only then).
+  const pilotOffers = answer && scope === "owner" && !withdrawn && companyStatus?.pilotOffers && answer.sharing?.state === "visible"
+    ? <PilotOffers token={token} pilot={companyStatus.pilotOffers} onChanged={() => setStatusRefresh(value => value + 1)} /> : null;
   const siteActionWaiting = answer?.sharing?.olderStatement === true || !quietCard || Boolean(taskStatementForm);
   const settingsOpen = scope === "owner" && (link.status === "valid" || link.status === "held");
   const editJob = scope === "owner" && brief && !withdrawn ? <details id="job-brief-editor" open={editingBrief || undefined}
@@ -997,7 +1005,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         quietAction={!quietCard} onShowDetails={() => openView("details")} onShowSettings={settingsOpen ? () => openView("settings") : undefined}
         outlook={status?.outlook ?? null} sceneViewUrl={sceneViewUrl}
         successRule={brief?.successCriteria?.unknown ? null : brief?.successCriteria?.successDefinition ?? null}
-        simulationContents={status?.simulationContents ?? null} firstLookTable={status?.firstLookTable ?? null} jobFacts={siteActionWaiting ? null : jobFacts} />}
+        simulationContents={status?.simulationContents ?? null} firstLookTable={status?.firstLookTable ?? null} jobFacts={siteActionWaiting ? null : jobFacts}
+        pilotOffers={pilotOffers} />}
       {answer && withdrawal && <section className="job-more job-more-plain" aria-label="More for this job">{withdrawal}</section>}
       {!answer && companyStatus && companyStatus.sharing.state !== "not_shared" && (
         <JobCompanyResponses token={token} sharing={companyStatus.sharing} activity={companyStatus.companies}

@@ -247,6 +247,25 @@ export function jobFactKeysFor(taskFamily: string | undefined, reading?: Pick<Jo
 }
 
 /**
+ * The order the site's own page asks its questions in (owner, 2026-11-28): the answers a pilot offer's fit reads come
+ * early. A kind's own opening question stays first where it has one (where a carrying job goes, the defect an inspection
+ * catches, how the work varies: earlier owner choices); then the kind's heaviest-item question, its rate question and
+ * when; then the rest in their order. The site's page only: the company's page keeps the rows in `jobFactKeysFor` order.
+ */
+const SITE_ASKS_EARLY: ReadonlyArray<readonly JobFactKey[]> = [["maxLoadedWeightKg", "weight"],
+  ["perHour", "peakPerMinute", "machineCycleSeconds"], ["timing"]];
+export function siteAskOrder<T>(items: readonly T[], keyOf: (item: T) => JobFactKey | null): T[] {
+  const early: T[] = [];
+  for (const group of SITE_ASKS_EARLY) {
+    const item = group.map(key => items.find(candidate => keyOf(candidate) === key)).find(found => found !== undefined);
+    if (item !== undefined && !early.includes(item)) early.push(item);
+  }
+  // The kind's own opening question, when it is not one of the three, keeps its place at the head.
+  const lead = items.length && !early.includes(items[0]) ? [items[0]] : [];
+  return [...lead, ...early, ...items.filter(item => !early.includes(item) && !lead.includes(item))];
+}
+
+/**
  * The question as the site reads it on its job page, before the video reading names the job's object
  * (`jobFactQuestion` names it once it does). Weight and size ask for the heaviest and the biggest, since a job may
  * handle more than one thing; how often asks for times the job is done, which fits any kind of job.

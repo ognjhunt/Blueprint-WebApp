@@ -1168,3 +1168,59 @@
   line-height: 1.5;
   white-space: pre;
 }
+
+/* The company's pilot offer form (owner, 2026-11-28): plain labels and fieldsets, laid out like the other forms. */
+.ws-pilot-offer {
+  display: grid;
+  gap: 20px;
+}
+.ws-pilot-offer > label,
+.ws-pilot-offer [role="group"] > label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+.ws-pilot-offer input:not([type="checkbox"]):not([type="radio"]),
+.ws-pilot-offer select {
+  width: 100%;
+  max-width: 420px;
+  min-height: 48px;
+  padding: 12px;
+  border: 1px solid #b7bead;
+  border-radius: 2px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--ws-ink);
+  background: #fafbf5;
+}
+.ws-pilot-offer fieldset {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.ws-pilot-offer legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-weight: 600;
+}
+.ws-pilot-offer fieldset > label,
+.ws-checkbox-grid > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.ws-pilot-offer [role="group"] {
+  display: grid;
+  gap: 12px;
+  margin-top: 6px;
+}
+.ws-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 2px 16px;
+}

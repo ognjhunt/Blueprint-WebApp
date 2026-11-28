@@ -290,6 +290,10 @@ export interface CompanyJobPage {
   pendingQuestion?: { askedAtIso: string; replyByIso: string; reminded: boolean };
   /** The line under the form, and the version recorded with an answer. */
   responseStatement: { version: string; text: string };
+  /** The site asked for this company's pilot (owner, 2026-11-28): the company's own terms as of the request; nothing of the site. */
+  pilotRequest?: import("../lib/pilotOffers").CompanyPilotRequest;
+  /** Once the introduction from that request is made: the site's sentence and rule as this page shows them, and the terms. */
+  pilotSheet?: import("../lib/pilotOffers").PilotSheet;
 }
 
 /** A live job as anyone reads it on /jobs (`server/utils/taskBrowse.ts`, `listPublicLiveJobs`). */

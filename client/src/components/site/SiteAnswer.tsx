@@ -677,6 +677,8 @@ export interface SiteAnswerProps {
   firstLookTable?: FirstLookWords | null;
   /** Optional job questions below company activity, when a required action is not waiting. */
   jobFacts?: ReactNode;
+  /** The pilot offers that fit the job on paper (owner, 2026-11-28), above Applicants, once companies can see the job. */
+  pilotOffers?: ReactNode;
 }
 
 /**
@@ -684,7 +686,7 @@ export interface SiteAnswerProps {
  * where it stands. There is no share step: a job is shared because its site accepted recording statement v4.
  */
 export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, onUpdateVideo, quietAction = false,
-  onShowDetails, onShowSettings, outlook = null, sceneViewUrl = null, successRule = null, simulationContents = null, firstLookTable = null, jobFacts }: SiteAnswerProps) {
+  onShowDetails, onShowSettings, outlook = null, sceneViewUrl = null, successRule = null, simulationContents = null, firstLookTable = null, jobFacts, pilotOffers }: SiteAnswerProps) {
   const pick = answer.state === "ready" ? answer.pick : null;
   // The phase is the server's (one decision for the page, sharing and emails). When unsure, the job is still being
   // worked on (review, 2026-11-11): with no outlook the page says the packet is being built and offers no button.
@@ -783,6 +785,7 @@ export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, 
   </Section> : null;
 
   return <section className="site-answer-bare" aria-label="Your job">
+    {pilotOffers}
     {companies}
     {jobFacts}
     <Section id="site-job-first-look" title={SECTION_FIRST_LOOK}>{firstLook}</Section>

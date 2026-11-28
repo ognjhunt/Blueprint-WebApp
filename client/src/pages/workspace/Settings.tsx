@@ -1,4 +1,5 @@
 import { UpdatePreferencesForm } from "@/components/workspace/UpdatePreferencesForm";
+import { PILOT_OFFER_FORM_LEAD, PILOT_OFFER_SETTINGS_LINK } from "@/lib/pilotOffers";
 import AccountDeletion from "@/components/AccountDeletion";
 import { Link, useSearch } from "wouter";
 import { AppShell } from "@/components/blueprint/app/AppShell";
@@ -71,6 +72,11 @@ function WorkspaceSettings() {
             </div>
           </form>
           <UpdatePreferencesForm preferences={query.data?.profile.updatePreferences} pending={action.pending} jobEmails={robot} save={input => { void action.perform("/update-preferences", input, undefined, "PATCH"); }} />
+          {robot && <section className="ws-section">
+            <h2>{PILOT_OFFER_SETTINGS_LINK}</h2>
+            <p className="ws-note">{PILOT_OFFER_FORM_LEAD}</p>
+            <p className="ws-note"><Link className="ws-link" href="/settings/pilot-offer">{PILOT_OFFER_SETTINGS_LINK} →</Link></p>
+          </section>}
           <section className="ws-section">
             <h2>Security</h2>
             <p className="ws-note"><Link className="ws-link" href="/settings?privacy=1">Delete my account and data →</Link></p>

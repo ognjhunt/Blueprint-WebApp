@@ -58,6 +58,7 @@ const Terms = lazyRoute(() => import("../pages/Terms"));
 const PrivacyPrevious = lazyRoute(() => import("../pages/PrivacyPrevious"));
 const TermsPrevious = lazyRoute(() => import("../pages/TermsPrevious"));
 const Settings = lazyRoute(() => import("../pages/workspace/Settings"));
+const PilotOfferSettings = lazyRoute(() => import("../pages/PilotOfferSettings"));
 const AdminRobotTeamAccess = lazyRoute(() => import("../pages/AdminRobotTeamAccess"));
 const AdminOutreach = lazyRoute(() => import("../pages/AdminOutreach"));
 const AdminJobConsole = lazyRoute(() => import("../pages/AdminJobConsole"));
@@ -306,6 +307,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/privacy/previous", layout: "public", component: PrivacyPrevious },
   { path: "/terms/previous", layout: "public", component: TermsPrevious },
   { path: "/settings", layout: "protected", shell: "bare", component: Settings },
+  // A deployment company's one standing pilot offer (owner, 2026-11-28), linked from its Settings.
+  { path: "/settings/pilot-offer", layout: "protected", shell: "bare", component: PilotOfferSettings },
 
   // Admin
   { path: "/admin/robot-team-access", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminRobotTeamAccess },

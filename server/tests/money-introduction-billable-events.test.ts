@@ -496,8 +496,11 @@ describe("only the site's own route reaches the billable event (source)", () => 
   const calling = (pattern: RegExp) => files.filter(file => pattern.test(fs.readFileSync(path.join(ROOT, file), "utf8"))).sort();
 
   it("calls requestIntroduction from the site's owner-link route only, and the internal test company's Accept on a test job", () => {
+    // `pilotOffers.ts` (owner, 2026-11-28) on purpose: a company's Confirm makes the introduction the SITE already asked
+    // for with its own owner-link press ("Request this pilot", recorded with the introduction sentence's version), after
+    // an ordinary Apply under the company's response line; `requestIntroduction` re-checks everything as for Accept.
     expect(calling(/\brequestIntroduction\s*\(/)).toEqual(["server/routes/internal-test-company.ts",
-      "server/routes/site-task-brief.ts", "server/utils/jobIntroductions.ts"]);
+      "server/routes/site-task-brief.ts", "server/utils/jobIntroductions.ts", "server/utils/pilotOffers.ts"]);
     // The internal route (owner, 2026-11-25) presses Accept for Blueprint's internal test company only, and only after it
     // has refused every job that is not an internal test job: its introduction's event is a test event, never billable
     // (`buildIntroductionBillableEvent` with `test` for an internal test job).

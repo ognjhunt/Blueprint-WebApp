@@ -21,6 +21,7 @@ import { DESCRIPTION_AUTHORITY_STATEMENTS, DESCRIPTION_AUTHORITY_VERSIONS } from
 import { TASK_CONFIRMATION_STATEMENTS, TASK_CONFIRMATION_VERSIONS } from "@/lib/taskConfirmationStatement";
 import { CURRENT_UPDATE_PREFERENCES_VERSION } from "@/types/updatePreferences";
 import { JOB_CARD_ANSWER_STATEMENTS, JOB_CARD_ANSWER_STATEMENT_VERSIONS } from "@/lib/jobCardAnswerConsent";
+import { PILOT_OFFER_STATEMENT, PILOT_OFFER_STATEMENT_VERSION, PILOT_OFFER_STATEMENT_VERSIONS } from "@/lib/pilotOffers";
 import { SITE_START_CONSENT_NO_VIDEO, SITE_START_CONSENT_NO_VIDEO_V5, SITE_START_CONSENT_WITH_VIDEO, SITE_START_CONSENT_WITH_VIDEO_V4, SITE_START_CONSENT_WITH_VIDEO_V6 } from "@/lib/siteStartConsent";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
@@ -58,6 +59,9 @@ const CONSTANT_STATEMENTS = [
   { name: "company response (estimate)", version: "company-response-2026-11-23.2", actual: COMPANY_RESPONSE_STATEMENT_2026_11_23_2_VERSION === "company-response-2026-11-23.2" ? COMPANY_RESPONSE_STATEMENT_2026_11_23_2 : "", text: "The site sees your company's name and website with your answer, and any estimate you give, as an estimate before a site visit, not a quote. If you apply or answer Tested it: can do and the site accepts, we give the site your contact details, and give you theirs." },
   // Owner, 2026-11-25 ("update the answer line too"): the form no longer offers Tested it: can do.
   { name: "company response (apply only)", version: "company-response-2026-11-25.1", actual: COMPANY_RESPONSE_STATEMENT_VERSION === "company-response-2026-11-25.1" ? COMPANY_RESPONSE_STATEMENT : "", text: "The site sees your company's name and website with your answer, and any estimate you give, as an estimate before a site visit, not a quote. If you apply and the site accepts, we give the site your contact details, and give you theirs." },
+  // A deployment company's standing pilot offer (owner, 2026-11-28: drafted for the owner's review before merge), recorded
+  // on the offer. The site's press and the company's Confirm reuse the introduction and response sentences above and below.
+  { name: "pilot offer", version: "pilot-offer-2026-11-28.1", actual: PILOT_OFFER_STATEMENT_VERSION === "pilot-offer-2026-11-28.1" ? PILOT_OFFER_STATEMENT : "", text: "When a site's job fits this offer on paper, we show the site your company's name, your website and these terms. If the site asks for your pilot and you confirm, we give the site your contact details, and give you theirs. These terms are your own, given before a site visit. They are not a quote, and Blueprint does not check or guarantee them." },
   // The site's agreement beside "Introduce us" (planner, 2026-11-12, 18:25Z): the recorded text is the template.
   { name: "introduction request", version: "introduction-request-2026-11-12",
     actual: INTRODUCTION_REQUEST_STATEMENT_2026_11_12_VERSION === "introduction-request-2026-11-12" ? INTRODUCTION_REQUEST_STATEMENT_2026_11_12 : "",
@@ -200,6 +204,9 @@ describe("recorded statements keep their exact text under their version", () => 
     // The closed sets themselves: a new version must be added here, and to the rows above, on purpose.
     expect([...RECORDING_RIGHTS_STATEMENT_VERSIONS]).toEqual(["2026-09-18.v1", "2026-11-02.v2", "2026-11-11.v3", "2026-11-12.v4", "2026-11-23.v6"]);
     expect([...DESCRIPTION_AUTHORITY_VERSIONS]).toEqual(["2026-10-06.v1", "2026-11-11.v2", "2026-11-11.v3", "2026-11-12.v4", "2026-11-12.v5", "2026-11-23.v6"]);
+    for (const version of PILOT_OFFER_STATEMENT_VERSIONS)
+      expect(CONSTANT_STATEMENTS.some(row => row.version === version), version).toBe(true);
+    expect([...PILOT_OFFER_STATEMENT_VERSIONS]).toEqual(["pilot-offer-2026-11-28.1"]);
   });
 
   it("shows the introduction statement word for word beside the button, and the button records its version", () => {

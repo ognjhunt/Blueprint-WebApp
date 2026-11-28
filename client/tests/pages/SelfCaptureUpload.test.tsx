@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import SelfCaptureUpload, { LAST_STATUS_HOLD_MS, SCENE_LINK_KEEP_MS, STATUS_POLL_TIMEOUT_MS, STATUS_READ_FAILED, STATUS_READ_RETRY, applicantsAsOf } from "@/pages/SelfCaptureUpload";
 import { RECORDING_RIGHTS_STATEMENT_V6 } from "@/lib/recordingRightsStatement";
+import { READING_LINE } from "@/lib/jobOutlook";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
 import { allZeroEvaluation, cannotAssessAnswer, readingAnswer, readyAnswer, serverOutlookFor, winnerEvaluation } from "../fixtures/siteAnswer";
 import { projectSimulationProof } from "@/lib/simulationProof";
@@ -1544,6 +1545,40 @@ describe("the site's answer leads its job page", () => {
     const facts = await screen.findByTestId("job-facts");
     const companies = screen.getByRole("region", { name: "Applicants" });
     expect(companies.nextElementSibling).toBe(facts);
+  });
+
+  // Owner, 2026-11-28 (pilot offers, spec addendum A7): the quick questions do not wait for the first look. A saved video is
+  // enough, and the kind's weight question comes first.
+  it("asks the quick questions as soon as the video is saved, while the first look is still being read", async () => {
+    setUserAgent(DESKTOP_UA);
+    const reading = { ...readingAnswer, sharing: { state: "visible", sharedAtIso: "2026-11-12T10:00:00.000Z" } };
+    vi.stubGlobal("fetch", answerFetch({ answer: reading, outlook: { phase: "reading", reason: null, sentence: null } }));
+    render(<SelfCaptureUpload />);
+    const facts = await screen.findByTestId("job-facts");
+    expect(within(facts).getByText(/^How heavy is the heaviest/)).toBeVisible();
+    expect(within(screen.getByRole("region", { name: "Your job" })).getByText(READING_LINE)).toBeVisible();
+  });
+
+  it("shows the pilot offers that fit above Applicants, with the introduction sentence under the button", async () => {
+    setUserAgent(DESKTOP_UA);
+    const shared = { ...readyAnswer, sharing: { state: "visible", sharedAtIso: "2026-11-12T10:00:00.000Z" } };
+    const base = answerFetch({ answer: shared });
+    const pilotOffers = { introductionStatementVersion: "introduction-request-2026-11-24", offers: [{ offerRef: `p-${"a".repeat(32)}`,
+      company: { name: "North Robotics", website: "https://north.example" }, unknown: [],
+      offer: { kinds: ["palletizing"], limits: { maxKg: 25, maxSide: null, minHours: null, states: "all_us" },
+        terms: { weeks: 6, sitePays: { kind: "nothing" }, siteProvides: [], earliestStart: "within_month", afterPilot: "undecided" } } }] };
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await base(input, init);
+      if (String(input) !== `/api/site-task-brief/${TOKEN}/status`) return response;
+      const body = await response.json();
+      return { ok: true, json: async () => ({ ...body, companyStatus: { sharing: shared.sharing, descriptionOnly: false, pilotOffers } }) };
+    }));
+    render(<SelfCaptureUpload />);
+    const pilot = await screen.findByRole("region", { name: "Pilot offers that fit your job" });
+    expect(within(pilot).getByText("North Robotics")).toBeVisible();
+    expect(within(pilot).getByText("Pilot: 6 weeks")).toBeVisible();
+    expect(within(pilot).getByText("We give North Robotics your email address and the place you gave us, and give you theirs.")).toBeVisible();
+    expect(pilot.compareDocumentPosition(screen.getByRole("region", { name: "Applicants" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("asks no quick questions on an older job, whose page asks for the current statement first", async () => {

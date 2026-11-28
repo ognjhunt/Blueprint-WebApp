@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
   CUSTOM_JOB_FACT_ID, JOB_FACT_CHOICES, JOB_FACT_KEYS, JOB_FACT_NUMBERS, JOB_FACTS_HEADING, KG_PER_LB, NOT_SURE_LABEL,
-  isJobFactCode, jobFactKeysFor, jobFactQuestion, jobFactQuestionHint, sanitizeJobFacts, typedJobFactNumber,
+  isJobFactCode, jobFactKeysFor, jobFactQuestion, jobFactQuestionHint, sanitizeJobFacts, siteAskOrder, typedJobFactNumber,
   type JobFactKey, type JobFacts as JobFactsValue, type JobReading,
 } from "@/lib/jobFacts";
 import type { JobBriefQuestion, SiteJobBrief } from "@/lib/jobBrief";
@@ -32,9 +32,11 @@ const isSlot = (value: unknown): value is Slot => (JOB_FACT_KEYS as readonly unk
 
 /** The questions the page walks: the brief's while it asks any, else the catalog's for the job (`jobFactKeysFor`). */
 function questionsFor(taskFamily: string | undefined, reading: JobReading | null | undefined, brief: SiteJobBrief | null | undefined): Question[] {
-  if (brief?.questions.length) return brief.questions.map(question => question.kind === "catalog"
-    ? { ...question, slot: question.key } : { ...question, slot: customSlot(question.id) });
-  return jobFactKeysFor(taskFamily, reading).map(key => ({ kind: "catalog", key, slot: key }));
+  // The kind's heaviest-item question, its rate question and when come first on the site's page (`siteAskOrder`).
+  const keyOf = (question: Question) => question.kind === "catalog" ? question.key : null;
+  if (brief?.questions.length) return siteAskOrder(brief.questions.map((question): Question => question.kind === "catalog"
+    ? { ...question, slot: question.key } : { ...question, slot: customSlot(question.id) }), keyOf);
+  return siteAskOrder(jobFactKeysFor(taskFamily, reading).map((key): Question => ({ kind: "catalog", key, slot: key })), keyOf);
 }
 
 /**

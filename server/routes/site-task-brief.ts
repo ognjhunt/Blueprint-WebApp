@@ -307,6 +307,38 @@ router.post("/:token/introductions", csrfProtection, async (req, res) => {
 });
 
 /**
+ * "Request this pilot" (owner, 2026-11-28): the site asks one company for the pilot its offer describes. The signed owner
+ * link is required, as for Accept. The press carries the offer's opaque reference (never a company id) and the version of
+ * the introduction sentence shown beside the button, which is recorded for the introduction made when the company
+ * confirms (`requestPilot`). A second press changes nothing.
+ */
+router.post("/:token/pilot-requests", csrfProtection, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const verified = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!verified) return res.status(404).json({ code: "capture_token_invalid", error: "That link is not valid any more." });
+  if (verified.scope !== "owner") return res.status(403).json({ code: "pilot_request_owner_required",
+    error: "Open the owner's job link to ask for this." });
+  const { PILOT_REQUEST_FAILED, PILOT_REQUEST_REFUSAL_SENTENCES } = await import("../../client/src/lib/pilotOffers");
+  const body = z.object({ offerRef: z.string().regex(/^p-[a-f0-9]{32}$/), statementVersion: z.string().trim().max(100) })
+    .strict().safeParse(req.body ?? {});
+  if (!body.success) return res.status(400).json({ code: "pilot_request_invalid", error: "Press the button beside the pilot offer on your job page." });
+  if (!isIntroductionStatementVersion(body.data.statementVersion))
+    return res.status(409).json({ ok: false, code: "pilot_request_refused", reason: "statement_not_current",
+      error: PILOT_REQUEST_REFUSAL_SENTENCES.statement_not_current });
+  try {
+    const { requestPilot } = await import("../utils/pilotOffers");
+    const result = await requestPilot({ requestId: verified.requestId, offerRef: body.data.offerRef, statementVersion: body.data.statementVersion });
+    if (result.ok) return res.json({ ok: true, requestedAtIso: result.requestedAtIso });
+    return res.status(409).json({ ok: false, code: "pilot_request_refused", reason: result.reason,
+      error: PILOT_REQUEST_REFUSAL_SENTENCES[result.reason],
+      ...(result.statementVersion && isIntroductionStatementVersion(result.statementVersion) ? { statementVersion: result.statementVersion } : {}) });
+  } catch (error) {
+    logger.error({ error, requestId: verified.requestId }, "Could not record a pilot request");
+    return res.status(503).json({ ok: false, code: "pilot_request_unavailable", error: PILOT_REQUEST_FAILED });
+  }
+});
+
+/**
  * After an introduction, the site marks how it went: a visit happened, a pilot was agreed (or takes the mark back).
  * The signed owner link is required, as for the introduction itself.
  */
@@ -1217,8 +1249,13 @@ async function siteCompanyStatus(params: StatusAnswerParams | null) {
         : null]);
     // Keep withdrawal available for old description-only listings, even though companies no longer see them.
     const descriptionOnly = isJobSharedListing(params.request) && descriptionStatementShares(params.request);
+    // The pilot offers that fit the job on paper (owner, 2026-11-28), only while companies can see the job, as Applicants.
+    const pilotOffers = access.listed && !internalTestCompany ? await import("../utils/pilotOffers").then(({ pilotOffersForSite }) =>
+      pilotOffersForSite(params.requestId, params.request as Record<string, any>, { taskFamily: access.details.taskFamily,
+        listed: access.listed, activity: companies, brief: params.brief as never }))
+      .catch(error => { logger.warn({ error, requestId: params.requestId }, "Could not read the job's pilot offers"); return null; }) : null;
     return { sharing, companies, descriptionOnly, ...(companiesRead ? { companiesRead } : {}),
-      ...(access.listed ? { taskFamily: access.details.taskFamily } : {}) };
+      ...(access.listed ? { taskFamily: access.details.taskFamily } : {}), ...(pilotOffers ? { pilotOffers } : {}) };
   } catch (error) {
     logger.warn({ error, requestId: params.requestId }, "Could not read the job's company status");
     return null;

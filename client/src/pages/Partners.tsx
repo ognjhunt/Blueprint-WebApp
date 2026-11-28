@@ -4,6 +4,7 @@ import { SEO } from "@/components/SEO";
 import { PartnerApplication } from "@/components/site/PartnerApplication";
 import { SampleJob } from "@/components/site/SampleJob";
 import { LiveJobs } from "@/components/site/LiveJobs";
+import { PILOT_OFFER_FIND_JOBS_LINE } from "@/lib/pilotOffers";
 import { FIND_JOBS_PATH, PARTNERS_PAGE_NAME, PARTNERS_SEO_DESCRIPTION, PARTNERS_TITLE } from "@/lib/publicCopy";
 
 /**
@@ -23,6 +24,7 @@ export default function Partners() {
           <BareBig as="h1" sub="Review real jobs, each with the site's video and description. Apply to the ones you can do; when a site accepts you, we introduce you both.">{PARTNERS_TITLE}</BareBig>
           <p className="bare-company-access"><a href="#sample-job">See a sample job</a></p>
           <p className="bare-company-access">Already approved? <a href="/contact/robot-team">See jobs</a>.</p>
+          <p className="bare-company-access">{PILOT_OFFER_FIND_JOBS_LINE}</p>
         </BareScreen>
         <LiveJobs />
         <SampleJob />

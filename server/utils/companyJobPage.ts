@@ -42,6 +42,7 @@ export { siteWordsDeterministic, siteWordsForCompany };
 import type { CompaniesReadSiteWords } from "../../client/src/lib/companiesRead";
 import { JOB_DESCRIPTION_MAX_LENGTH } from "../../client/src/lib/jobDescriptionLimit";
 import { simulationContentsOf } from "../../client/src/lib/simulationContents";
+import { usStateCodeOf } from "../../client/src/lib/pilotOffers";
 
 /**
  * The company still stands approved as a deployment company (never a technology partner: the site agreed to share its
@@ -152,6 +153,19 @@ export async function companyPlaceOf(record: Record<string, any>,
   if (!state) return country;
   const city = level === "city" ? await placeField(metadata?.city) : null;
   return city ? `${city}, ${state}, ${country}` : `${state}, ${country}`;
+}
+
+/**
+ * The job's US state as a two-letter code, for the pilot-offer fit (`pilotOfferFit.ts`), under exactly the rule of
+ * `companyPlaceOf`: a job in the United States whose recording statement shares its place at state level or finer, read
+ * from the structured state field only. Null for anything else, never a guess.
+ */
+export async function companyStateOf(record: Record<string, any>,
+  levels: Readonly<Record<string, "state" | "city">> = RECORDING_VERSION_PLACE_LEVEL): Promise<string | null> {
+  if (await countryOf(record) !== "United States" || !recordingStatementShares(record)) return null;
+  const level = levels[String(record.request?.consent_attestation?.statement_version ?? "")];
+  if (level !== "state" && level !== "city") return null;
+  return usStateCodeOf(await placeField(record.request?.siteLocationMetadata?.state));
 }
 
 /** Everything the job record holds that names or reaches the site (`siteIdentity.ts`). */
@@ -410,6 +424,14 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
   const successRulePending = successRead.state !== "shown" && Boolean(siteSuccessRuleSource(brief));
   // The simulation says where it stands instead of showing an empty box.
   const simulationStatus = simulationUrl || viewerUrl ? null : SIMULATION_STATUS[stage ?? "unknown"];
+  // The site's request for this company's pilot, if it made one (owner, 2026-11-28): the company's own terms as of the
+  // request, never anything of the site. The pilot sheet once the introduction is made, with the site's words exactly as
+  // this page already shows them.
+  const pilot = reader.internalTestCompany ? null : await import("./pilotOffers").then(({ companyPilotRequestOf }) =>
+    companyPilotRequestOf(requestId, viewer.companyId, answerRow)).catch(error => {
+    logger.warn({ error, requestId }, "Could not read the site's pilot request"); return null; });
+  const pilotSheet = pilot?.request.introducedAtIso ? await import("./pilotOffers").then(({ pilotSheetOf }) =>
+    pilotSheetOf(pilot.stored, { sentence, done: successRule || null })) : null;
   return {
     schemaVersion: "company_job_page.v1",
     id: requestId,
@@ -464,5 +486,7 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
       askedAtIso: String(answerRow!.questionAskedAtIso), replyByIso: replyByIso(answerRow!.questionAskedAtIso)!,
       reminded: answerRow?.replyReminder?.questionId === question.id } } : {}),
     responseStatement: { version: COMPANY_RESPONSE_STATEMENT_VERSION, text: COMPANY_RESPONSE_STATEMENT },
+    ...(pilot ? { pilotRequest: pilot.request } : {}),
+    ...(pilotSheet ? { pilotSheet } : {}),
   };
 }

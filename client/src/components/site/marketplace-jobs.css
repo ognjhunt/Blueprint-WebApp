@@ -568,3 +568,21 @@ button.company-job-download:disabled { cursor: progress; opacity: 0.7; }
 }
 .company-job-gate-facts { margin: 0 0 12px; color: var(--ms-muted); font-size: 15px; }
 .company-job-gate-form { margin: 8px 0 14px; }
+
+/* Pilot offers (owner, 2026-11-28): the offer's terms on the site's page, the request on the company's, the sheet on both. */
+.bare-screen ul.site-pilot-terms,
+.company-pilot-request ul,
+.pilot-sheet ul { display: grid; gap: 4px; margin: 8px 0; padding-left: 18px; list-style: disc; }
+.pilot-sheet { margin-top: 14px; padding-top: 12px; border-top: 1px solid #dbe1d5; }
+.pilot-sheet h3 { margin: 0 0 8px; font-size: 15px; font-weight: 670; }
+.company-pilot-request {
+  display: grid;
+  gap: 8px;
+  margin-block: 16px;
+  padding: 14px 16px;
+  border: 1px solid #dbe1d5;
+  border-radius: 10px;
+  background: #fff;
+}
+.company-pilot-request h2 { margin: 0; font-size: 18px; }
+.company-pilot-request .ms-button { justify-self: start; }

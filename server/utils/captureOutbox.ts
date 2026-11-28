@@ -3,6 +3,7 @@ import { companyIntroductionEmailEnd, HELD_STATUS, introductionEmailCheck, settl
 import { outcomeQuestionIsCurrent } from "./jobOutcomeGate";
 import { withdrawalNoticeIsCurrent } from "./withdrawalCompanyNotice";
 import { simulationReadyNoticeIsCurrent } from "./simulationReadyNotice";
+import { pilotRequestEmailIsCurrent } from "./pilotOffers";
 /**
  * Durable delivery for site lifecycle and evaluation notices once enqueued.
  *
@@ -99,6 +100,8 @@ export type OutboxKind =
   | "job_withdrawn_company"
   /** Company: the simulation of a job it answered or opened is ready; once per job (owner, 2026-11-25; `simulationReadyNotice.ts`). */
   | "company_simulation_ready"
+  /** Company: a site asked for the pilot its standing offer describes; once per job (owner, 2026-11-28; `pilotOffers.ts`). */
+  | "pilot_requested_company"
   /** Blueprint's ops address only: a deployment company applied, or its application waited three working days; once per
    * application and notice, link-only (`ownerApplicationNotice.ts`). */
   | "ops_access_application";
@@ -507,8 +510,9 @@ async function deliverRow(doc: FirebaseFirestore.QueryDocumentSnapshot,
       const currentOutcomeQuestion = await outcomeQuestionIsCurrent(entry, tx);
       const currentWithdrawalNotice = await withdrawalNoticeIsCurrent(entry, tx);
       const currentSimulationNotice = await simulationReadyNoticeIsCurrent(entry, tx);
+      const currentPilotRequest = await pilotRequestEmailIsCurrent(entry, tx);
       if (accessNotice === "obsolete" || !currentCaptureNotice || !currentJobAlert || !currentClarification || !currentReplyReminder
-        || !currentIntroduction || !currentOutcomeQuestion || !currentWithdrawalNotice || !currentSimulationNotice) {
+        || !currentIntroduction || !currentOutcomeQuestion || !currentWithdrawalNotice || !currentSimulationNotice || !currentPilotRequest) {
         // An introduction that may no longer go ahead is cancelled as a whole (G3): the other email, the record and its
         // billable event, in this transaction. Not from a row whose earlier dispatch may already have reached someone.
         if (!currentIntroduction && !uncertain) introduction.cancel?.(tx);

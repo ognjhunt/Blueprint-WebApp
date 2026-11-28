@@ -78,13 +78,14 @@ describe("JobFacts", () => {
     const onSaved = vi.fn();
     render(<JobFacts token="tok/1" facts={null} onSaved={onSaved} />);
     fireEvent.click(screen.getByRole("button", { name: "5 to 15 kg (11 to 33 lb)" }));
-    await waitFor(() => expect(screen.getByText("How big is the biggest thing the robot handles, on its longest side?")).toBeTruthy());
+    // The site's ask order (owner, 2026-11-28): weight, how often and when first.
+    await waitFor(() => expect(screen.getByText("How many times an hour is the job done?")).toBeTruthy());
     expect(screen.getByText("2 of 5")).toBeTruthy();
     expect((fetchMock.mock.calls[0] as unknown as Call)[0]).toBe("/api/job-facts/tok%2F1");
     expect((fetchMock.mock.calls[0] as unknown as Call)[1].method).toBe("POST");
     expect(bodyOf(fetchMock, 0)).toEqual({ key: "weight", code: "5_15kg" });
     await waitFor(() => expect(onSaved).toHaveBeenLastCalledWith({ weight: "5_15kg", updatedAtIso: "2026-11-12T10:00:00.000Z" }));
-    for (const label of ["Not sure", "60 to 300", "One shift", "Just looking"]) {
+    for (const label of ["60 to 300", "Just looking", "Not sure", "One shift"]) {
       fireEvent.click(screen.getAllByRole("button", { name: label })[0]);
       await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(0));
     }
@@ -106,9 +107,9 @@ describe("JobFacts", () => {
     fireEvent.click(screen.getByRole("button", { name: "Over 30 kg (66 lb)" }));
     await waitFor(() => expect(screen.getByText("2 of 5")).toBeTruthy());
     expect(bodyOf(fetchMock, 0)).toEqual({ key: "weight", code: "over_30kg" });
-    // Keeping an answer: tap it again and the walk moves on, nothing is sent.
-    expect(screen.getByRole("button", { name: "Not sure" })).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Not sure" }));
+    // Keeping an answer: tap it again and the walk moves on, nothing is sent. How often comes second (owner, 2026-11-28).
+    expect(screen.getByRole("button", { name: "Fewer than 60" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Fewer than 60" }));
     expect(screen.getByText("3 of 5")).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -146,9 +147,9 @@ describe("JobFacts", () => {
     fireEvent.keyDown(first, { key: "ArrowDown" });
     expect(fetchMock).not.toHaveBeenCalled();
     fireEvent.click(first);
-    await waitFor(() => expect(screen.getByText("How big is the biggest thing the robot handles, on its longest side?")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("How many times an hour is the job done?")).toBeTruthy());
     // Focus moves in an effect after the next question renders, so wait for it rather than read it in the same tick.
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByText("How big is the biggest thing the robot handles, on its longest side?")));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByText("How many times an hour is the job done?")));
   });
 
   it("stays on the question when a save fails while changing an answer, and says so", async () => {
@@ -189,7 +190,7 @@ describe("JobFacts", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { unmount } = render(<JobFacts token="tok" facts={null} />);
     fireEvent.click(screen.getByRole("button", { name: "Skip" }));
-    await waitFor(() => expect(screen.getByText("How big is the biggest thing the robot handles, on its longest side?")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("How many times an hour is the job done?")).toBeTruthy());
     expect(screen.getByText("2 of 5")).toBeTruthy();
     expect(fetchMock).not.toHaveBeenCalled();
     unmount();
@@ -243,6 +244,19 @@ describe("JobFacts", () => {
     expect(screen.getByText("Where does the robot need to go?")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Between floors" })).toBeTruthy();
     expect(screen.getByText("1 of 5")).toBeTruthy();
+  });
+
+  // Owner, 2026-11-28 (pilot offers): a kind's own opening question stays first; then its heaviest-item question, its
+  // rate question and when.
+  it("asks a machine tending job its own opening question, then its weight, its machine cycle and when", async () => {
+    render(<JobFacts token="tok" facts={null} taskFamily="Machine tending" />);
+    const asked: string[] = [];
+    for (let step = 0; step < 4; step += 1) {
+      asked.push(screen.getByRole("group").querySelector(".site-job-fact-question")?.textContent ?? "");
+      fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    }
+    expect(asked).toEqual(["Who opens the machine door or lid?", "How heavy is the heaviest thing the robot handles?",
+      "How long is the machine’s own cycle?", "When would you want this?"]);
   });
 
   // Ported from the independent check (review-jobfacts.test.tsx).

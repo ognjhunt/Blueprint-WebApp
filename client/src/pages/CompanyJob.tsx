@@ -24,6 +24,10 @@ import { BROWSE_JOBS_PATH, type LibraryAccess } from "@/lib/robotTeamAccess";
 import { CompanySignInLinkFailure, readSignInLinkFromAddress, SIGN_IN_LINK_ENDED, SIGN_IN_TRY_AGAIN, signInWithCompanyLink, stripSignInLinkFromAddress } from "@/lib/companySignInLink";
 import { PartnerApplication } from "@/components/site/PartnerApplication";
 import { COMPANY } from "@/data/company";
+import { PILOT_COMPANY_CONFIRMED_PENDING, PILOT_COMPANY_DECLINED, PILOT_COMPANY_QUESTION, PILOT_CONFIRM_FAILED, PILOT_CONFIRM_LABEL,
+  PILOT_CONFIRM_OTHER_ANSWERS, PILOT_REQUEST_BANNER, pilotCompanyConfirmedLine, pilotCompanyRefusedLine, pilotRequestAskedLine,
+  pilotTermsLines } from "@/lib/pilotOffers";
+import { PilotSheet } from "@/components/site/PilotSheet";
 
 /**
  * The job page for a visitor who is not signed in: what the job holds and how to see it (owner, 2026-11-23). No first
@@ -300,6 +304,8 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
       {page.simulationDownload?.state === "ready" && page.simulationDownload.objectIncluded === false ? <p className="ms-field-hint" role="note">{SIMULATION_WITHOUT_OBJECT}</p> : null}
     </section>}
 
+    {user && page.pilotRequest && <PilotRequestBanner user={user} page={page} onChanged={refreshTickets} />}
+
     <div className="company-job-grid">
       <div className="company-job-overview">
         <section aria-label="The job">
@@ -350,6 +356,52 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
       {user && <CompanyAnswerForm key={page.id} jobId={page.id} user={user} page={page} />}
     </div>
   </div>;
+}
+
+/**
+ * The site asked for this company's pilot (owner, 2026-11-28): one banner with the company's own terms as of the request.
+ * Confirm is an Apply under the company's response line, shown beside the button and recorded with the answer; because the
+ * site already asked, the introduction is then made the way Accept makes it. Need more details and Not a fit are the form's
+ * own answers below, unchanged. After the introduction, the pilot sheet.
+ */
+function PilotRequestBanner({ user, page, onChanged }: { user: User; page: CompanyJobPage; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const request = page.pilotRequest!;
+  async function confirm() {
+    if (busy) return;
+    setBusy(true); setMessage("");
+    try {
+      const response = await fetch(`/api/site-worlds/jobs/${encodeURIComponent(page.id)}/pilot-request`, { method: "POST", credentials: "include",
+        headers: await withFirebaseAuthHeaders(user, await withCsrfHeader({ "Content-Type": "application/json" })),
+        body: JSON.stringify({ decision: "confirm", statementVersion: page.responseStatement.version }) });
+      const body = await response.json().catch(() => null);
+      if (!response.ok || body?.ok !== true) { setMessage(typeof body?.error === "string" ? body.error : PILOT_CONFIRM_FAILED); return; }
+      // The page reads the job again and says where the request stands.
+      onChanged();
+    } catch { setMessage(PILOT_CONFIRM_FAILED); }
+    finally { setBusy(false); }
+  }
+  const status = request.state === "confirmed" ? (request.introducedAtIso ? pilotCompanyConfirmedLine(request.introducedAtIso)
+    : PILOT_COMPANY_CONFIRMED_PENDING)
+    : request.state === "refused" ? pilotCompanyRefusedLine(request.refusal) : null;
+  const waiting = request.state === "requested" || request.state === "question" || request.state === "declined";
+  return <section className="company-pilot-request" aria-label="Pilot request">
+    <h2>{PILOT_REQUEST_BANNER}</h2>
+    <p className="ms-field-hint">{pilotRequestAskedLine(request.requestedAtIso)}</p>
+    <ul aria-label="Your pilot terms">{pilotTermsLines(request.terms).map(line => <li key={line}>{line}</li>)}</ul>
+    {request.state === "question" && <p className="ms-field-hint">{PILOT_COMPANY_QUESTION}</p>}
+    {request.state === "declined" && <p className="ms-field-hint">{PILOT_COMPANY_DECLINED}</p>}
+    {status && <p role="status">{status}</p>}
+    {waiting && <>
+      <button type="button" className="ms-button" onClick={() => void confirm()} disabled={busy}
+        aria-describedby="company-pilot-statement">{busy ? "Saving…" : PILOT_CONFIRM_LABEL}</button>
+      <p className="ms-field-hint" id="company-pilot-statement">{page.responseStatement.text}</p>
+      <p className="ms-field-hint">{PILOT_CONFIRM_OTHER_ANSWERS}</p>
+    </>}
+    {message && <p role="status">{message}</p>}
+    {page.pilotSheet && <PilotSheet sheet={page.pilotSheet} />}
+  </section>;
 }
 
 /**

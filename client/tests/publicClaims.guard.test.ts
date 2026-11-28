@@ -126,6 +126,13 @@ const FRAME_FILES = [
   "client/src/components/admin/JobCompaniesConsole.tsx",
   // The job summary a company downloads from a job's page (owner, 2026-11-25): its own lines around the page's words.
   "server/utils/companyJobSummary.ts",
+  // Pilot offers (owner, 2026-11-28): the words both pages show, the site's block, the pilot sheet, the company's form,
+  // and the file that builds the company's email when a site asks for its pilot.
+  "client/src/lib/pilotOffers.ts",
+  "client/src/components/site/PilotOffers.tsx",
+  "client/src/components/site/PilotSheet.tsx",
+  "client/src/pages/PilotOfferSettings.tsx",
+  "server/utils/pilotOffers.ts",
 ] as const;
 
 const FILES = [...CLAIM_FILES, ...FRAME_FILES] as const;
