@@ -22,7 +22,7 @@ describe("the questions page", () => {
   it("says what is in the job packet and what it is not", () => {
     render(<Beta />);
     const packet = screen.getByRole("region", { name: "Your job packet" });
-    expect(packet).toHaveTextContent(/Your video and job description, a first look, and a simulation of your site when ready\./);
+    expect(packet).toHaveTextContent(/Your video and job description, a first look, and a simulation of your site if a company asks for one\./);
     expect(packet).not.toHaveTextContent(/early trial|openly available/i);
     expect(packet).toHaveTextContent(/It does not certify performance or safety\./);
     expect(packet).not.toHaveTextContent(/proof|guarantee|which did best|AI robot/i);

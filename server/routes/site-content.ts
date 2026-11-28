@@ -20,7 +20,7 @@ const definitions = [
   {
     term: "Job packet",
     definition:
-      `Blueprint's one service for a site. The job packet gives the site's description of one recurring job and what counts as done when known. ${FIRST_LOOK_WHEN_READY} It includes the sound-free video and simulation when available. Blueprint sends it automatically to the deployment companies it has approved.`,
+      `Blueprint's one service for a site. The job packet gives the site's description of one recurring job and what counts as done when known. ${FIRST_LOOK_WHEN_READY} It includes the sound-free video, and a simulation when a deployment company asks for one. Blueprint sends it automatically to the deployment companies it has approved.`,
   },
 ];
 

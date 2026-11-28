@@ -259,7 +259,10 @@ describe("build output", () => {
     // Sharing is the service (2026-11-12): the job packet goes to approved companies; contact details only by introduction.
     for (const text of [llms, llmsFull]) {
       expect(text).toContain("Blueprint adds a first look at which robots could fit when there is enough detail,");
-      expect(text).toContain("The job packet gives the site's description and what counts as done when known. The packet includes the required video without sound and adds the simulation when it is ready.");
+      // The simulation is built when a deployment company asks for it, and a company can publish a pilot offer (owner, 2026-11-28).
+      expect(text).toContain("The job packet gives the site's description and what counts as done when known. The packet includes the required video without sound, and a simulation when a deployment company asks for one.");
+      expect(text).toContain("A site whose job fits an offer on paper can ask for that pilot, and when the company confirms, Blueprint introduces them.");
+      expect(text).not.toMatch(/simulation when it is ready|while the simulation is being built/);
     }
     expect(llmsFull).not.toMatch(/early trial/i);
     // The answers the company form offers, as the site sees them, and what an introduction gives each side (review, 2026-11-12).
@@ -268,7 +271,7 @@ describe("build output", () => {
     // No company can give a tested answer (owner, 2026-11-25), and the first look is the site's own: companies are not promised one.
     for (const text of [llms, llmsFull]) {
       expect(text).not.toMatch(/Tested it/);
-      expect(text).toContain("Blueprint shares the description, the video and the simulation with the deployment companies it approves");
+      expect(text).toContain("Blueprint shares the description, the video and any simulation with the deployment companies it approves");
     }
     expect(llmsFull).not.toMatch(/so they can test it/);
     expect(llmsFull).toContain("After an introduction the company gets the site's name, address and contact details, and the site gets the company's name and contact details.");

@@ -400,7 +400,7 @@ describe("the company's page for one job", () => {
     expect(main.getByRole("form", { name: "Deployment company application" })).toBeInTheDocument();
     const sees = main.getByRole("list", { name: "What an approved company sees" });
     expect(within(sees).getAllByRole("listitem").map(line => line.textContent)).toEqual(["The site's video of the job, without sound, and its description",
-      "Its answers about weight, size, rate and hours", "A simulation of the site to open in your own tools, when it is ready"]);
+      "Its answers about weight, size, rate and hours", "A simulation of the site to open in your own tools, when one has been built"]);
     // The first look is the site's own (owner, 2026-11-25): the gate promises none.
     expect(screen.getByRole("main")).not.toHaveTextContent(/first look/i);
     expect(main.getByText(/brings you back to this job/)).toBeInTheDocument();

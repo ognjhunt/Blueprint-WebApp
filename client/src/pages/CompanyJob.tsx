@@ -39,7 +39,7 @@ export const GATE_WHAT_YOU_SEE = "The site shared this job with the robot deploy
 export const GATE_UNLOCKS = [
   "The site's video of the job, without sound, and its description",
   "Its answers about weight, size, rate and hours",
-  "A simulation of the site to open in your own tools, when it is ready",
+  "A simulation of the site to open in your own tools, when one has been built",
 ] as const;
 /** A signed-out company that opened a new-job email's link: one press spends the link and opens the job. */
 export const LINK_SIGN_IN_HEADING = "Sign in to see this job";
@@ -388,7 +388,8 @@ function AskForSimulation({ user, jobId, onChanged }: { user: User; jobId: strin
     finally { setBusy(false); }
   }
   return <>
-    <button type="button" className="ms-button" onClick={() => void ask()} disabled={busy}>{busy ? "Saving…" : ASK_FOR_SIMULATION_LABEL}</button>
+    {/* The page's second-rank button, as the downloads are: applying stays the one filled button at the top. */}
+    <button type="button" className="company-job-download" onClick={() => void ask()} disabled={busy}>{busy ? "Saving…" : ASK_FOR_SIMULATION_LABEL}</button>
     {message && <p role="status">{message}</p>}
   </>;
 }

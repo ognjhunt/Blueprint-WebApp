@@ -3,7 +3,7 @@ import { ArrowRight, Cog, Layers, Package, Truck, Wrench, type LucideIcon } from
 import type { PublicLiveJob } from "@/types/taskBrowse";
 
 export const LIVE_JOBS_HEADING = "Live jobs";
-export const LIVE_JOBS_LEAD = "Jobs sites have posted. Open one to apply; approved deployment companies see its video, description and simulation.";
+export const LIVE_JOBS_LEAD = "Jobs sites have posted. Open one to apply; approved deployment companies see its video and description, and its simulation when one has been built.";
 export const LIVE_JOB_OPEN = "See job";
 /** Said when the list was read and holds no live job (outreach playbook fix 12, 2026-11-27). */
 export const LIVE_JOBS_EMPTY = "No live jobs right now. New jobs appear here when a site posts one.";

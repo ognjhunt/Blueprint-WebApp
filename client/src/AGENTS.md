@@ -27,12 +27,18 @@ Public copy:
 - Sharing is the service. A site that sends a job agrees once, in the statement
   it accepts (recording statement `2026-11-12.v4` or later), that Blueprint
   shares the job with the deployment companies it has approved: the site's
-  description, its video without its sound, the simulation built from it and the
-  success rule; the first look stays with the site (2026-11-25). There is no share button,
+  description, its video without its sound, the simulation built from it when
+  one is built, and the success rule; the first look stays with the site
+  (2026-11-25). There is no share button,
   no share setting and no pause. A job under an older statement is not shown to
   any company until its site accepts the current one. A site's name, street
   address and contact details are never shared without asking the site first.
-- A simulation never certifies physical performance or safety.
+- A simulation never certifies physical performance or safety. It is built
+  when a deployment company asks for one (owner, 2026-11-28): copy never says a
+  job has, or will have, a simulation unless one was asked for.
+- A pilot offer's terms are the company's own, given before a site visit. Copy
+  says so wherever a figure of a company's is shown: not a quote, and Blueprint
+  does not check or guarantee it.
 - Do not edit Terms, Privacy, their previous versions or any recorded consent
   statement: they record what a person agreed to and change only with a new
   version and the owner.

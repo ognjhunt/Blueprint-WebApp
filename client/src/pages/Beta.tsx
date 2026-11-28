@@ -25,7 +25,7 @@ export default function Beta() {
             { key: "where", label: "Where", value: "We take videos only from sites in the United States." },
           ]} />
           <BareRows title="Your job packet" rows={[
-            { key: "packet", label: "What's in it", value: "Your video and job description, a first look, and a simulation of your site when ready." },
+            { key: "packet", label: "What's in it", value: "Your video and job description, a first look, and a simulation of your site if a company asks for one." },
             { key: "first-look", label: "First look", value: "An estimate of which robots could fit, based on published specs and prior use." },
             { key: "limits", label: "Simulation", value: "A simulation helps companies review your job. It does not certify performance or safety." },
           ]} />

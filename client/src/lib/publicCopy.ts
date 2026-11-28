@@ -5,7 +5,8 @@
  * step.
  *
  * The frame is the owner's (2026-11-12): a site films a job once; Blueprint turns it into a job packet (the site's
- * sentence for the job, a first look on paper at which robots could fit, and a simulation of the site). Sharing is
+ * sentence for the job, a first look on paper at which robots could fit, and a simulation of the site, built when a
+ * deployment company asks for one: owner, 2026-11-28). Sharing is
  * the service (owner, 2026-11-12): a job sent under the current statement is shared, with its video
  * without sound and its simulation, with the deployment companies Blueprint approves; a site's name, address and
  * contact details go to a company only through an introduction the site asks for. No price is stated anywhere: "Free
@@ -56,8 +57,8 @@ export const SAMPLE_JOB = {
   liveAlso: [
     "The site's answers to a few questions about the job, such as the heaviest item and the peak rate.",
     // "where it can be built" (round 2, 2026-11-24): the Pipeline ships the site's room without the object when the
-    // object cannot be built, and says so on the company's page.
-    "A simulation of the site with the job's object in it where it can be built, when it is ready, to download and open in your own tools.",
+    // object cannot be built, and says so on the company's page. Built when a company asks (owner, 2026-11-28).
+    "A simulation of the site, built when a company asks for one, with the job's object in it where it can be built, to download and open in your own tools.",
   ],
   introduction: "The site sees your company's name and website when you answer. You see no site name, address or contact details until the site accepts you. Then we email you both each other's details.",
   cta: "Apply to see jobs",
@@ -66,7 +67,8 @@ export const SAMPLE_JOB = {
 export const HOW_STEPS = [
   { key: "video", title: "Film the job", line: "Use your phone to show one full round of a job that repeats." },
   { key: "packet", title: "Companies review it", line: "We share your video and job description with approved companies, with a simulation if a company asks for one." },
-  { key: "companies", title: "Choose who to meet", line: "Responses appear on your job page. If a company is interested, you can ask for an introduction." },
+  // Pilot offers (owner, 2026-11-28): "any" because none may fit; an introduction is to a company that applied.
+  { key: "companies", title: "Choose who to meet", line: "Your job page shows responses and any pilot offers that fit. Ask for a pilot or an introduction." },
 ] as const;
 
 /** The Questions page's "Jobs" row: Blueprint takes every job (owner, 2026-11-17), so the line says what kind of job to post. */

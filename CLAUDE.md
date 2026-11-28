@@ -7,7 +7,11 @@ approved deployment companies can evaluate without a visit and shares it with
 them: sharing is the service, agreed once when the site sends the job, with no
 share button, no share setting and no pause. The site sees their responses: who will
 take the job, who will not, and why. Until responses exist the site sees the
-first look on paper, the simulation of its site and where the job stands.
+first look on paper, the pilot offers that fit its job and where the job
+stands. A deployment company publishes one standing pilot offer; a site asks
+for a pilot with one press, and the company's confirmation is the introduction
+(owner, 2026-11-28). The simulation of a site is built when a deployment
+company asks for one.
 Blueprint no longer runs robot software in the simulation; the owner dropped
 the early trial on 2026-11-14. A site's name, street address and contact details are never
 shared without asking the site first. The site asks for an introduction with
