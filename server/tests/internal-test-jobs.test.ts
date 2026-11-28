@@ -756,3 +756,47 @@ describe("the owner observation reads a test job through the masked Firestore re
     expect(observed.capture_rights.internal_test).toEqual({ label: "forged", footage_id: "forged" });
   });
 });
+
+/* ----------------------------------------------------------------- the simulation on request (owner, 2026-11-28) */
+
+describe("the simulation on request: the field at creation, and the door's `simulation`", () => {
+  it("is written in the create of a site's job from the public form, and of an internal test job", async () => {
+    const { SIMULATION_ON_REQUEST_FIELD } = await import("../utils/simulationRequest");
+    const site = await startSiteJob();
+    expect(doc(`inboundRequests/${site.jobId}`)[SIMULATION_ON_REQUEST_FIELD]).toBe(true);
+    const test = await createTestJob({ simulation: "on_request" });
+    expect(doc(`inboundRequests/${test.job_id}`)[SIMULATION_ON_REQUEST_FIELD]).toBe(true);
+    // A site's job asks for nothing at creation: only a company's press does.
+    expect(doc(`inboundRequests/${site.jobId}`).simulation_request).toBeUndefined();
+  });
+
+  it.each([["absent", {}], ["now", { simulation: "now" }]])("records the test job's own request at creation when `simulation` is %s",
+    async (_name, overrides) => {
+      const { SIMULATION_REQUESTS_COLLECTION, INTERNAL_TEST_SIMULATION_REQUEST_ROW, storedSimulationRequest, storedSimulationRequestPush,
+        simulationRequestRowDigest } = await import("../utils/simulationRequest");
+      const { job_id } = await createTestJob(overrides);
+      const record = doc(`inboundRequests/${job_id}`);
+      const summary = storedSimulationRequest(record)!;
+      expect(summary).toMatchObject({ source: "internal_test", first_row_id: INTERNAL_TEST_SIMULATION_REQUEST_ROW, count: 1 });
+      const row = doc(`inboundRequests/${job_id}/${SIMULATION_REQUESTS_COLLECTION}/${INTERNAL_TEST_SIMULATION_REQUEST_ROW}`);
+      expect(row).toMatchObject({ source: "internal_test", request_id: job_id, capture_id: `walkthrough-${job_id}` });
+      expect(summary.request_digest).toBe(simulationRequestRowDigest(row));
+      // Queued for the same push a company's press uses; the Pipeline is not configured here, so it waits to try again.
+      expect(storedSimulationRequestPush(record)?.state).toBe("pending");
+      // The same key again asks nothing twice.
+      const again = await signedPost("/api/internal/pipeline/test-jobs", testJobBody(overrides));
+      expect(again.status).toBe(200);
+      expect(storedSimulationRequest(doc(`inboundRequests/${job_id}`))).toEqual(summary);
+    });
+
+  it("sets the field only, with no request, when `simulation` is on_request; any other value is refused", async () => {
+    const { SIMULATION_REQUESTS_COLLECTION } = await import("../utils/simulationRequest");
+    const { job_id } = await createTestJob({ simulation: "on_request" });
+    expect(doc(`inboundRequests/${job_id}`).simulation_request).toBeUndefined();
+    expect(doc(`inboundRequests/${job_id}`).simulation_request_push).toBeUndefined();
+    expect([...state.docs.keys()].filter(key => key.includes(`/${SIMULATION_REQUESTS_COLLECTION}/`))).toEqual([]);
+    await seedFootage("pexels-854533");
+    const refused = await signedPost("/api/internal/pipeline/test-jobs", testJobBody({ simulation: "later" }));
+    expect(refused.status).toBe(400);
+  });
+});

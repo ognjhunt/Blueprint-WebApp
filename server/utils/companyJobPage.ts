@@ -43,6 +43,7 @@ import type { CompaniesReadSiteWords } from "../../client/src/lib/companiesRead"
 import { JOB_DESCRIPTION_MAX_LENGTH } from "../../client/src/lib/jobDescriptionLimit";
 import { simulationContentsOf } from "../../client/src/lib/simulationContents";
 import { usStateCodeOf } from "../../client/src/lib/pilotOffers";
+import { companySimulationStatus } from "./simulationRequest";
 
 /**
  * The company still stands approved as a deployment company (never a technology partner: the site agreed to share its
@@ -423,7 +424,11 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
   // (a review of PR #1437).
   const successRulePending = successRead.state !== "shown" && Boolean(siteSuccessRuleSource(brief));
   // The simulation says where it stands instead of showing an empty box.
-  const simulationStatus = simulationUrl || viewerUrl ? null : SIMULATION_STATUS[stage ?? "unknown"];
+  // A job whose simulation is built only when a company asks (owner, 2026-11-28; `simulationRequest.ts`): the button while
+  // one can be asked for, and when it was asked once it has been, until the simulation is built or has ended. Every other
+  // job, and this one once built or ended, keeps the lines above.
+  const { simulationStatus, simulationRequest } = simulationUrl || viewerUrl ? { simulationStatus: null, simulationRequest: undefined }
+    : companySimulationStatus(record, requestId, stage);
   // The site's request for this company's pilot, if it made one (owner, 2026-11-28): the company's own terms as of the
   // request, never anything of the site. The pilot sheet once the introduction is made, with the site's words exactly as
   // this page already shows them.
@@ -469,6 +474,7 @@ export async function loadCompanyJobPage(requestId: string, viewer: { companyId:
       ...(!simulationContentsOf(simulationPackage).objectIncluded ? { objectIncluded: false as const } : {}) } : { state: "not_finished" },
     simulation: viewerUrl ? { state: "ready", viewerUrl } : { state: "not_finished" },
     simulationStatus,
+    ...(simulationRequest ? { simulationRequest } : {}),
     packetFacts: packet.packetFacts,
     ...(packet.pending ? { packetFactsPending: true as const } : {}),
     visitMustConfirm: [...visitMustConfirm(reading?.kind ?? null, taskFamily)],

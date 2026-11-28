@@ -211,6 +211,11 @@ export function startTaskEvaluationLaunchForwardWorker() {
       }, "Capture coverage worker tick unavailable");
     }
     startLane("job-evidence", processJobEvidenceForwardQueue, "Job evidence delivery reconciliation failed");
+    // A company's request for a job's simulation, pushed to the Pipeline until it answers 202 (`simulationRequest.ts`).
+    startLane("simulation-request", async () => {
+      const { processSimulationRequestPushQueue } = await import("./simulationRequest");
+      if (!stopped) await processSimulationRequestPushQueue();
+    }, "Simulation request push reconciliation failed");
     startLane("scene-intake", processSceneIntakeQueue, "Task Evaluation scene intake reconciliation failed");
     startLane("launch-forward", processTaskEvaluationLaunchForwardQueue, "Task Evaluation launch forward reconciliation failed");
   };

@@ -7,6 +7,7 @@ import type { TaskItem, TaskItemInventoryRecord } from "./taskItemInventory";
 import { REMOVED, asWritten, identifyingDetailsRemoved, removeIdentifyingDetails, type KnownSiteIdentity, type RedactionRules }
   from "../../client/src/lib/contactRedaction";
 import { knownSiteIdentity } from "./siteIdentity";
+import { SIMULATION_ON_REQUEST_FIELD } from "../../client/src/lib/simulationRequest";
 
 /**
  * The Pipeline never receives the site's identity (data minimisation, 2026-11-19). The site's own words in the task
@@ -43,11 +44,17 @@ export const TASK_CONTEXT_AS_WRITTEN_FIELD = "task_context_as_written";
 export async function taskContextSiteIdentity(record: Record<string, any> | null | undefined): Promise<TaskContextIdentity | null> {
   if (record?.[TASK_CONTEXT_IDENTITY_FIELD] !== true) return null;
   const identity = await knownSiteIdentity(record);
-  return record?.[TASK_CONTEXT_AS_WRITTEN_FIELD] === true ? { ...identity, asWritten: true } : identity;
+  return { ...identity, ...(record?.[TASK_CONTEXT_AS_WRITTEN_FIELD] === true ? { asWritten: true as const } : {}),
+    ...(record?.[SIMULATION_ON_REQUEST_FIELD] === true ? { simulationOnRequest: true as const } : {}) };
 }
 
-/** The identity a job's task context is cleaned of, and whether its kept words go as written (`TASK_CONTEXT_AS_WRITTEN_FIELD`). */
-export type TaskContextIdentity = KnownSiteIdentity & { asWritten?: true };
+/**
+ * The identity a job's task context is cleaned of, whether its kept words go as written (`TASK_CONTEXT_AS_WRITTEN_FIELD`),
+ * and whether its simulation is built only on request (`SIMULATION_ON_REQUEST_FIELD`, `simulationRequest.ts`). The last
+ * rides here because every projection whose digest matters already passes this one value: so every digest of one job is
+ * computed with the same field. A job is only ever given that field at creation, alongside `TASK_CONTEXT_IDENTITY_FIELD`.
+ */
+export type TaskContextIdentity = KnownSiteIdentity & { asWritten?: true; simulationOnRequest?: true };
 
 /**
  * The rules the task context is cleaned with: those of 2026-11-19, fixed. The rules for what crosses between a site and
@@ -179,6 +186,11 @@ export function projectWebsiteTaskContext(stored: SiteTaskBriefRecord, captureRi
     ...(evidence?.captureBinding ? { capture_binding: evidence.captureBinding } : {}),
     ...(evidence?.inventory?.items.some(countsTowardTask) ? { task_items: evidence.inventory.items.filter(countsTowardTask)
       .map(item => projectTaskItem(item, brief.requestId)) } : {}),
+    // A job created from 2026-11-28 on (`SIMULATION_ON_REQUEST_FIELD`): the Pipeline builds its simulation only once an
+    // approved deployment company asks for it (`simulationRequest.ts`). Absent on every earlier job, whose context and
+    // digest stay byte for byte what they were.
+    ...((evidence?.siteIdentity as TaskContextIdentity | null | undefined)?.simulationOnRequest === true
+      ? { simulation_on_request: true as const } : {}),
   };
   const sealed = evidence?.preparationGrantContextDigest;
   const parent = brief.confirmedAtIso && sealed && confirmationParents(stored, captureRights, evidence).answered.includes(sealed)

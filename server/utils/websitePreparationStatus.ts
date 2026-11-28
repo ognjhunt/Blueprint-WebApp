@@ -2,7 +2,7 @@ import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
 import { KNOWN_PREPARATION_OUTCOME_CATEGORIES, KNOWN_PREPARATION_OUTCOME_REASONS, PREPARATION_RECAPTURE_REASONS,
-  PREPARATION_NOT_POSSIBLE_REASON, PREPARATION_NOT_POSSIBLE_CAUSES, PREPARATION_OUTCOME_KEYS, PREPARATION_RETRIES_SPENT_REASON, TASK_NOT_NAMED_REASON, pipelineAsksForSentence } from "./taskPreparationOutcome";
+  AWAITING_SIMULATION_REQUEST_REASON, isAwaitingSimulationRequestOutcome, PREPARATION_NOT_POSSIBLE_REASON, PREPARATION_NOT_POSSIBLE_CAUSES, PREPARATION_OUTCOME_KEYS, PREPARATION_RETRIES_SPENT_REASON, TASK_NOT_NAMED_REASON, pipelineAsksForSentence } from "./taskPreparationOutcome";
 import { noteUnknownPipelineCodes } from "./unknownPipelineCode";
 import { preparationOutcomeSchema, preparationOutcomeV6Schema, preparationOutcomeV7Schema, projectPreparationOutcome, ROBOT_FIT_HOLD_PREFIX }
   from "./taskPreparationOutcome";
@@ -291,6 +291,7 @@ export function unknownPreparationCodes(status: WebsitePreparationReceipt): Arra
   const outcome = "outcome" in status ? status.outcome : null;
   if (outcome && !KNOWN_PREPARATION_OUTCOME_REASONS.has(outcome.reason) && !(PREPARATION_RECAPTURE_REASONS as readonly string[]).includes(outcome.reason)
     && outcome.reason !== TASK_NOT_NAMED_REASON && outcome.reason !== PREPARATION_NOT_POSSIBLE_REASON
+    && outcome.reason !== AWAITING_SIMULATION_REQUEST_REASON
     && outcome.reason !== PREPARATION_RETRIES_SPENT_REASON) found.push(["preparation.outcome.reason", outcome.reason]);
   if (outcome && !KNOWN_PREPARATION_OUTCOME_CATEGORIES.includes(outcome.category)) found.push(["preparation.outcome.category", outcome.category]);
   // A cause this release has no words for, and any key the outcome or the question carries that it does not read
@@ -353,6 +354,9 @@ export function nextWebsitePreparationWatch(previous: WebsitePreparationWatch | 
   preparation: StoredWebsitePreparation, nowMs = Date.now()): WebsitePreparationWatch | null {
   const {selector, status} = preparation;
   if (FINAL_STATES.has(status.state)) return null;
+  // A job waiting for a company to ask for its simulation (owner, 2026-11-28) is not stuck: no watch, so no 24-hour alert
+  // and no "taking longer" line. A request moves it to another state, which starts a watch as before.
+  if (status.state === "awaiting_inputs" && "outcome" in status && isAwaitingSimulationRequestOutcome(status.outcome)) return null;
   const base = {schema_version: "website_preparation_watch.v1" as const, request_id: selector.request_id,
     capture_id: selector.capture_id, since_iso: new Date(nowMs).toISOString(), alerted_at_iso: null, delivery: null};
   if (status.state === "failed_terminal") {

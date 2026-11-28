@@ -65,7 +65,7 @@ export const SAMPLE_JOB = {
 
 export const HOW_STEPS = [
   { key: "video", title: "Film the job", line: "Use your phone to show one full round of a job that repeats." },
-  { key: "packet", title: "Companies review it", line: "We share your video and job description with approved companies, with a simulation when ready." },
+  { key: "packet", title: "Companies review it", line: "We share your video and job description with approved companies, with a simulation if a company asks for one." },
   { key: "companies", title: "Choose who to meet", line: "Responses appear on your job page. If a company is interested, you can ask for an introduction." },
 ] as const;
 

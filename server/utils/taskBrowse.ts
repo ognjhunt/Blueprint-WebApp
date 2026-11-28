@@ -58,6 +58,9 @@ export async function libraryJobStage(id: string, record: Record<string, any>): 
     if (!decision.certain) return null;
     const { phase } = decision.outlook;
     if (phase === "simulation_ready") return "simulation_built";
+    // A job whose simulation waits for a company to ask (owner, 2026-11-28), and one for which none can be asked now.
+    if (phase === "building" && decision.outlook.reason === "simulation_on_request") return "simulation_on_request";
+    if (phase === "building" && decision.outlook.reason === "simulation_not_built") return "no_simulation";
     if (phase === "building") return "simulation_building";
     if (phase === "reading" || phase === "waiting_on_site") return "video_received";
     // A recorded ending after which nothing more is built; a hold (which may resume) keeps no label.

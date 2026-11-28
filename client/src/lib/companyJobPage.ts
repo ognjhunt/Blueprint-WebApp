@@ -8,6 +8,7 @@
  * object and, where the job has a brief (`client/src/lib/jobBrief.ts`), its labels, quotes and choices, which the server
  * passes through the site's known identity and the model pass first (`server/utils/companyJobPage.ts`).
  */
+import { SIMULATION_ON_REQUEST_COMPANY } from "./simulationRequest";
 import { JOB_FACT_KEYS, JOB_FACT_SHORT_LABELS, jobFactKeysFor, jobFactLabel, sanitizeJobFacts, type JobFactKey, type JobReading,
   type ReaderJobKind } from "./jobFacts";
 
@@ -273,6 +274,8 @@ export const SIMULATION_STATUS = {
   // The job ended with nothing built and nothing coming (it failed, or stopped at the job's cap or its time): "not
   // finished yet" would promise more (outreach audit D7, 2026-11-27).
   no_simulation: "There is no simulation for this job.",
+  // A job whose simulation is built only when a company asks (owner, 2026-11-28), and none has.
+  simulation_on_request: SIMULATION_ON_REQUEST_COMPANY,
   unknown: "The simulation of the site is not finished yet.",
 } as const;
 

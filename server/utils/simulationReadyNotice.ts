@@ -2,7 +2,7 @@
  * "The simulation of the site is ready" (owner, 2026-11-25). A job is shared as soon as its sound-free video, the site's
  * sentence and its brief (or the catalog's rows, `jobBrief.ts`) exist; its simulation follows later. When the simulation
  * of a job already shared becomes ready, each company that already answered the job (`robotTeamInterest`) or opened it
- * (`companyViews`) gets ONE email saying so, ever: outbox kind `company_simulation_ready`, document id
+ * (`companyViews`), or asked for the simulation (`simulationRequests`, owner 2026-11-28), gets ONE email saying so, ever: outbox kind `company_simulation_ready`, document id
  * `company_simulation_ready:{jobId}:{companyId}`, so a second revision, a second capture or a second pass sends nothing more.
  *
  * - Owed: `recordWebsiteCompanySimulation` marks it on the job (`company_simulation_ready_notice.owed`) in the same
@@ -32,6 +32,7 @@ import { isInternalTestJob } from "./internalTestJob";
 import { companyWantsJobEmails, suppressedForJobAlerts } from "./newJobAlerts";
 import { accessRecordId, ROBOT_TEAM_ACCESS_COLLECTION } from "./robotTeamEarlyAccess";
 import { loadCompanyJobAccess } from "./teamJobAccess";
+import { SIMULATION_REQUESTS_COLLECTION, storedSimulationRequest } from "./simulationRequest";
 
 import { SIMULATION_READY_NOTICE_FIELD, type SimulationReadyNoticeMarker } from "./simulationReadyNoticeMarker";
 export { owedSimulationReadyNotice, SIMULATION_READY_NOTICE_FIELD, type SimulationReadyNoticeMarker } from "./simulationReadyNoticeMarker";
@@ -99,7 +100,12 @@ export async function queueSimulationReadyNotices(jobId: string, now: () => Date
     }
     const [answers, views] = [await tx.get(jobRef.collection(COMPANY_RESPONSES_COLLECTION).limit(5000)),
       await tx.get(jobRef.collection(COMPANY_JOB_VIEWS_COLLECTION).limit(5000))];
-    const companyIds = [...new Set([...answers.docs, ...views.docs].map(doc => doc.id))].filter(id => /^[a-f0-9]{64}$/.test(id)).sort();
+    // …and each company that asked for the simulation (owner, 2026-11-28; `simulationRequest.ts`), read only for a job
+    // whose simulation was asked for, so every other job's reads are as before. An internal test job's own request row is
+    // no company's and is left out by the id rule below.
+    const asked = storedSimulationRequest(record)
+      ? (await tx.get(jobRef.collection(SIMULATION_REQUESTS_COLLECTION).limit(5000))).docs : [];
+    const companyIds = [...new Set([...answers.docs, ...views.docs, ...asked].map(doc => doc.id))].filter(id => /^[a-f0-9]{64}$/.test(id)).sort();
     const planned: Array<{ ref: FirebaseFirestore.DocumentReference; companyId: string; email: string; revision: string | null }> = [];
     for (const companyId of companyIds) {
       const company = (await tx.get(store.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(companyId))).data();

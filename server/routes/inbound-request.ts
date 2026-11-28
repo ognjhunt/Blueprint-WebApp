@@ -226,6 +226,7 @@ import type {
   PilotOpportunityVisibility,
 } from "../types/inbound-request";
 import { TASK_CONTEXT_AS_WRITTEN_FIELD, TASK_CONTEXT_IDENTITY_FIELD } from "../utils/websiteTaskContext";
+import { SIMULATION_ON_REQUEST_FIELD } from "../../client/src/lib/simulationRequest";
 import { withTypedUsState } from "../utils/typedPlaceState";
 import { JOB_DESCRIPTION_MAX_LENGTH, JOB_DESCRIPTION_TOO_LONG } from "../../client/src/lib/jobDescriptionLimit";
 
@@ -1942,6 +1943,9 @@ export async function submitInboundRequest(req: Request, res: Response) {
         [TASK_CONTEXT_IDENTITY_FIELD]: true,
         // …and when something is removed from one of its texts, the rest goes as the site wrote it (2026-11-27).
         [TASK_CONTEXT_AS_WRITTEN_FIELD]: true,
+        // …and its simulation is built only when an approved deployment company asks for it (owner, 2026-11-28;
+        // `simulationRequest.ts`). Set here, once, in the create; never on or off an existing job.
+        [SIMULATION_ON_REQUEST_FIELD]: true,
         ...(messageSuppression ? { intake_message_suppression: messageSuppression } : {}),
         // Recording statement v4 says the job is shared with approved deployment companies: the listing record is
         // written with it, and the "your job is with deployment companies" email is owed until the job is first visible.

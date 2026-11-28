@@ -40,7 +40,7 @@ import { CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
 import { notifySiteActionNeeded } from "./siteActionNeeded";
 import { sponsorshipExecutionWindowUntil, sponsorshipWindowIntake } from "./sceneExecutionWindowExtension";
 import { siteWalkthroughIdentity } from "./siteWalkthrough";
-import { earlyTaskHoldOf } from "./taskPreparationOutcome";
+import { earlyTaskHoldOf, isAwaitingSimulationRequestOutcome } from "./taskPreparationOutcome";
 import { resultOutranksWindowEnding } from "./taskStatusProjection";
 import { retainedTrialResultOutranksEnding } from "./websiteJobWindowRetainedTrial";
 import { selectWebsiteAtlasPreview } from "./websiteAtlasPreview";
@@ -86,7 +86,12 @@ export type JobWindowSweepSkip =
   /** A hold or an ending the job page states is on record. */
   | "outcome_told"
   /** The job changed between the read and the write; the next pass reads it again. */
-  | "changed";
+  | "changed"
+  /**
+   * The job waits for a company to ask for its simulation (owner, 2026-11-28; `simulationRequest.ts`): not a failure and
+   * not unfinished work, so no window ends it. It stays listed for companies, and its pages say where it stands.
+   */
+  | "awaiting_simulation_request";
 export type JobWindowSweepResult = JobWindowSweepSkip | "ended_no_notice";
 
 /**
@@ -139,6 +144,9 @@ async function storedOutcome(requestId: string, record: Record<string, any>, pas
   // The Pipeline's own terminal outcome for the scene (C-04) is on the job page.
   if (sceneProgression?.sceneOutcome?.terminal) return "outcome_told";
   const status = (await db!.collection(SESSIONS).doc(captureId).get()).data()?.website_preparation?.status;
+  // A job waiting for a company to ask for its simulation: the wait is the job's state, never an ending. Only that
+  // outcome, as the Pipeline sends it, and only while no request has moved it on.
+  if (status?.state === "awaiting_inputs" && isAwaitingSimulationRequestOutcome(status.outcome)) return "awaiting_simulation_request";
   // Preparation that ended for good is on the job page with its reason.
   if (status?.state === "failed_terminal") return "outcome_told";
   // A robot fit hold, and a geometry-only job's finished robot fit table, are the job's result.
@@ -214,7 +222,9 @@ export type JobNoGrantSweepResult =
   /** The new-video ask for a video too large to process was recorded or cleared; the job waits on. */
   | "video_ask_updated"
   | "changed"
-  | "ended_no_notice";
+  | "ended_no_notice"
+  /** The job waits for a company to ask for its simulation (see `JobWindowSweepSkip`). */
+  | "awaiting_simulation_request";
 
 /**
  * What makes a request a website job for this sweep, from the record: a site operator's request

@@ -133,6 +133,9 @@ const FRAME_FILES = [
   "client/src/components/site/PilotSheet.tsx",
   "client/src/pages/PilotOfferSettings.tsx",
   "server/utils/pilotOffers.ts",
+  // The simulation on request (owner, 2026-11-28): the words both job pages show, and the press's answers.
+  "client/src/lib/simulationRequest.ts",
+  "server/utils/simulationRequest.ts",
 ] as const;
 
 const FILES = [...CLAIM_FILES, ...FRAME_FILES] as const;

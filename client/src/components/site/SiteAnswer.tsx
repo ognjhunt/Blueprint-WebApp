@@ -765,7 +765,8 @@ export function SiteAnswer({ token, answer, onIntroductionRequested, onEditJob, 
   const ended = phase === "no_test" || phase === "ended_by_site";
   const notRun = cannot || !ended ? null : outlook?.sentence ?? null;
   const simulationLine = outlook?.reason === "spending_cap_reached" ? outlook.sentence
-    : phase === "building" ? (outlook?.reason === "step_failed" && outlook.sentence ? outlook.sentence : SIMULATION_BUILDING)
+    : phase === "building" ? ((outlook?.reason === "step_failed" || outlook?.reason === "simulation_on_request"
+      || outlook?.reason === "simulation_not_built") && outlook.sentence ? outlook.sentence : SIMULATION_BUILDING)
     : phase === "simulation_ready" ? SIMULATION_READY
     : phase === "waiting_on_site" ? outlook?.sentence ?? "Tell us in one sentence what the robot should do, so we can build the simulation of your job."
     : notRun;

@@ -32,6 +32,7 @@ import { getBrief, isPlaceholderSummary } from "../utils/siteTaskBrief";
 import { INTERNAL_TEST_BASIS, INTERNAL_TEST_INTAKE_LOCAL, INTERNAL_TEST_RECORDING_STATEMENT_VERSION,
   isInternalTestJob, type InternalTestIntake, type InternalTestMarker } from "../utils/internalTestJob";
 import { submitInboundRequest } from "./inbound-request";
+import { recordInternalTestSimulationRequest } from "../utils/simulationRequest";
 import { landInternalTestFootage } from "./self-capture-uploads";
 import { uploadCapLimitsBytes } from "../utils/betaAbuseCaps";
 import { isAcceptedVideoHeader, VIDEO_NOT_RECOGNIZED, VIDEO_SIGNATURE_BYTES } from "../utils/videoMagicBytes";
@@ -58,6 +59,12 @@ export const internalTestJobSchema = z.object({
   footage_id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/),
   description: z.string().trim().min(1).max(DESCRIPTION_MAX)
     .refine(text => !isPlaceholderSummary(text), "description_is_a_placeholder"),
+  /**
+   * When the test job's simulation is asked for (owner, 2026-11-28; `simulationRequest.ts`). Absent or `"now"`: the job
+   * asks for its own when it is made (an `internal_test` request, pushed like a company's), so the full path still runs.
+   * `"on_request"`: it waits, and Blueprint's internal test company can press "Ask for a simulation" on its page.
+   */
+  simulation: z.enum(["now", "on_request"]).optional(),
 }).strict();
 
 /** Who the marker says asked: the only identity this route can prove is the signature it verified. */
@@ -183,6 +190,9 @@ router.post("/test-jobs", rateLimiter, requirePipelineSignature, async (req: Req
         return res.status(409).json({ code: "internal_test_idempotency_key_reused" });
     }
 
+    // Before the footage lands, so the request is on record before the hand-off reads the job. Idempotent: a repeated
+    // call with the same key asks nothing twice, and a job made before this change (without the field) asks nothing.
+    if (input.simulation !== "on_request") await recordInternalTestSimulationRequest(requestId);
     const landing = await landInternalTestFootage(identity, footage);
     return res.status(created ? 201 : 200).json({
       ok: true, created,

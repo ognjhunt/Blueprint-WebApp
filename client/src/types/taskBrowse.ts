@@ -1,5 +1,6 @@
 import type { ListingTargeting } from "./updatePreferences";
 import type { AnswerBasis, AnswerConfidenceLevel, AnswerEvidence } from "../lib/siteAnswer";
+import { SIMULATION_ON_REQUEST_STAGE_LABEL } from "../lib/simulationRequest";
 /** Public fields approved by the site owner, never copied from private intake. */
 export interface TaskListingDetails {
   targeting?: ListingTargeting;
@@ -99,11 +100,13 @@ export interface TeamEvaluationTerms {
 }
 export type LibraryJobStage = "no_video" | "video_received" | "simulation_building" | "simulation_built"
   /** The job ended with no simulation built and none coming (outreach audit D7, 2026-11-27). */
-  | "no_simulation";
+  | "no_simulation"
+  /** The job's simulation is built when a company asks for one, and none has yet (owner, 2026-11-28). */
+  | "simulation_on_request";
 /** The card's label for where the job's simulation stands, true in each state; no label when the state is unknown. */
 export const libraryStageLabels: Readonly<Record<LibraryJobStage, string>> = {
   no_video: "No video yet", video_received: "Simulation not started yet", simulation_building: "Simulation being built",
-  simulation_built: "Simulation built", no_simulation: "No simulation",
+  simulation_built: "Simulation built", no_simulation: "No simulation", simulation_on_request: SIMULATION_ON_REQUEST_STAGE_LABEL,
 };
 
 const generatedJobTitles: ReadonlyMap<string, string> = new Map([
@@ -274,6 +277,11 @@ export interface CompanyJobPage {
   packetFactsPending?: true;
   /** Where the simulation stands while neither the viewer nor the download is ready; null once one is. */
   simulationStatus: string | null;
+  /**
+   * A job whose simulation is built only when a company asks (owner, 2026-11-28): `can_ask` offers "Ask for a
+   * simulation"; `asked` says when it was first asked. Absent on every other job, and once the simulation is built or ended.
+   */
+  simulationRequest?: import("../lib/simulationRequest").CompanySimulationRequest;
   /** What a first site visit must still confirm for this kind of job (`visitMustConfirm`). */
   visitMustConfirm: string[];
   /** About the site, with nothing that identifies it (`aboutTheSite`). */

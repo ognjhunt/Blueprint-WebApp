@@ -60,3 +60,22 @@ describe("the job library's label for where a job's simulation stands", () => {
     expect(await stage()).toBeNull();
   });
 });
+
+// The simulation on request (owner, 2026-11-28): a job whose simulation waits for a company to ask says so on its card,
+// and one for which none can be asked now says there is no simulation. Every other job keeps its labels above.
+describe("the library label for a job whose simulation is built on request", () => {
+  beforeEach(() => { walk.value = { received: true }; });
+  it("says the simulation is on request while no company has asked", async () => {
+    const { SIMULATION_STATUS } = await import("../../client/src/lib/companyJobPage");
+    outlook.value = { outlook: { phase: "building", reason: "simulation_on_request" }, certain: true };
+    expect(await libraryJobStage("job", {})).toBe("simulation_on_request");
+    expect(libraryStageLabels.simulation_on_request).toBe("Simulation on request");
+    expect(SIMULATION_STATUS.simulation_on_request).toBe("A simulation of the site is built when a company asks for one.");
+  });
+  it("says there is no simulation when none can be asked for now, and being built once one was asked for", async () => {
+    outlook.value = { outlook: { phase: "building", reason: "simulation_not_built" }, certain: true };
+    expect(await libraryJobStage("job", {})).toBe("no_simulation");
+    outlook.value = { outlook: { phase: "building", reason: null }, certain: true };
+    expect(await libraryJobStage("job", {})).toBe("simulation_building");
+  });
+});

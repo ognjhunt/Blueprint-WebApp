@@ -28,6 +28,7 @@ import { PILOT_COMPANY_CONFIRMED_PENDING, PILOT_COMPANY_DECLINED, PILOT_COMPANY_
   PILOT_CONFIRM_OTHER_ANSWERS, PILOT_REQUEST_BANNER, pilotCompanyConfirmedLine, pilotCompanyRefusedLine, pilotRequestAskedLine,
   pilotTermsLines } from "@/lib/pilotOffers";
 import { PilotSheet } from "@/components/site/PilotSheet";
+import { ASK_FOR_SIMULATION_LABEL, SIMULATION_ASK_FAILED } from "@/lib/simulationRequest";
 
 /**
  * The job page for a visitor who is not signed in: what the job holds and how to see it (owner, 2026-11-23). No first
@@ -301,6 +302,8 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
       {simulationReady
         ? <p className="ms-field-hint">{SIMULATION_DOWNLOAD_HINT}</p>
         : <p className="ms-field-hint" role="status">{page.simulationStatus ?? SIMULATION_NOT_FINISHED}</p>}
+      {user && !simulationReady && page.simulationRequest?.state === "can_ask" && <AskForSimulation user={user} jobId={page.id}
+        onChanged={refreshTickets} />}
       {page.simulationDownload?.state === "ready" && page.simulationDownload.objectIncluded === false ? <p className="ms-field-hint" role="note">{SIMULATION_WITHOUT_OBJECT}</p> : null}
     </section>}
 
@@ -364,6 +367,32 @@ function CompanyJobBody({ jobId, signInHref }: { jobId: string; signInHref: stri
  * site already asked, the introduction is then made the way Accept makes it. Need more details and Not a fit are the form's
  * own answers below, unchanged. After the introduction, the pilot sheet.
  */
+/**
+ * "Ask for a simulation" (owner, 2026-11-28): one press asks for the job's simulation for every company. The page then
+ * reads the job again and says when it was asked.
+ */
+function AskForSimulation({ user, jobId, onChanged }: { user: User; jobId: string; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  async function ask() {
+    if (busy) return;
+    setBusy(true); setMessage("");
+    try {
+      const response = await fetch(`/api/site-worlds/jobs/${encodeURIComponent(jobId)}/simulation-request`, { method: "POST",
+        credentials: "include", headers: await withFirebaseAuthHeaders(user, await withCsrfHeader({ "Content-Type": "application/json" })),
+        body: "{}" });
+      const body = await response.json().catch(() => null);
+      if (!response.ok || body?.ok !== true) { setMessage(typeof body?.error === "string" ? body.error : SIMULATION_ASK_FAILED); return; }
+      onChanged();
+    } catch { setMessage(SIMULATION_ASK_FAILED); }
+    finally { setBusy(false); }
+  }
+  return <>
+    <button type="button" className="ms-button" onClick={() => void ask()} disabled={busy}>{busy ? "Saving…" : ASK_FOR_SIMULATION_LABEL}</button>
+    {message && <p role="status">{message}</p>}
+  </>;
+}
+
 function PilotRequestBanner({ user, page, onChanged }: { user: User; page: CompanyJobPage; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");

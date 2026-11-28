@@ -3,7 +3,9 @@ export type TaskOutcome = {
   /** `held`: Blueprint cannot simulate this kind of job yet; never a robot verdict. */
   category: "robot_incompatibility" | "insufficient_evidence" | "processing_failure" | "held";
   basis: "conservative_configuration_check" | "conservative_pre_spend_fit_check" | "missing_evidence" | "execution_failure"
-    | "simulation_not_available";
+    | "simulation_not_available"
+    /** The job's simulation is built only when a company asks for one, and none has yet (owner, 2026-11-28). */
+    | "simulation_on_request";
   title: string;
   reason: string;
   scope: string;

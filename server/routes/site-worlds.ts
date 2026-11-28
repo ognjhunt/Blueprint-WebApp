@@ -27,6 +27,8 @@ import { companyJobUrl } from "../utils/jobCompanies";
 import { jobSummaryFileName } from "../../client/src/lib/companyJobPage";
 import type { CompanyJobPage } from "../../client/src/types/taskBrowse";
 import { PILOT_CONFIRM_FAILED, PILOT_OFFER_STATEMENT, PILOT_OFFER_STATEMENT_VERSION } from "../../client/src/lib/pilotOffers";
+import { askForSimulation } from "../utils/simulationRequest";
+import { SIMULATION_ASK_FAILED } from "../../client/src/lib/simulationRequest";
 import { confirmPilotRequest, pilotOfferInputSchema, pilotOfferRefusal, readPilotOffer, savePilotOffer } from "../utils/pilotOffers";
 const router = Router();
 
@@ -113,6 +115,32 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
     if (!result.ok) return res.status(409).json({ error: result.error });
     return res.json({ ok: true, state: input.data.state, nextAction: answerNextStep(input.data.state) });
   } catch { return res.status(409).json({ error: "The job changed or the answer could not be saved. Reopen the job before trying again." }); }
+});
+
+/**
+ * "Ask for a simulation" (owner, 2026-11-28; `simulationRequest.ts`): on a job whose simulation is built only when a
+ * company asks, the first press asks for it for every company. The same account checks and refusals as the answer route
+ * above; Blueprint's internal test company may press it on an internal test job, as it may answer one. Idempotent.
+ */
+const simulationRequestSchema = z.object({}).strict();
+router.post("/jobs/:taskId/simulation-request", csrfProtection, verifyFirebaseToken, async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  const user = res.locals.firebaseUser;
+  if (!simulationRequestSchema.safeParse(req.body ?? {}).success) return res.status(400).json({ error: RESPONSE_UNREADABLE });
+  if (!user?.email || user.email_verified !== true) return res.status(403).json({ error: "Use your approved company's verified account." });
+  if (!db) return res.status(503).json({ error: SIMULATION_ASK_FAILED });
+  try {
+    const access = await getAccessRecordForEmail(user.email);
+    const companyId = accessRecordId(user.email);
+    const internalTestCompany = isInternalTestCompanyRow(companyId, access);
+    if (!internalTestCompany && (access?.status !== "approved" || access.partnerRole === "technology" || hasInternalTestCompanyMarker(access)))
+      return res.status(403).json({ error: "Only an approved deployment company can ask for a simulation." });
+    if (!internalTestCompany && !companyMaySeeJobs(access as never))
+      return res.status(403).json({ error: TERMS_PROMPT, code: TERMS_ACCEPTANCE_REQUIRED });
+    const result = await askForSimulation({ taskId: String(req.params.taskId), companyId, internalTestCompany });
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
+    return res.json({ ok: true, already: result.already, askedAtIso: result.askedAtIso, message: result.message });
+  } catch { return res.status(503).json({ error: SIMULATION_ASK_FAILED }); }
 });
 
 /**

@@ -64,6 +64,11 @@ export interface JobOutlookInput {
   nowEpoch?: number;
   /** The Pipeline says the job has no sentence to prepare from, and the site has not given one since. */
   awaitsSiteSentence?: boolean;
+  /**
+   * Where a job created from 2026-11-28 on stands on its simulation request (`simulationRequestState`); absent or
+   * `not_on_request` for every earlier job, whose outlook is exactly as before.
+   */
+  simulationRequest?: "not_on_request" | "can_ask" | "asked" | "cannot_ask";
 }
 
 /**
@@ -95,7 +100,12 @@ export function jobOutlook(input: JobOutlookInput): JobOutlook {
   // The site's own endings come first: never building, never an answer.
   if (input.consentRevoked === true) return outlook("ended_by_site", "permission_withdrawn");
   if (input.closedByOwner === true) return outlook("ended_by_site", "closed_by_owner");
+  // A job whose simulation waits for a company to ask (owner, 2026-11-28) is not being built: it says so, until a request
+  // is on record or the Pipeline has moved on past its preparation (an older Pipeline that built it anyway).
+  const waitsForRequest = (input.simulationRequest === "can_ask" || input.simulationRequest === "cannot_ask")
+    && input.preparation?.state !== "handed_off" && !input.scene;
   const working = (): JobOutlook => input.scene?.state === "ready" || input.simulationDelivered === true ? outlook("simulation_ready")
+    : waitsForRequest ? outlook("building", input.simulationRequest === "can_ask" ? "simulation_on_request" : "simulation_not_built")
     : outlook("building", input.preparation?.state === "failed_retryable" || input.scene?.attemptFailed ? "step_failed" : null);
   // Ordered by where each fact lives (review, 2026-11-11): the facts recorded on the website's side first (above, the
   // site's own endings; then every recorded ending). A read that failed elsewhere (`uncertain`) never hides one of
@@ -224,10 +234,10 @@ async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads |
   Promise<{ outlook: JobOutlook; certain: boolean; ending: JobOutlook | null; resultUnknown: boolean }> {
   const [{ siteWalkthroughIdentity }, { projectWebsiteCaptureRights }, { websiteRunClosure },
     { recordedWebsiteJobWindowEnding, recordedWebsiteJobNoGrantEnding }, { loadSiteAnswer },
-    { atlasPreviewReachedSpendingCap, selectWebsiteAtlasPreview }, { storedCompanySimulation }] = await Promise.all([
+    { atlasPreviewReachedSpendingCap, selectWebsiteAtlasPreview }, { storedCompanySimulation }, { simulationRequestState }] = await Promise.all([
     import("./siteWalkthrough"), import("./websiteCaptureRights"),
     import("./websiteRunClosure"), import("./websiteJobWindowEnding"), import("./siteAnswer"), import("./websiteAtlasPreview"),
-    import("./websiteCompanySimulation")]);
+    import("./websiteCompanySimulation"), import("./simulationRequest")]);
   if (!dbAdmin) throw new Error("job_outlook_unavailable");
   // What the caller read is used only for the job's current capture; otherwise every read is made here.
   const given = known && known.captureId === siteWalkthroughIdentity(requestId, known.record).captureId ? known : undefined;
@@ -293,6 +303,7 @@ async function decideJobOutlook(requestId: string, known: JobOutlookKnownReads |
     windowEndedAtEpoch,
     runStoppedByWindow, resultUnknown,
     awaitsSiteSentence,
+    simulationRequest: simulationRequestState(record, requestId),
     atlasSpendingCapReached: atlasPreviewReachedSpendingCap(selectWebsiteAtlasPreview(record, captureId)),
     simulationDelivered: storedCompanySimulation(session, captureId) !== null,
     preparation, scene, proof, uncertain,

@@ -2,6 +2,8 @@
  * The job's outlook, as the server decides it once (`server/utils/jobOutlook.ts`) for the job page, the sharing
  * routes and every answer email. The page shows the screen for the phase and never works it out itself.
  */
+import { SIMULATION_NOT_BUILT_SITE, SIMULATION_ON_REQUEST_SITE } from "./simulationRequest";
+
 /**
  * Blueprint runs no robot software in the simulation (the early trial was dropped on 2026-11-14), so there is no
  * "testing" or "result" phase: a built simulation is `simulation_ready` (ledger AL29).
@@ -14,7 +16,10 @@ export type JobOutlookReason =
   | "window_expired" | "no_grant" | "preparation_failed" | "scene_held" | "scene_stopped"
   | "run_held" | "run_ended" | "no_ai_robot_scored" | "robot_fit_only" | "unsized"
   | "step_failed" | "authority_ended" | "job_ended" | "window_ended_during_test" | "task_not_named"
-  | "not_processed_in_time" | "simulation_stopped" | "spending_cap_reached";
+  | "not_processed_in_time" | "simulation_stopped" | "spending_cap_reached"
+  /** A job created from 2026-11-28 on, whose simulation is built only when a company asks (`simulationRequest.ts`): no
+   * company has asked yet; and no company asked while a build could still be started. Neither is an ending. */
+  | "simulation_on_request" | "simulation_not_built";
 export interface JobOutlook {
   phase: JobPhase;
   reason: JobOutlookReason | null;
@@ -61,6 +66,8 @@ export const OUTLOOK_SENTENCES: Readonly<Record<Exclude<JobOutlookReason, "run_h
   // A finished test in which no AI robot could be scored is an ending, never a result (review, 2026-11-11).
   no_ai_robot_scored: "We could not finish the simulation of your site.",
   step_failed: "A step on our side failed. Nothing is needed from you.",
+  simulation_on_request: SIMULATION_ON_REQUEST_SITE,
+  simulation_not_built: SIMULATION_NOT_BUILT_SITE,
 };
 
 

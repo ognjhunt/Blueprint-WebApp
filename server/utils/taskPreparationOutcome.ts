@@ -7,6 +7,7 @@ import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { atlasPreviewReachedSpendingCap, selectWebsiteAtlasPreview, type WebsiteAtlasPreview } from "./websiteAtlasPreview";
 import { OUTLOOK_SENTENCES } from "../../client/src/lib/jobOutlook";
 import { websiteLargeVideoAsk } from "./websiteJobWindowEnding";
+import { SIMULATION_ON_REQUEST_SITE } from "../../client/src/lib/simulationRequest";
 
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
 /**
@@ -17,7 +18,10 @@ const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
 const category = z.string().regex(/^[a-z][a-z0-9_:.-]{0,127}$/);
 // `processing_failure`: the retries-spent ending's own category (Pipeline `website_preparation_outcome`), known since
 // that ending was read; it raised a false unknown-category alert on every such job (round 2, 2026-11-24).
-export const KNOWN_PREPARATION_OUTCOME_CATEGORIES: readonly string[] = ["robot_incompatibility", "insufficient_evidence", "processing_failure"];
+// `held`: the category of a job that waits for a company to ask for its simulation (owner, 2026-11-28; Pipeline
+// `website_simulation_request.waiting_outcome`), so the wait raises no staff alert.
+export const KNOWN_PREPARATION_OUTCOME_CATEGORIES: readonly string[] = ["robot_incompatibility", "insufficient_evidence", "processing_failure",
+  "held"];
 const carryPathRejected = z.object({ reason: z.literal("robot_carry_path_rejected"), category,
   basis: z.literal("conservative_configuration_check"), robot_id: z.literal("franka_panda"), evidence_digest: digest }).passthrough();
 const taskEvidenceIncomplete = z.object({ reason: z.literal("task_evidence_incomplete"), category,
@@ -116,8 +120,24 @@ function robotFitHold(receipt: Extract<PreparationOutcomeReceipt, { reason: "rob
   };
 }
 
+/**
+ * A job created from 2026-11-28 on waits for an approved deployment company to ask for its simulation (Pipeline
+ * `website_simulation_request`): its preparation completed with everything free and needed to share the job, and bought
+ * nothing. Not a failure, not a stop and not the site's to clear: it reads as it is. Its reason is listed here
+ * (`unknownPreparationCodes`), so no staff alert fires for it. Read only from v7 up, the shape the Pipeline sends.
+ */
+export const AWAITING_SIMULATION_REQUEST_REASON = "awaiting_simulation_request";
+export const isAwaitingSimulationRequestOutcome = (receipt: { reason?: unknown; category?: unknown; basis?: unknown } | null | undefined) =>
+  receipt?.reason === AWAITING_SIMULATION_REQUEST_REASON && receipt.category === "held" && receipt.basis === "simulation_on_request";
+export function awaitingSimulationRequestOutcome(evidenceDigest: string): TaskOutcome {
+  return { category: "held", basis: "simulation_on_request", title: SIMULATION_ON_REQUEST_SITE, reason: "", scope: "",
+    nextStep: "Nothing is needed from you. Your video is saved.", actionOwner: "none",
+    evidence: [{ label: "Preparation finding", digest: evidenceDigest }] };
+}
+
 export function projectPreparationOutcome(receipt: PreparationOutcomeReceipt, precheck?: RobotFitHoldEvidence | null,
   objectName?: string | null): TaskOutcome {
+  if (isAwaitingSimulationRequestOutcome(receipt)) return awaitingSimulationRequestOutcome(receipt.evidence_digest);
   if (receipt.reason === TASK_NOT_NAMED_REASON) return taskNotNamedOutcome(receipt.evidence_digest);
   if (isRecaptureReason(receipt.reason)) return recaptureNeeded(receipt.reason, receipt.evidence_digest, objectName);
   if (receipt.reason === PREPARATION_NOT_POSSIBLE_REASON) return preparationNotPossible((receipt as { cause?: string }).cause, receipt.evidence_digest);
