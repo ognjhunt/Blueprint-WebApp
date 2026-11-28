@@ -1224,3 +1224,16 @@
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 2px 16px;
 }
+/* A short list of choices runs in columns where there is room, so the form is not one long column of ticks. */
+.ws-pilot-offer fieldset.ws-option-columns {
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 2px 16px;
+}
+.ws-pilot-offer [role="group"] {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  max-width: 420px;
+}
+.ws-pilot-offer [role="group"] > .ws-note {
+  grid-column: 1 / -1;
+  margin: 0;
+}

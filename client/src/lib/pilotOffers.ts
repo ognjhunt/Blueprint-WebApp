@@ -164,23 +164,35 @@ export const PILOT_OFFERS_NOT_CHECKED = "Each pilot offer is the company's own, 
 export const REQUEST_PILOT_LABEL = "Request this pilot";
 export const COMPANY_OWN_FIGURE = "(the company's own figure, not a quote)";
 
+/**
+ * Who reads the terms. `site`: the site's own page ("Cost to you", "You provide"). `company`: the company's own page,
+ * about its own terms ("The site pays", with no note that the figure is its own). `both`: the pilot sheet, which each side
+ * reads ("The site pays", with the note).
+ */
+export type PilotTermsReader = "site" | "company" | "both";
+
+/** A form label as it reads inside a sentence: "A person to help" becomes "a person to help"; "Wi-Fi" stays. */
+const inSentence = (label: string) => label === SITE_PROVIDES_LABELS.wifi ? label : label.charAt(0).toLowerCase() + label.slice(1);
+
 export const pilotWeeksLine = (weeks: number) => `Pilot: ${weeks} ${weeks === 1 ? "week" : "weeks"}`;
-/** "Cost to you: free", or the company's own range: "… in total" or "… a month", said as its own figure. */
-export function sitePaysLine(pays: PilotSitePays): string {
-  if (pays.kind === "nothing") return "Cost to you: free";
+/** "Cost to you: free", or the company's own range: "… in total" or "… a month", said to the site as the company's figure. */
+export function sitePaysLine(pays: PilotSitePays, reader: PilotTermsReader = "site"): string {
+  const label = reader === "site" ? "Cost to you" : "The site pays";
+  if (pays.kind === "nothing") return `${label}: ${reader === "site" ? "free" : "nothing"}`;
   const range = estimateInWords(PAYS_AS[pays.kind], { lowUsd: pays.low, highUsd: pays.high });
-  return range ? `Cost to you: ${range} ${COMPANY_OWN_FIGURE}` : "Cost to you: not stated";
+  return range ? `${label}: ${range}${reader === "company" ? "" : ` ${COMPANY_OWN_FIGURE}`}` : `${label}: not stated`;
 }
 const listInWords = (items: readonly string[]) =>
   items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}` : items[0] ?? "";
-export const siteProvidesLine = (provides: readonly SiteProvides[]) =>
-  `You provide: ${provides.length ? listInWords(provides.map(item => SITE_PROVIDES_LABELS[item])) : "nothing listed"}`;
-export const earliestStartLine = (start: CompanyStartWindow) => `Earliest start: ${COMPANY_START_LABELS[start]}`;
-export const afterPilotLine = (model: ChargeModel) => `After a pilot that works: ${CHARGE_MODEL_LABELS[model]}`;
+export const siteProvidesLine = (provides: readonly SiteProvides[], reader: PilotTermsReader = "site") =>
+  `${reader === "site" ? "You provide" : "The site provides"}: ${provides.length
+    ? listInWords(provides.map(item => inSentence(SITE_PROVIDES_LABELS[item]))) : "nothing listed"}`;
+export const earliestStartLine = (start: CompanyStartWindow) => `Earliest start: ${inSentence(COMPANY_START_LABELS[start])}`;
+export const afterPilotLine = (model: ChargeModel) => `After a pilot that works: ${inSentence(CHARGE_MODEL_LABELS[model])}`;
 
-/** The offer's terms as the lines both pages show, in this order. */
-export function pilotTermsLines(terms: PilotOfferTerms): string[] {
-  return [pilotWeeksLine(terms.weeks), sitePaysLine(terms.sitePays), siteProvidesLine(terms.siteProvides),
+/** The offer's terms as lines, in this order, worded for who reads them. */
+export function pilotTermsLines(terms: PilotOfferTerms, reader: PilotTermsReader = "site"): string[] {
+  return [pilotWeeksLine(terms.weeks), sitePaysLine(terms.sitePays, reader), siteProvidesLine(terms.siteProvides, reader),
     earliestStartLine(terms.earliestStart), afterPilotLine(terms.afterPilot)];
 }
 

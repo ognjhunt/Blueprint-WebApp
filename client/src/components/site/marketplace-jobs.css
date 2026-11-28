@@ -573,6 +573,9 @@ button.company-job-download:disabled { cursor: progress; opacity: 0.7; }
 .bare-screen ul.site-pilot-terms,
 .company-pilot-request ul,
 .pilot-sheet ul { display: grid; gap: 4px; margin: 8px 0; padding-left: 18px; list-style: disc; }
+.bare-screen .site-pilot-offers > h2 { margin: 0; font-size: 21px; font-weight: 670; letter-spacing: -.025em; line-height: 1.2; }
+.bare-screen .site-pilot-offers > h2 + .bare-helper { margin: 6px 0 12px; max-width: 64ch; }
+.bare-screen .site-pilot-offers > ul + .bare-helper { margin-top: 10px; }
 .pilot-sheet { margin-top: 14px; padding-top: 12px; border-top: 1px solid #dbe1d5; }
 .pilot-sheet h3 { margin: 0 0 8px; font-size: 15px; font-weight: 670; }
 .company-pilot-request {

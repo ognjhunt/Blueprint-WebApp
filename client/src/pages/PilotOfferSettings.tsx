@@ -103,7 +103,7 @@ export default function PilotOfferSettings() {
       <p>{PILOT_OFFER_FORM_LEAD}</p>
       <p role="status">{!offer ? PILOT_OFFER_NONE_YET : offer.published ? PILOT_OFFER_PUBLISHED : PILOT_OFFER_PAUSED}</p>
       <form className="ws-form ws-section ws-pilot-offer" onSubmit={submit} aria-label={PILOT_OFFER_FORM_HEADING}>
-        <fieldset><legend>Jobs you take</legend>
+        <fieldset className="ws-option-columns"><legend>Jobs you take</legend>
           {PILOT_OFFER_JOB_TYPES.map(kind => <label key={kind}><input type="checkbox" checked={draft.kinds.includes(kind)}
             onChange={() => set({ kinds: toggled(draft.kinds, kind) })} /> {PILOT_OFFER_JOB_TYPE_LABELS[kind]}</label>)}
         </fieldset>
@@ -134,7 +134,7 @@ export default function PilotOfferSettings() {
             <p className="ws-note">{ESTIMATE_LABEL}</p>
           </div>}
         </fieldset>
-        <fieldset><legend>What the site provides</legend>
+        <fieldset className="ws-option-columns"><legend>What the site provides</legend>
           {SITE_PROVIDES.map(item => <label key={item}><input type="checkbox" checked={draft.siteProvides.includes(item)}
             onChange={() => set({ siteProvides: toggled(draft.siteProvides, item) })} /> {SITE_PROVIDES_LABELS[item]}</label>)}
         </fieldset>

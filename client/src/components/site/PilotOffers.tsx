@@ -69,19 +69,21 @@ export function PilotOffers({ token, pilot, onChanged }: { token: string; pilot:
           const line = requestLine(offer) ?? (requested[offer.offerRef] ? pilotRequestedLine(requested[offer.offerRef]) : null);
           const unknown = offer.unknown.map(fact => pilotUnknownLine(fact, offer.offer, offer.weightPartly === true))
             .filter((text): text is string => Boolean(text));
+          const sheet = offer.request?.sheet;
           return <li key={offer.offerRef}>
             <div className="site-company-response-title"><h3>{offer.company.name}</h3></div>
             {offer.company.website && <p className="site-company-website">
               <a className="ms-text-link" href={offer.company.website} target="_blank" rel="noreferrer noopener">{offer.company.website}</a></p>}
-            <ul className="site-pilot-terms" aria-label={`${offer.company.name}'s pilot terms`}>
+            {/* After the introduction the sheet below holds the terms as of the request: they are not listed twice. */}
+            {!sheet && <ul className="site-pilot-terms" aria-label={`${offer.company.name}'s pilot terms`}>
               {pilotTermsLines(offer.offer.terms).map(text => <li key={text}>{text}</li>)}
-            </ul>
-            {unknown.map(text => <p key={text} className="bare-helper">{text}</p>)}
+            </ul>}
+            {!sheet && unknown.map(text => <p key={text} className="bare-helper">{text}</p>)}
             {line ? <p className="bare-helper" role="status">{line}</p>
               : <BareButton onClick={() => void request(offer.offerRef)} disabled={busy !== null}
                 helper={introduceSentence(offer.company.name, statementVersion)}>
                 {busy === offer.offerRef ? "Asking…" : REQUEST_PILOT_LABEL}</BareButton>}
-            {offer.request?.sheet && <PilotSheet sheet={offer.request.sheet} />}
+            {sheet && <PilotSheet sheet={sheet} />}
             {errors[offer.offerRef] && <p role="alert">{errors[offer.offerRef]}</p>}
           </li>;
         })}

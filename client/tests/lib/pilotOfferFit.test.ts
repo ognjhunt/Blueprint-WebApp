@@ -93,8 +93,13 @@ describe("the words of a pilot offer", () => {
     expect(sitePaysLine({ kind: "once", low: 5000, high: 8000 }))
       .toBe("Cost to you: $5,000 to $8,000 in total (the company's own figure, not a quote)");
     expect(sitePaysLine({ kind: "monthly", low: 900, high: 900 })).toBe("Cost to you: $900 a month (the company's own figure, not a quote)");
-    expect(pilotTermsLines(OFFER.terms)).toEqual(["Pilot: 6 weeks", "Cost to you: free", "You provide: Floor space and Power",
-      "Earliest start: Within a month", "After a pilot that works: Per task or item"]);
+    expect(pilotTermsLines(OFFER.terms)).toEqual(["Pilot: 6 weeks", "Cost to you: free", "You provide: floor space and power",
+      "Earliest start: within a month", "After a pilot that works: per task or item"]);
+    // The company reads its own terms about the site, with no note that the figure is its own; the sheet keeps the note.
+    expect(pilotTermsLines(OFFER.terms, "company").slice(1, 3)).toEqual(["The site pays: nothing", "The site provides: floor space and power"]);
+    expect(sitePaysLine({ kind: "monthly", low: 900, high: 900 }, "company")).toBe("The site pays: $900 a month");
+    expect(sitePaysLine({ kind: "monthly", low: 900, high: 900 }, "both")).toBe("The site pays: $900 a month (the company's own figure, not a quote)");
+    expect(pilotTermsLines({ ...OFFER.terms, siteProvides: ["wifi", "a_person"] })[2]).toBe("You provide: Wi-Fi and a person to help");
     expect(priceFindings(PILOT_OFFER_STATEMENT)).toEqual([]);
   });
 

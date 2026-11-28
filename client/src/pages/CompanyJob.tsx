@@ -417,8 +417,11 @@ function PilotRequestBanner({ user, page, onChanged }: { user: User; page: Compa
   const waiting = request.state === "requested" || request.state === "question" || request.state === "declined";
   return <section className="company-pilot-request" aria-label="Pilot request">
     <h2>{PILOT_REQUEST_BANNER}</h2>
-    <p className="ms-field-hint">{pilotRequestAskedLine(request.requestedAtIso)}</p>
-    <ul aria-label="Your pilot terms">{pilotTermsLines(request.terms).map(line => <li key={line}>{line}</li>)}</ul>
+    {/* After the introduction the sheet below holds the terms as of the request: they are not listed twice. */}
+    {!page.pilotSheet && <>
+      <p className="ms-field-hint">{pilotRequestAskedLine(request.requestedAtIso)}</p>
+      <ul aria-label="Your pilot terms">{pilotTermsLines(request.terms, "company").map(line => <li key={line}>{line}</li>)}</ul>
+    </>}
     {request.state === "question" && <p className="ms-field-hint">{PILOT_COMPANY_QUESTION}</p>}
     {request.state === "declined" && <p className="ms-field-hint">{PILOT_COMPANY_DECLINED}</p>}
     {status && <p role="status">{status}</p>}

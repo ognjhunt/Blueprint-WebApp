@@ -30,7 +30,7 @@ describe("the site's pilot offers", () => {
     expect(within(region).getByRole("heading", { name: "North Robotics" })).toBeVisible();
     expect(within(region).getByRole("link", { name: "https://north.example" })).toHaveAttribute("href", "https://north.example");
     for (const line of ["Pilot: 6 weeks", "Cost to you: $5,000 to $8,000 in total (the company's own figure, not a quote)",
-      "You provide: Floor space", "Earliest start: Within a month", "After a pilot that works: Per task or item"])
+      "You provide: floor space", "Earliest start: within a month", "After a pilot that works: per task or item"])
       expect(within(region).getByText(line)).toBeVisible();
     expect(within(region).getByText("You have not said how heavy the item is. This company takes up to 25 kg.")).toBeVisible();
     const button = within(region).getByRole("button", { name: "Request this pilot" });
@@ -83,6 +83,10 @@ describe("the site's pilot offers", () => {
     expect(within(sheet).getByText("“Stack cartons onto the pallet”")).toBeVisible();
     expect(within(sheet).getByText("Not stated")).toBeVisible();
     expect(within(sheet).getByText("Pilot: 6 weeks")).toBeVisible();
+    // The sheet is read by both sides, so it says "The site pays"; and the card does not list the terms a second time.
+    expect(within(sheet).getByText("The site pays: $5,000 to $8,000 in total (the company's own figure, not a quote)")).toBeVisible();
+    expect(screen.getAllByText("Pilot: 6 weeks")).toHaveLength(1);
+    expect(screen.queryByText(/^Cost to you/)).toBeNull();
     expect(within(sheet).getByText(PILOT_SHEET_FOOTER)).toBeVisible();
     expect(screen.getByText("The company confirmed on November 28, 2026. Its contact details are under Applicants.")).toBeVisible();
   });

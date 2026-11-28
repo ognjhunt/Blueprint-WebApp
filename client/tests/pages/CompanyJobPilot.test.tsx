@@ -39,7 +39,10 @@ describe("the site's request on the company's job page", () => {
     const banner = await screen.findByRole("region", { name: "Pilot request" });
     expect(within(banner).getByRole("heading", { name: "The site asked for your pilot offer." })).toBeVisible();
     expect(within(banner).getByText("Pilot: 6 weeks")).toBeVisible();
-    expect(within(banner).getByText("Cost to you: free")).toBeVisible();
+    // The company reads its own terms: "The site pays", never the site's "Cost to you".
+    expect(within(banner).getByText("The site pays: nothing")).toBeVisible();
+    expect(within(banner).getByText("The site provides: power")).toBeVisible();
+    expect(within(banner).queryByText(/^Cost to you|^You provide/)).toBeNull();
     const button = within(banner).getByRole("button", { name: "Confirm" });
     expect(button).toHaveAccessibleDescription(COMPANY_RESPONSE_STATEMENT);
     fireEvent.click(button);
@@ -68,6 +71,9 @@ describe("the site's request on the company's job page", () => {
     const sheet = await screen.findByRole("region", { name: "Pilot sheet" });
     expect(within(sheet).getByText("“Every carton square.”")).toBeVisible();
     expect(within(sheet).getByText(PILOT_SHEET_FOOTER)).toBeVisible();
+    // The sheet holds the terms as of the request, in words both sides read; the banner does not list them a second time.
+    expect(within(sheet).getByText("The site pays: nothing")).toBeVisible();
+    expect(screen.getAllByText("Pilot: 6 weeks")).toHaveLength(1);
     expect(screen.getByText("You confirmed on November 28, 2026. We emailed you and the site each other's contact details.")).toBeVisible();
   });
 
